@@ -21,6 +21,7 @@ function AdminLogin() {
             const res = await axios.post(`${API_BASE}/login`, { username, password });
             if (res.data.status === "success") {
                 setStatus("success");
+                localStorage.setItem("userRole", res.data.role);
                 setTimeout(() => {
                     navigate("/dashboard");
                 }, 1000);

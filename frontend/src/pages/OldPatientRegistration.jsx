@@ -10,6 +10,7 @@ function OldPatientRegistration() {
     const dateInputRef = useRef(null);
     const [camps, setCamps] = useState([]);
     const [patientFound, setPatientFound] = useState(false);
+    const [originalPatient, setOriginalPatient] = useState({});
     const [searchLoading, setSearchLoading] = useState(false);
     const [form, setForm] = useState({
         pid: "",
@@ -82,6 +83,7 @@ function OldPatientRegistration() {
                 // Patient found — fetch full details
                 const patientRes = await axios.get(`${API_BASE}/patient/${pid}`);
                 const patient = patientRes.data;
+                setOriginalPatient(patient);
                 setForm(prev => ({
                     ...prev,
                     name: patient.name || "",
@@ -130,10 +132,14 @@ function OldPatientRegistration() {
 
         setLoading(true);
         try {
-            const [d, m, y] = form.regdate.split('/');
-            const apiDate = `${y}-${m}-${d}`;
-
-            await axios.post(`${API_BASE}/register_patient`, { ...form, regdate: apiDate });
+            await axios.post(`${API_BASE}/register_patient`, { 
+                pid: form.pid,
+                name: form.name,
+                age: form.age,
+                gender: form.gender,
+                contact: form.contact,
+                address: form.address
+            });
             setSuccess(true);
             setForm(prev => ({
                 ...prev,
@@ -145,6 +151,7 @@ function OldPatientRegistration() {
                 address: "",
             }));
             setPatientFound(false);
+            setOriginalPatient({});
             setTimeout(() => setSuccess(false), 3000);
         } catch (err) {
             alert("Error registering patient: " + (err.response?.data?.message || err.message));
@@ -161,6 +168,7 @@ function OldPatientRegistration() {
         });
         setErrors({});
         setPatientFound(false);
+        setOriginalPatient({});
     };
 
     const inputBase = `w-full bg-white border rounded-xl px-4 py-3.5 text-[15px] font-medium placeholder:text-slate-400 focus:outline-none focus:ring-2 transition-all duration-300`;
@@ -254,8 +262,7 @@ function OldPatientRegistration() {
                                     placeholder="Auto-filled after search"
                                     value={form.name}
                                     onChange={(e) => handleChange("name", e.target.value)}
-                                    className={`${errors.name ? inputError : patientFound ? inputDisabled : inputNormal} text-slate-800`}
-                                    readOnly={patientFound}
+                                    className={`${errors.name ? inputError : inputNormal} text-slate-800`}
                                 />
                                 {errors.name && <p className="text-red-500 text-[11px] mt-2 font-bold">{errors.name}</p>}
                             </div>
@@ -268,8 +275,7 @@ function OldPatientRegistration() {
                                     placeholder="Auto-filled after search"
                                     value={form.age}
                                     onChange={(e) => handleChange("age", e.target.value)}
-                                    className={`${errors.age ? inputError : patientFound ? inputDisabled : inputNormal} text-slate-800`}
-                                    readOnly={patientFound}
+                                    className={`${errors.age ? inputError : inputNormal} text-slate-800`}
                                 />
                                 {errors.age && <p className="text-red-500 text-[11px] mt-2 font-bold">{errors.age}</p>}
                             </div>
@@ -290,8 +296,7 @@ function OldPatientRegistration() {
                                 <select
                                     value={form.gender}
                                     onChange={(e) => handleChange("gender", e.target.value)}
-                                    disabled={patientFound}
-                                    className={`${patientFound ? inputDisabled : inputNormal} appearance-none ${!form.gender ? 'text-slate-400' : 'text-slate-800'}`}
+                                    className={`${inputNormal} appearance-none ${!form.gender ? 'text-slate-400' : 'text-slate-800'}`}
                                 >
                                     <option value="">Select gender</option>
                                     <option value="Male">Male</option>
@@ -308,8 +313,7 @@ function OldPatientRegistration() {
                                     placeholder="Auto-filled after search"
                                     value={form.contact}
                                     onChange={(e) => handleChange("contact", e.target.value)}
-                                    className={`${errors.contact ? inputError : patientFound ? inputDisabled : inputNormal} text-slate-800`}
-                                    readOnly={patientFound}
+                                    className={`${errors.contact ? inputError : inputNormal} text-slate-800`}
                                 />
                                 {errors.contact && <p className="text-red-500 text-[11px] mt-2 font-bold">{errors.contact}</p>}
                             </div>
@@ -332,8 +336,7 @@ function OldPatientRegistration() {
                                     placeholder="Auto-filled after search"
                                     value={form.address}
                                     onChange={(e) => handleChange("address", e.target.value)}
-                                    className={`${errors.address ? inputError : patientFound ? inputDisabled : inputNormal} text-slate-800`}
-                                    readOnly={patientFound}
+                                    className={`${errors.address ? inputError : inputNormal} text-slate-800`}
                                 />
                                 {errors.address && <p className="text-red-500 text-[11px] mt-2 font-bold">{errors.address}</p>}
                             </div>

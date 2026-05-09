@@ -22,6 +22,7 @@ from .models import (
     TestIssue,
     Patient,
     CampWiseStock,
+    Doctor,
 )
 
 def charts_data(vitals):
@@ -235,6 +236,7 @@ def export(request):
     response['Content-Disposition'] = (
         'attachment; filename="stock_list.csv"'
     )
+    # pyrefly: ignore [missing-attribute]
     meds = Medicine.objects.order_by('uqid')
     writer = csv.writer(response)
     writer.writerow([
@@ -280,9 +282,48 @@ def api_get_medicines(request):
             'name': med.name,
             'formulation': med.formulation,
             'category': med.category.name if med.category else "General",
-            'stock': med.stock
+            'stock': med.stock,
+            'expiry_date': med.expiry_date.strftime('%Y-%m-%d') if med.expiry_date else None,
+            'company_name': med.company_name,
+            'cost': str(med.cost) if med.cost is not None else None
         })
     return JsonResponse(data, safe=False)
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_update_medicine_details(request):
+    try:
+        data = json.loads(request.body)
+        uqid = data.get('uqid')
+        medicine = get_object_or_404(Medicine, uqid=uqid)
+        
+        medicine.company_name = data.get('company_name', medicine.company_name)
+        
+        # Handle cost
+        cost = data.get('cost')
+        if cost is not None and cost != '':
+            medicine.cost = float(cost)
+        else:
+            medicine.cost = None
+            
+        # Handle expiry date
+        expiry = data.get('expiry_date')
+        if expiry and expiry.strip():
+            medicine.expiry_date = expiry
+        else:
+            medicine.expiry_date = None
+            
+        medicine.save()
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Medicine details updated successfully'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status=400)
 
 @csrf_exempt
 @require_http_methods(["POST"])
@@ -300,6 +341,7 @@ def api_add_medicine(request):
         if custom_uqid:
             try:
                 custom_uqid = int(custom_uqid)
+                # pyrefly: ignore [missing-attribute]
                 if Medicine.objects.filter(uqid=custom_uqid).exists():
                     return JsonResponse({'status': 'error', 'message': f'Medicine with UQID {custom_uqid} already exists'}, status=400)
                 new_uqid = custom_uqid
@@ -307,10 +349,13 @@ def api_add_medicine(request):
                 return JsonResponse({'status': 'error', 'message': 'UQID must be a number'}, status=400)
         else:
             # Generate new uqid
+            # pyrefly: ignore [untyped-import]
             from django.db.models import Max
+            # pyrefly: ignore [missing-attribute]
             max_uqid = Medicine.objects.aggregate(max_uqid=Max('uqid'))['max_uqid'] or 0
             new_uqid = max_uqid + 1
         
+        # pyrefly: ignore [missing-attribute]
         medicine = Medicine.objects.create(
             uqid=new_uqid,
             name=name,
@@ -351,21 +396,51 @@ def api_get_patient_details(request, patient_id):
             'qty': issue.qty
         })
     # pyrefly: ignore [missing-attribute]
-    vitals_qs = Vitals.objects.filter(
+    vitals_qs = PatientVitals.objects.filter(
         patient_id=patient_id
     ).order_by('camp__date')
     vitals_list = []
+    filtered_vitals_for_charts = []
+    
     for v in vitals_qs:
-        vitals_list.append({
-            'camp': f"{v.camp.venue.name} - {v.camp.number}",
-            'date': v.camp.date.strftime('%Y-%m-%d'),
-            'blood_pressure': v.blood_pressure,
-            'glucose': v.glucose,
-            'haemoglobin': v.haemoglobin
-        })
-    charts = charts_data(vitals_qs)
+        bp = (v.blood_pressure or '').strip()
+        glu = (v.glucose or '').strip()
+        hb = (v.haemoglobin or '').strip()
+        
+        # Check if there is any actual clinical data in this record
+        has_data = any(val not in ["NA", "-", "", None] for val in [bp, glu, hb])
+        
+        if has_data:
+            vitals_list.append({
+                'camp': f"{v.camp.venue.name} - {v.camp.number}",
+                'date': v.camp.date.strftime('%Y-%m-%d'),
+                'blood_pressure': bp if bp not in ["NA", "-"] else "",
+                'glucose': glu if glu not in ["NA", "-"] else "",
+                'haemoglobin': hb if hb not in ["NA", "-"] else ""
+            })
+            filtered_vitals_for_charts.append(v)
+
+    charts = charts_data(filtered_vitals_for_charts)
+    
+    # Fetch demographic details
+    patient_info = {}
+    try:
+        # pyrefly: ignore [missing-attribute]
+        p = Patient.objects.get(patient_id=patient_id)
+        patient_info = {
+            'name': p.patient_name or '',
+            'age': p.patient_age or '',
+            'gender': p.patient_gender or '',
+            'contact': p.contact_no or '',
+            'address': p.patient_addr or '',
+            'registered_date': str(p.registered_date) if p.registered_date else ''
+        }
+    except Patient.DoesNotExist:
+        pass
+
     return JsonResponse({
         'patient_id': patient_id,
+        'info': patient_info,
         'medicine_history': history,
         'vitals': vitals_list,
         'charts': charts
@@ -509,16 +584,24 @@ def api_save_vitals(request):
 def api_register_patient(request):
     try:
         data = json.loads(request.body)
+        defaults_data = {
+            'patient_name': data.get('name'),
+            'patient_gender': data.get('gender'),
+            'patient_addr': data.get('address'),
+            'patient_age': data.get('age'),
+            'contact_no': data.get('contact'),
+        }
+        
+        if data.get('regdate'):
+            defaults_data['registered_date'] = data.get('regdate')
+            
+        if data.get('camp_session'):
+            defaults_data['camp_session'] = data.get('camp_session')
+
         # pyrefly: ignore [missing-attribute]
-        patient = Patient.objects.create(
+        patient, created = Patient.objects.update_or_create(
             patient_id=data.get('pid'),
-            patient_name=data.get('name'),
-            patient_gender=data.get('gender'),
-            patient_addr=data.get('address'),
-            patient_age=data.get('age'),
-            contact_no=data.get('contact'),
-            registered_date=data.get('regdate'),
-            camp_session=data.get('camp_session')
+            defaults=defaults_data
         )
         return JsonResponse({
             'status': 'success',
@@ -529,6 +612,21 @@ def api_register_patient(request):
             'status': 'error',
             'message': str(e)
         }, status=400)
+
+def api_get_doctor(request, doctor_id):
+    try:
+        # pyrefly: ignore [missing-attribute, unknown-name]
+        doctor = Doctor.objects.get(id=doctor_id)
+        return JsonResponse({
+            'status': 'success',
+            'name': doctor.name
+        })
+    # pyrefly: ignore [missing-attribute, unknown-name]
+    except Doctor.DoesNotExist:
+        return JsonResponse({
+            'status': 'error',
+            'message': 'Doctor not found'
+        }, status=404)
 
 @csrf_exempt
 def api_login(request):
@@ -544,9 +642,16 @@ def api_login(request):
             )
             if user is not None:
                 login(request, user)
+                
+                # Get the user's role, default to main_admin if no profile exists
+                role = 'main_admin'
+                if hasattr(user, 'profile'):
+                    role = user.profile.role
+                    
                 return JsonResponse({
                     'status': 'success',
-                    'message': 'Login successful'
+                    'message': 'Login successful',
+                    'role': role
                 })
             return JsonResponse({
                 'status': 'error',
@@ -663,9 +768,10 @@ def api_allocate_to_camp(request):
                 'message': 'Insufficient stock'
             }, status=400)
         # pyrefly: ignore [missing-attribute]
-        camp_stock = CampWiseStock.objects.get(
+        camp_stock, created = CampWiseStock.objects.get_or_create(
             camp_id=camp_id,
-            medicine=medicine
+            medicine=medicine,
+            defaults={'allocated_stock': 0, 'used_stock': 0}
         )
         medicine.stock -= qty
         medicine.save()
@@ -864,14 +970,23 @@ def api_camp_patients(request, camp_id):
     registered_pids = set(
         # pyrefly: ignore [missing-attribute]
         Patient.objects.filter(
-            camp_session=camp.id
+            camp_session=camp.number
         ).values_list('patient_id', flat=True)
     )
+    
     all_pids = vitals_pids | issue_pids | test_pids | registered_pids
-    patient_names = {}
+    
+    patient_details = {}
     # pyrefly: ignore [missing-attribute]
     for p in Patient.objects.filter(patient_id__in=all_pids):
-        patient_names[p.patient_id] = (p.patient_name or '')
+        patient_details[p.patient_id] = {
+            'name': p.patient_name or '',
+            'age': p.patient_age or '',
+            'gender': p.patient_gender or '',
+            'contact': p.contact_no or '',
+            'address': p.patient_addr or '',
+            'registered_date': str(p.registered_date) if p.registered_date else ''
+        }
     result = []
     for pid in sorted(all_pids):
         # pyrefly: ignore [missing-attribute]
@@ -899,9 +1014,15 @@ def api_camp_patients(request, camp_id):
                 'test_name': ti.test.name,
                 'reports_issued': ti.reports_issued,
             })
+        p_data = patient_details.get(pid, {})
         result.append({
             'patient_id': pid,
-            'patient_name': patient_names.get(pid, ''),
+            'patient_name': p_data.get('name', ''),
+            'age': p_data.get('age', ''),
+            'gender': p_data.get('gender', ''),
+            'contact': p_data.get('contact', ''),
+            'address': p_data.get('address', ''),
+            'registered_date': p_data.get('registered_date', ''),
             'medicines': medicines,
             'tests': tests,
         })

@@ -13,6 +13,7 @@ const MedicineEntry = () => {
   const [viewMode, setViewMode] = useState('total'); // 'total' or 'camp'
   const [campStocks, setCampStocks] = useState([]);
   const [allocateQtys, setAllocateQtys] = useState({});
+  const [detailsForm, setDetailsForm] = useState({});
   const [camps, setCamps] = useState([]);
   const [selectedCamp, setSelectedCamp] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
@@ -51,16 +52,16 @@ const MedicineEntry = () => {
       return;
     }
     axios.get(`${API_BASE}/camp_stock/${selectedCamp}`).then(res => {
-      // Convert object {uqid: {allocated, used, remaining}} to array for mapping
-      const stocksArray = Object.keys(res.data).map(uqid => {
-        const med = medicines.find(m => m.uqid === parseInt(uqid));
+      // Map over all medicines to ensure every medicine appears in the camp-wise view
+      const stocksArray = medicines.map(med => {
+        const campData = res.data[med.uqid] || { allocated: 0, used: 0, remaining: 0 };
         return {
-          uqid: parseInt(uqid),
-          medication: med ? med.name : 'Unknown Medication',
-          total_stock: med ? med.stock : 0,
-          camp_stock: res.data[uqid].allocated,
-          used_stock: res.data[uqid].used,
-          remaining_stock: res.data[uqid].remaining
+          uqid: med.uqid,
+          medication: med.name,
+          total_stock: med.stock,
+          camp_stock: campData.allocated,
+          used_stock: campData.used,
+          remaining_stock: campData.remaining
         };
       });
       setCampStocks(stocksArray);
@@ -157,6 +158,41 @@ const MedicineEntry = () => {
       fetchCampStocks();
     } catch (err) {
       alert('Error returning stock: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const handleDetailsChange = (uqid, field, value) => {
+    setDetailsForm(prev => ({
+      ...prev,
+      [uqid]: {
+        ...prev[uqid],
+        [field]: value
+      }
+    }));
+  };
+
+  const handleSaveDetails = async (uqid) => {
+    const medDetails = detailsForm[uqid] || {};
+    // If not edited, fall back to current values
+    const med = medicines.find(m => m.uqid === uqid);
+    
+    const cost = medDetails.cost !== undefined ? medDetails.cost : med.cost;
+    const company = medDetails.company_name !== undefined ? medDetails.company_name : med.company_name;
+    const expiry = medDetails.expiry_date !== undefined ? medDetails.expiry_date : med.expiry_date;
+
+    try {
+      const res = await axios.post(`${API_BASE}/update_medicine_details`, {
+        uqid: uqid,
+        cost: cost,
+        company_name: company,
+        expiry_date: expiry
+      });
+      
+      setSuccessMsg(res.data.message);
+      setTimeout(() => setSuccessMsg(''), 3000);
+      fetchMedicines(); // Refresh to get updated DB data
+    } catch (err) {
+      alert('Error updating details: ' + (err.response?.data?.message || err.message));
     }
   };
 
@@ -258,6 +294,17 @@ const MedicineEntry = () => {
         >
           <Landmark size={18} strokeWidth={2.5} />
           Camp Wise Entry
+        </button>
+        <button 
+          onClick={() => setViewMode('details')}
+          className={`flex items-center gap-3 px-8 py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.15em] transition-all duration-300 ${
+            viewMode === 'details' 
+              ? 'bg-teal-600 text-white shadow-xl shadow-teal-100 scale-[1.02]' 
+              : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-50 hover:text-slate-600'
+          }`}
+        >
+          <Pill size={18} strokeWidth={2.5} />
+          Medicine Details
         </button>
         
         {viewMode === 'camp' && (
@@ -468,7 +515,7 @@ const MedicineEntry = () => {
               </tbody>
             </table>
           </div>
-        ) : (
+        ) : viewMode === 'camp' ? (
           /* Camp Wise View */
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -561,6 +608,76 @@ const MedicineEntry = () => {
                 ) : (
                    <tr>
                     <td colSpan="5" className="px-8 py-24 text-center text-slate-400 font-bold">No records found for camp allocation</td>
+                   </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          /* Medicine Details View */
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                  <th className="px-8 py-5">UQID</th>
+                  <th className="px-8 py-5">Medication Name</th>
+                  <th className="px-8 py-5">Company Name</th>
+                  <th className="px-8 py-5">Cost (₹)</th>
+                  <th className="px-8 py-5">Expiry Date</th>
+                  <th className="px-8 py-5 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {filteredMeds.length > 0 ? (
+                  filteredMeds.map((med) => {
+                    const formState = detailsForm[med.uqid] || {};
+                    return (
+                      <tr key={`details-${med.uqid}`} className="hover:bg-slate-50/40 transition-all group">
+                        <td className="px-8 py-6">
+                           <span className="font-data text-xs font-bold text-slate-400">#{med.uqid}</span>
+                        </td>
+                        <td className="px-8 py-6 font-black text-slate-800">{med.name}</td>
+                        <td className="px-8 py-6">
+                          <input
+                            type="text"
+                            placeholder="e.g. Pfizer"
+                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-500"
+                            value={formState.company_name !== undefined ? formState.company_name : (med.company_name || '')}
+                            onChange={(e) => handleDetailsChange(med.uqid, 'company_name', e.target.value)}
+                          />
+                        </td>
+                        <td className="px-8 py-6">
+                          <input
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            className="w-24 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-data focus:outline-none focus:border-teal-500"
+                            value={formState.cost !== undefined ? formState.cost : (med.cost || '')}
+                            onChange={(e) => handleDetailsChange(med.uqid, 'cost', e.target.value)}
+                          />
+                        </td>
+                        <td className="px-8 py-6">
+                          <input
+                            type="date"
+                            className="w-auto bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-500 text-slate-600"
+                            value={formState.expiry_date !== undefined ? formState.expiry_date : (med.expiry_date || '')}
+                            onChange={(e) => handleDetailsChange(med.uqid, 'expiry_date', e.target.value)}
+                          />
+                        </td>
+                        <td className="px-8 py-6 text-right">
+                          <button
+                            onClick={() => handleSaveDetails(med.uqid)}
+                            className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-sm text-xs font-black uppercase tracking-wider"
+                          >
+                            Save
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                   <tr>
+                    <td colSpan="6" className="px-8 py-24 text-center text-slate-400 font-bold">No records found</td>
                    </tr>
                 )}
               </tbody>

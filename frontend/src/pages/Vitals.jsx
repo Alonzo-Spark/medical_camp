@@ -11,7 +11,7 @@ import {
 const API_BASE = 'http://127.0.0.1:8000/api';
 
 // Input field component for consistency - MOVED OUTSIDE to prevent re-mounting bug
-const VitalInput = ({ icon: Icon, label, value, onChange, type = 'text', placeholder = '', iconColor = 'text-teal-500', required = false, colSpan = '' }) => (
+const VitalInput = ({ icon: Icon, label, value, onChange, type = 'text', placeholder = '', iconColor = 'text-teal-500', required = false, colSpan = '', readOnly = false }) => (
   <div className={`space-y-2 ${colSpan}`}>
     <label className="flex items-center gap-1.5 text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
       {Icon && <Icon size={11} className={iconColor} strokeWidth={2.5} />}
@@ -21,7 +21,8 @@ const VitalInput = ({ icon: Icon, label, value, onChange, type = 'text', placeho
     <input
       type={type}
       required={required}
-      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 placeholder:text-slate-300 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 outline-none transition-all shadow-sm hover:border-slate-300"
+      readOnly={readOnly}
+      className={`w-full border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 placeholder:text-slate-300 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 outline-none transition-all shadow-sm ${readOnly ? 'bg-slate-50 cursor-not-allowed text-slate-500' : 'bg-white hover:border-slate-300'}`}
       placeholder={placeholder}
       value={value}
       onChange={e => onChange(e.target.value)}
@@ -83,6 +84,29 @@ const Vitals = () => {
       setCampStocks({});
     }
   }, [selectedCamp]);
+
+  // Effect to auto-fill Doctor Name
+  useEffect(() => {
+    if (!drId) {
+      setDrName('');
+      return;
+    }
+    
+    const timer = setTimeout(() => {
+      axios.get(`${API_BASE}/doctor/${drId}`)
+        .then(res => {
+          if (res.data.status === 'success') {
+            setDrName(res.data.name);
+          }
+        })
+        .catch(err => {
+          // Do not clear the doctor name on error so they can type it manually
+          console.log("Doctor not found for auto-fill");
+        });
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [drId]);
 
   const addMedicineRow = () => {
     setMedicines(prev => [
@@ -281,8 +305,8 @@ const Vitals = () => {
 
           {/* Row 4: Dr Name, Dr ID */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-            <VitalInput icon={Hash} label="Dr. ID" value={drId} onChange={setDrId} placeholder="Doctor ID" iconColor="text-indigo-500" />
-            <VitalInput icon={Stethoscope} label="Dr. Name" value={drName} onChange={setDrName} placeholder="Doctor Name" iconColor="text-blue-500" />
+            <VitalInput icon={Hash} label="Dr. ID" value={drId} onChange={setDrId} placeholder="Enter ID to search" iconColor="text-indigo-500" />
+            <VitalInput icon={Stethoscope} label="Dr. Name" value={drName} onChange={setDrName} placeholder="Auto-filled or type manually" iconColor="text-blue-500" />
           </div>
 
           {/* Row 5: Diagnosis & Tests */}

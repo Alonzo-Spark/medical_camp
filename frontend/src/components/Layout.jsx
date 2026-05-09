@@ -32,8 +32,18 @@ const SidebarLink = ({ to, icon: Icon, label, active }) => (
 const Layout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const adminUsername = localStorage.getItem('medicamp_username') || 'Admin';
+  const adminUsername = localStorage.getItem('medicamp_username') || 'User';
   const initials = adminUsername.slice(0, 2).toUpperCase();
+  const userRole = localStorage.getItem('userRole') || 'main_admin';
+
+  const formatRole = (role) => {
+    switch (role) {
+      case 'registration_staff': return 'Registration Staff';
+      case 'log_vitals_staff': return 'Vitals Staff';
+      case 'main_admin': return 'Main Admin';
+      default: return 'Medical Staff';
+    }
+  };
 
   const getPageTitle = () => {
     const path = location.pathname;
@@ -85,13 +95,31 @@ const Layout = () => {
             Clinical Menu
           </p>
           <nav className="flex flex-col gap-1">
-            <SidebarLink to="/camp-registration" icon={Stethoscope} label="Camp Registration" active={location.pathname === '/camp-registration'} />
-            <SidebarLink to="/camp-patients" icon={Users} label="Camp Patient List" active={location.pathname === '/camp-patients'} />
-            <SidebarLink to="/doctors" icon={UserCircle} label="Doctors List" active={location.pathname === '/doctors'} />
-            <SidebarLink to="/dashboard" icon={LayoutDashboard} label="Dashboard" active={location.pathname === '/dashboard'} />
-            <SidebarLink to="/vitals" icon={Activity} label="Log Vitals" active={location.pathname === '/vitals'} />
-            <SidebarLink to="/inventory" icon={Pill} label="Inventory" active={location.pathname === '/inventory'} />
-            <SidebarLink to="/medicine-entry" icon={PlusSquare} label="Stock Entry" active={location.pathname === '/medicine-entry'} />
+            {(userRole === 'main_admin' || userRole === 'registration_staff') && (
+              <>
+                <SidebarLink to="/camp-registration" icon={Stethoscope} label="Camp Registration" active={location.pathname === '/camp-registration'} />
+                <SidebarLink to="/dashboard" icon={LayoutDashboard} label="Dashboard" active={location.pathname === '/dashboard'} />
+              </>
+            )}
+            
+            {(userRole === 'main_admin' || userRole === 'registration_staff' || userRole === 'log_vitals_staff') && (
+              <SidebarLink to="/camp-patients" icon={Users} label="Camp Patient List" active={location.pathname === '/camp-patients'} />
+            )}
+
+            {(userRole === 'main_admin' || userRole === 'log_vitals_staff') && (
+              <>
+                <SidebarLink to="/vitals" icon={Activity} label="Log Vitals" active={location.pathname === '/vitals'} />
+                <SidebarLink to="/doctors" icon={UserCircle} label="Doctors List" active={location.pathname === '/doctors'} />
+              </>
+            )}
+
+            {userRole === 'main_admin' && (
+              <>
+                <SidebarLink to="/inventory" icon={Pill} label="Inventory" active={location.pathname === '/inventory'} />
+                <SidebarLink to="/medicine-entry" icon={PlusSquare} label="Stock Entry" active={location.pathname === '/medicine-entry'} />
+              </>
+            )}
+
           </nav>
         </div>
 
@@ -103,11 +131,15 @@ const Layout = () => {
             </div>
             <div className="flex flex-col">
               <span className="text-sm font-extrabold text-slate-800 capitalize">{adminUsername}</span>
-              <span className="text-[10px] font-bold text-teal-600 uppercase tracking-[0.15em]">Medical Staff</span>
+              <span className="text-[10px] font-bold text-teal-600 uppercase tracking-[0.15em]">{formatRole(userRole)}</span>
             </div>
           </div>
           <button
-            onClick={() => { localStorage.removeItem('medicamp_username'); navigate('/login'); }}
+            onClick={() => { 
+              localStorage.removeItem('medicamp_username'); 
+              localStorage.removeItem('userRole'); 
+              navigate('/login'); 
+            }}
             className="flex items-center justify-center gap-2 w-full py-2.5 text-xs font-bold text-slate-400 hover:text-red-500 bg-white rounded-lg transition-all duration-200 border border-slate-200 hover:border-red-200 hover:bg-red-50"
           >
             <LogOut size={15} />

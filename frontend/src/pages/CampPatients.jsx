@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
   ClipboardList, Landmark, Users, ChevronUp, ChevronDown, 
-  Pill, FlaskConical, Search
+  Pill, FlaskConical, Search, X, Save
 } from 'lucide-react';
 
 const API_BASE = 'http://127.0.0.1:8000/api';
@@ -51,6 +51,10 @@ const CampPatients = () => {
       alert('Error updating record: ' + (err.response?.data?.message || err.message));
     }
   };
+
+
+
+
 
   const filteredPatients = campPatients.filter(pat => {
     if (!searchQuery) return true;
@@ -193,6 +197,18 @@ const CampPatients = () => {
                   {/* Expanded Details */}
                   {isExpanded && (
                     <div className="px-5 pb-5 pt-1 border-t border-slate-100">
+                      
+                      {/* Patient Info Row */}
+                      <div className="flex items-center justify-between mt-3 mb-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        <div className="flex gap-6 text-xs font-bold text-slate-600">
+                          <div><span className="text-slate-400 uppercase tracking-wider text-[10px] block mb-0.5">Age</span>{pat.age || '—'}</div>
+                          <div><span className="text-slate-400 uppercase tracking-wider text-[10px] block mb-0.5">Gender</span>{pat.gender || '—'}</div>
+                          <div><span className="text-slate-400 uppercase tracking-wider text-[10px] block mb-0.5">Contact</span>{pat.contact || '—'}</div>
+                          <div><span className="text-slate-400 uppercase tracking-wider text-[10px] block mb-0.5">Reg Date</span>{pat.registered_date || '—'}</div>
+                          <div><span className="text-slate-400 uppercase tracking-wider text-[10px] block mb-0.5">Address</span>{pat.address || '—'}</div>
+                        </div>
+                      </div>
+
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-4">
 
                         {/* Medicines */}
@@ -299,6 +315,7 @@ const CampPatients = () => {
           </div>
         )}
       </div>
+
     </div>
   );
 };

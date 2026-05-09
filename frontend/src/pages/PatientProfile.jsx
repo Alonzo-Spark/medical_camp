@@ -11,7 +11,10 @@ import {
   Calendar,
   Layers,
   ChevronRight,
-  Heart
+  Heart,
+  Edit,
+  X,
+  Save
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -44,6 +47,11 @@ const PatientProfile = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  
+  // Edit Patient State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingPatient, setEditingPatient] = useState(null);
+  const [editSaving, setEditSaving] = useState(false);
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -62,6 +70,51 @@ const PatientProfile = () => {
       setError('Error fetching patient data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEditClick = () => {
+    if (!data || !data.info) return;
+    setEditingPatient({
+      pid: data.patient_id,
+      name: data.info.name || '',
+      age: data.info.age ? String(data.info.age) : '',
+      gender: data.info.gender || '',
+      contact: data.info.contact || '',
+      address: data.info.address || '',
+      regdate: data.info.registered_date || ''
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    setEditSaving(true);
+
+    try {
+      await axios.post(`${API_BASE}/register_patient`, {
+        ...editingPatient
+      });
+      
+      // Update local state
+      setData(prev => ({
+        ...prev,
+        info: {
+          ...prev.info,
+          name: editingPatient.name,
+          age: editingPatient.age,
+          gender: editingPatient.gender,
+          contact: editingPatient.contact,
+          address: editingPatient.address,
+          registered_date: editingPatient.regdate
+        }
+      }));
+      
+      setIsEditModalOpen(false);
+    } catch (err) {
+      alert("Error updating patient details: " + (err.response?.data?.message || err.message));
+    } finally {
+      setEditSaving(false);
     }
   };
 
@@ -236,17 +289,40 @@ const PatientProfile = () => {
               </div>
               <div>
                 <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2 tracking-tight">
-                  <User size={20} className="text-teal-500" /> Patient Analytics
+                  <User size={20} className="text-teal-500" /> 
+                  {data.info.name || 'Patient Analytics'}
                 </h2>
-                <div className="flex items-center gap-4 mt-1">
-                  <span className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-400 flex items-center gap-1">
-                    <Calendar size={10} /> Verified Record
-                  </span>
-                  <div className="w-1 h-1 rounded-full bg-slate-300" />
-                  <span className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-emerald-500">Live Sync</span>
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-2">
+                  <div className="flex flex-col">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Age</span>
+                    <span className="text-xs font-bold text-slate-600">{data.info.age || '—'}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Gender</span>
+                    <span className="text-xs font-bold text-slate-600">{data.info.gender || '—'}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Contact</span>
+                    <span className="text-xs font-bold text-slate-600">{data.info.contact || '—'}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Reg Date</span>
+                    <span className="text-xs font-bold text-slate-600">{data.info.registered_date || '—'}</span>
+                  </div>
+                  <div className="flex flex-col border-l border-slate-100 pl-6">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Address</span>
+                    <span className="text-xs font-bold text-slate-600">{data.info.address || '—'}</span>
+                  </div>
                 </div>
               </div>
             </div>
+            <button
+              type="button"
+              onClick={handleEditClick}
+              className="flex items-center gap-2 px-6 py-3 bg-teal-50 text-teal-600 border border-teal-200 rounded-xl text-xs font-black uppercase tracking-wider hover:bg-teal-100 transition-all active:scale-[0.98]"
+            >
+              <Edit size={16} /> Edit Demographics
+            </button>
           </div>
 
           {/* Charts Row */}
@@ -338,6 +414,111 @@ const PatientProfile = () => {
           </div>
           <h4 className="text-2xl font-black text-slate-400 mb-2 tracking-tight uppercase tracking-widest text-lg">Diagnostics Repository</h4>
           <p className="text-slate-400 max-w-sm text-center font-bold text-sm">Input a patient ID to retrieve and visualize clinical metrics and medicine history.</p>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {isEditModalOpen && editingPatient && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col animate-in fade-in zoom-in duration-300">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50/50">
+              <h3 className="font-black text-slate-800 flex items-center gap-2">
+                <Edit size={16} className="text-teal-500" /> Edit Patient Profile
+              </h3>
+              <button 
+                onClick={() => setIsEditModalOpen(false)}
+                className="text-slate-400 hover:text-rose-500 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleSaveEdit} className="p-5 space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Patient Name</label>
+                <input 
+                  type="text" 
+                  value={editingPatient.name}
+                  onChange={(e) => setEditingPatient({...editingPatient, name: e.target.value})}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-teal-500/30 outline-none"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Age</label>
+                  <input 
+                    type="number" 
+                    value={editingPatient.age}
+                    onChange={(e) => setEditingPatient({...editingPatient, age: e.target.value})}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-teal-500/30 outline-none"
+                    required
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Gender</label>
+                  <select 
+                    value={editingPatient.gender}
+                    onChange={(e) => setEditingPatient({...editingPatient, gender: e.target.value})}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-teal-500/30 outline-none"
+                  >
+                    <option value="">Select</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Contact No.</label>
+                  <input 
+                    type="text" 
+                    value={editingPatient.contact}
+                    onChange={(e) => setEditingPatient({...editingPatient, contact: e.target.value})}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-teal-500/30 outline-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Registration Date</label>
+                  <input 
+                    type="date" 
+                    value={editingPatient.regdate}
+                    onChange={(e) => setEditingPatient({...editingPatient, regdate: e.target.value})}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-teal-500/30 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Address</label>
+                <textarea 
+                  value={editingPatient.address}
+                  onChange={(e) => setEditingPatient({...editingPatient, address: e.target.value})}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-teal-500/30 outline-none min-h-[80px]"
+                />
+              </div>
+
+              <div className="pt-4 flex items-center justify-end gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="px-5 py-2.5 text-xs font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-all"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  disabled={editSaving}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-teal-100 disabled:opacity-50"
+                >
+                  {editSaving ? 'Saving...' : <><Save size={14} /> Save Changes</>}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>
