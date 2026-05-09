@@ -28,26 +28,56 @@ from .models import (
 
 def charts_data(vitals):
     all_vitals = {
-        "blood_pressure": {},
-        "glucose": {},
-        "haemoglobin": {}
+        "blood_pressure": [],
+        "glucose": [],
+        "haemoglobin": []
     }
     for vital in vitals:
-        d_str = vital.camp.date.strftime('%Y-%m-%d')
+        # Determine the most accurate date available
+        d_obj = None
+        if hasattr(vital, 'date') and vital.date:
+            d_obj = vital.date
+        elif vital.camp and vital.camp.date:
+            d_obj = vital.camp.date
+        
+        if not d_obj:
+            continue
+            
+        d_str = d_obj.strftime('%Y-%m-%d')
+        
         bp_value = (vital.blood_pressure or '').strip()
         glucose_value = (vital.glucose or '').strip()
+        
+        # RBS check for PatientVitals specifically
+        if not glucose_value and hasattr(vital, 'rbs') and vital.rbs:
+            glucose_value = (vital.rbs or '').strip()
+            
         hb_value = (vital.haemoglobin or '').strip()
+        
         if bp_value not in ["NA", "-", ""]:
-            bp = bp_value.split('/')
-            if len(bp) >= 2:
-                all_vitals['blood_pressure'][d_str] = {
-                    "systolic": bp[0],
-                    "diastolic": bp[1]
-                }
+            bp_parts = bp_value.split('/')
+            systolic = bp_parts[0].strip()
+            diastolic = bp_parts[1].strip() if len(bp_parts) > 1 else ""
+            
+            if systolic or diastolic:
+                all_vitals['blood_pressure'].append({
+                    "label": d_str,
+                    "systolic": systolic,
+                    "diastolic": diastolic
+                })
+                
         if glucose_value not in ["NA", "-", ""]:
-            all_vitals['glucose'][d_str] = glucose_value
+            all_vitals['glucose'].append({
+                "label": d_str,
+                "value": glucose_value
+            })
+            
         if hb_value not in ["NA", "-", ""]:
-            all_vitals['haemoglobin'][d_str] = hb_value
+            all_vitals['haemoglobin'].append({
+                "label": d_str,
+                "value": hb_value
+            })
+            
     return all_vitals
 
 def get_patient_profile(request):
@@ -408,8 +438,15 @@ def api_get_patient_details(request, patient_id):
     for v in new_vitals:
         combined_vitals.append(v)
         
-    # Sort combined vitals by camp date
-    combined_vitals.sort(key=lambda x: x.camp.date if x.camp and x.camp.date else datetime.date.min)
+    # Sort combined vitals by the date they were recorded (or camp date fallback)
+    def get_vital_date(v):
+        if hasattr(v, 'date') and v.date:
+            return v.date
+        if v.camp and v.camp.date:
+            return v.camp.date
+        return datetime.date.min
+
+    combined_vitals.sort(key=get_vital_date)
 
     vitals_list = []
     filtered_vitals_for_charts = []
@@ -417,15 +454,26 @@ def api_get_patient_details(request, patient_id):
     for v in combined_vitals:
         bp = (v.blood_pressure or '').strip()
         glu = (v.glucose or '').strip()
+        # RBS check for PatientVitals
+        if not glu and hasattr(v, 'rbs') and v.rbs:
+            glu = (v.rbs or '').strip()
+            
         hb = (v.haemoglobin or '').strip()
         
         # Check if there is any actual clinical data in this record
         has_data = any(val not in ["NA", "-", "", None] for val in [bp, glu, hb])
         
         if has_data:
+            # Determine best date for display
+            display_date = 'N/A'
+            if hasattr(v, 'date') and v.date:
+                display_date = v.date.strftime('%Y-%m-%d')
+            elif v.camp and v.camp.date:
+                display_date = v.camp.date.strftime('%Y-%m-%d')
+
             vitals_list.append({
                 'camp': f"{v.camp.venue.name if v.camp and v.camp.venue else 'Unknown'} - {v.camp.number if v.camp else '?'}",
-                'date': v.camp.date.strftime('%Y-%m-%d') if v.camp and v.camp.date else 'N/A',
+                'date': display_date,
                 'blood_pressure': bp if bp not in ["NA", "-"] else "",
                 'glucose': glu if glu not in ["NA", "-"] else "",
                 'haemoglobin': hb if hb not in ["NA", "-"] else ""
@@ -447,6 +495,7 @@ def api_get_patient_details(request, patient_id):
             'address': p.patient_addr or '',
             'registered_date': str(p.registered_date) if p.registered_date else ''
         }
+    # pyrefly: ignore [missing-attribute]
     except Patient.DoesNotExist:
         pass
 

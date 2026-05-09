@@ -156,10 +156,10 @@ const PatientProfile = () => {
   });
 
   const getHBChartData = () => ({
-    labels: Object.keys(data.charts.haemoglobin),
+    labels: data.charts.haemoglobin.map(i => i.label),
     datasets: [{
       label: 'Haemoglobin',
-      data: Object.values(data.charts.haemoglobin),
+      data: data.charts.haemoglobin.map(i => parseFloat(i.value) || 0),
       borderColor: '#f43f5e',
       borderWidth: 3,
       pointBackgroundColor: '#f43f5e',
@@ -174,10 +174,10 @@ const PatientProfile = () => {
   });
 
   const getSugarChartData = () => ({
-    labels: Object.keys(data.charts.glucose),
+    labels: data.charts.glucose.map(i => i.label),
     datasets: [{
       label: 'Sugar',
-      data: Object.values(data.charts.glucose),
+      data: data.charts.glucose.map(i => parseFloat(i.value) || 0),
       borderColor: '#f59e0b',
       borderWidth: 3,
       pointBackgroundColor: '#f59e0b',
@@ -192,13 +192,12 @@ const PatientProfile = () => {
   });
 
   const getBPChartData = () => {
-    const dates = Object.keys(data.charts.blood_pressure);
     return {
-      labels: dates,
+      labels: data.charts.blood_pressure.map(i => i.label),
       datasets: [
         {
           label: 'Systolic',
-          data: dates.map(d => data.charts.blood_pressure[d].systolic),
+          data: data.charts.blood_pressure.map(i => parseFloat(i.systolic) || 0),
           borderColor: '#0ea5e9',
           borderWidth: 3,
           pointBackgroundColor: '#0ea5e9',
@@ -208,7 +207,7 @@ const PatientProfile = () => {
         },
         {
           label: 'Diastolic',
-          data: dates.map(d => data.charts.blood_pressure[d].diastolic),
+          data: data.charts.blood_pressure.map(i => parseFloat(i.diastolic) || 0),
           borderColor: '#8b5cf6',
           borderWidth: 3,
           pointBackgroundColor: '#8b5cf6',
@@ -332,7 +331,7 @@ const PatientProfile = () => {
               { id: 'sugar', data: getSugarChartData, label: 'glucose', title: 'Sugar / Glucose trend', color: 'amber' },
               { id: 'bp', data: getBPChartData, label: 'blood_pressure', title: 'Blood Pressure trend', color: 'blue' }
             ].map(chart => (
-              Object.keys(data.charts[chart.label]).length > 0 && (
+              data.charts[chart.label] && data.charts[chart.label].length > 0 && (
                 <div key={chart.id} className="glass-panel-light p-6 h-[320px] hover:border-teal-500/30 transition-all group">
                   <Line data={chart.data()} options={chartOptions(chart.title, chart.color)} />
                 </div>
