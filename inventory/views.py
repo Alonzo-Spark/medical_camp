@@ -8,6 +8,7 @@ from django.db import transaction
 
 import json
 import csv
+import datetime
 
 from .forms import IssueForm, VitalsForm
 from .models import (
@@ -395,14 +396,25 @@ def api_get_patient_details(request, patient_id):
             'medicine': issue.medicine.name,
             'qty': issue.qty
         })
+    # Fetch vitals from both old and new tables for backward compatibility
     # pyrefly: ignore [missing-attribute]
-    vitals_qs = PatientVitals.objects.filter(
-        patient_id=patient_id
-    ).order_by('camp__date')
+    old_vitals = Vitals.objects.filter(patient_id=patient_id)
+    # pyrefly: ignore [missing-attribute]
+    new_vitals = PatientVitals.objects.filter(patient_id=patient_id)
+    
+    combined_vitals = []
+    for v in old_vitals:
+        combined_vitals.append(v)
+    for v in new_vitals:
+        combined_vitals.append(v)
+        
+    # Sort combined vitals by camp date
+    combined_vitals.sort(key=lambda x: x.camp.date if x.camp and x.camp.date else datetime.date.min)
+
     vitals_list = []
     filtered_vitals_for_charts = []
     
-    for v in vitals_qs:
+    for v in combined_vitals:
         bp = (v.blood_pressure or '').strip()
         glu = (v.glucose or '').strip()
         hb = (v.haemoglobin or '').strip()
@@ -412,8 +424,8 @@ def api_get_patient_details(request, patient_id):
         
         if has_data:
             vitals_list.append({
-                'camp': f"{v.camp.venue.name} - {v.camp.number}",
-                'date': v.camp.date.strftime('%Y-%m-%d'),
+                'camp': f"{v.camp.venue.name if v.camp and v.camp.venue else 'Unknown'} - {v.camp.number if v.camp else '?'}",
+                'date': v.camp.date.strftime('%Y-%m-%d') if v.camp and v.camp.date else 'N/A',
                 'blood_pressure': bp if bp not in ["NA", "-"] else "",
                 'glucose': glu if glu not in ["NA", "-"] else "",
                 'haemoglobin': hb if hb not in ["NA", "-"] else ""

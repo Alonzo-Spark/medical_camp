@@ -60,8 +60,8 @@ const PatientProfile = () => {
     setError('');
     try {
       const res = await axios.get(`${API_BASE}/patient/${patientId}`);
-      if (res.data.vitals.length === 0 && Object.keys(res.data.medicine_history).length === 0) {
-        setError('Information about this patient is unavailable');
+      if (!res.data.info || Object.keys(res.data.info).length === 0) {
+        setError('Patient record not found in the repository');
         setData(null);
       } else {
         setData(res.data);
@@ -361,14 +361,22 @@ const PatientProfile = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {data.vitals.map((v) => (
-                    <tr key={v.date} className="hover:bg-teal-50/40 transition-colors group">
-                      <td className="py-5 text-sm font-bold text-slate-500">{v.date}</td>
-                      <td className="py-5 font-data text-blue-600 font-bold">{v.blood_pressure}</td>
-                      <td className="py-5 font-data text-amber-600 font-bold">{v.glucose}</td>
-                      <td className="py-5 font-data text-rose-600 font-bold">{v.haemoglobin}</td>
+                  {data.vitals.length > 0 ? (
+                    data.vitals.map((v) => (
+                      <tr key={v.date} className="hover:bg-teal-50/40 transition-colors group">
+                        <td className="py-5 text-sm font-bold text-slate-500">{v.date}</td>
+                        <td className="py-5 font-data text-blue-600 font-bold">{v.blood_pressure}</td>
+                        <td className="py-5 font-data text-amber-600 font-bold">{v.glucose}</td>
+                        <td className="py-5 font-data text-rose-600 font-bold">{v.haemoglobin}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="4" className="py-12 text-center text-slate-400 font-bold italic">
+                        No clinical vitals recorded for this patient.
+                      </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
@@ -381,28 +389,34 @@ const PatientProfile = () => {
                   <History className="text-teal-600" size={24} />
                 </div>
                 <h3 className="text-xl font-black text-slate-800 tracking-tight">Medicine Fulfillment</h3>
-              </div>
-              <div className="space-y-8 max-h-[600px] overflow-auto pr-2 custom-scrollbar">
-                {Object.entries(data.medicine_history).map(([camp, items], i) => (
-                  <div key={i} className="relative pl-6 border-l-2 border-slate-100 pb-2 last:pb-0">
-                    <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-white border-2 border-teal-500 shadow-sm" />
-                    <h4 className="text-[10px] font-black text-teal-600 uppercase tracking-[0.2em] mb-4">{camp}</h4>
-                    <div className="space-y-3">
-                      {items.map((item) => (
-                        <div key={`${camp}-${item.medicine}`} className="flex items-center justify-between bg-slate-50/50 border border-slate-100 p-4 rounded-xl group hover:border-teal-200 transition-all">
-                          <div className="flex items-center gap-3">
-                            <Layers size={14} className="text-slate-400 group-hover:text-teal-500 transition-colors" />
-                            <span className="text-sm font-bold text-slate-700 group-hover:text-teal-900">{item.medicine}</span>
+                          <div className="space-y-8 max-h-[600px] overflow-auto pr-2 custom-scrollbar">
+                {Object.keys(data.medicine_history).length > 0 ? (
+                  Object.entries(data.medicine_history).map(([camp, items], i) => (
+                    <div key={i} className="relative pl-6 border-l-2 border-slate-100 pb-2 last:pb-0">
+                      <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-white border-2 border-teal-500 shadow-sm" />
+                      <h4 className="text-[10px] font-black text-teal-600 uppercase tracking-[0.2em] mb-4">{camp}</h4>
+                      <div className="space-y-3">
+                        {items.map((item) => (
+                          <div key={`${camp}-${item.medicine}`} className="flex items-center justify-between bg-slate-50/50 border border-slate-100 p-4 rounded-xl group hover:border-teal-200 transition-all">
+                            <div className="flex items-center gap-3">
+                              <Layers size={14} className="text-slate-400 group-hover:text-teal-500 transition-colors" />
+                              <span className="text-sm font-bold text-slate-700 group-hover:text-teal-900">{item.medicine}</span>
+                            </div>
+                            <span className="text-[10px] font-black text-teal-700 bg-teal-50 border border-teal-100 px-3 py-1 rounded-lg">
+                              {item.qty} QTY
+                            </span>
                           </div>
-                          <span className="text-[10px] font-black text-teal-700 bg-teal-50 border border-teal-100 px-3 py-1 rounded-lg">
-                            {item.qty} QTY
-                          </span>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                    <History size={32} strokeWidth={1} className="mb-2 opacity-50" />
+                    <p className="text-xs font-bold italic">No medicine history found.</p>
                   </div>
-                ))}
-              </div>
+                )}
+              </div>    </div>
           </div>
         </div>
       )}
