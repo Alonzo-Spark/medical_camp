@@ -1,6 +1,7 @@
 {% extends 'inventory/base.tpl.html' %}
 {% load django_bootstrap5 %}
 {% block content %}
+
    {% for category, cat_set in category_set %}
        <h2>{{ category.short_code }} - {{ category.name }}</h2>
        <table class="table table-bordered">

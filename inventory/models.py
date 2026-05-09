@@ -14,9 +14,9 @@ class MedicineCategory(models.Model):
 class Medicine(models.Model):
     uqid = models.IntegerField(unique=True)
     name = models.CharField(max_length=2000)
-    formulation = models.CharField(max_length=4000)
-    category = models.ForeignKey(MedicineCategory, on_delete=models.CASCADE)
-    stock = models.IntegerField()
+    formulation = models.CharField(max_length=4000, null=True, blank=True)
+    category = models.ForeignKey(MedicineCategory, on_delete=models.SET_NULL, null=True, blank=True)
+    stock = models.IntegerField(default=0)
     expiry_date = models.DateField(null=True, blank=True)
 
     def __str__(self):

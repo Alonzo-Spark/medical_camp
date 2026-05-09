@@ -12,9 +12,11 @@ urlpatterns = [
     # Data Export
     path('export', export),
 
+
     # API Endpoints
     path('api/camps', api_get_camps),
     path('api/medicines', api_get_medicines),
+    path('api/add_medicine', api_add_medicine),
     path('api/patient/<int:patient_id>', api_get_patient_details),
     path('api/issue', api_issue_medicine),
     path('api/save_vitals', api_save_vitals),

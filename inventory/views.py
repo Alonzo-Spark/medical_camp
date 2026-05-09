@@ -55,9 +55,11 @@ def get_patient_profile(request):
     patient_id = None
     if 'patient_id' in request.GET:
         patient_id = request.GET['patient_id']
+        # pyrefly: ignore [missing-attribute]
         selected_issues = PatientMedicineIssue.objects.filter(
             patient_id=patient_id
         ).order_by('-camp')
+        # pyrefly: ignore [missing-attribute]
         p_vitals = Vitals.objects.filter(
             patient_id=patient_id
         ).order_by('camp')
@@ -83,6 +85,7 @@ def get_patient_vitals(request):
         vitals_form = VitalsForm()
     elif request.method == 'POST':
         vitals_form = VitalsForm()
+        # pyrefly: ignore [missing-attribute]
         v = Vitals.objects.filter(
             patient_id=request.POST['patient_id'],
             camp__id=int(request.POST['medical_camp'])
@@ -110,7 +113,9 @@ def get_patient_vitals(request):
     )
 
 def issue_tests(request):
+    # pyrefly: ignore [missing-attribute]
     all_camps = MedicalCamp.objects.all().order_by("-date")
+    # pyrefly: ignore [missing-attribute]
     all_test_types = MedicalTest.objects.all()
     if request.method == 'GET':
         return render(
@@ -128,6 +133,7 @@ def issue_tests(request):
         camp = get_object_or_404(MedicalCamp, id=camp_id)
         for test_id in test_ids:
             test = get_object_or_404(MedicalTest, id=test_id)
+            # pyrefly: ignore [missing-attribute]
             TestIssue.objects.create(
                 camp=camp,
                 patient_id=patient_id,
@@ -145,6 +151,7 @@ def issue_tests(request):
 
 def get_issued_tests(request, patient_id, camp_id):
     tests = list(
+        # pyrefly: ignore [missing-attribute]
         TestIssue.objects.filter(
             patient_id=patient_id,
             camp__id=camp_id
@@ -153,6 +160,7 @@ def get_issued_tests(request, patient_id, camp_id):
     return JsonResponse(tests, safe=False)
 
 def search_vitals(request, patient_id, camp_id):
+    # pyrefly: ignore [missing-attribute]
     v = Vitals.objects.filter(
         patient_id=patient_id,
         camp__id=camp_id
@@ -189,6 +197,7 @@ def index(request):
                     'status': 'error',
                     'message': f'Insufficient stock for {medicine.name}'
                 }, status=400)
+            # pyrefly: ignore [missing-attribute]
             PatientMedicineIssue.objects.create(
                 patient_id=int(patient_id),
                 camp=medical_camp,
@@ -208,6 +217,7 @@ def index(request):
     )
 
 def search_meds(request, med_id):
+    # pyrefly: ignore [missing-attribute]
     med = Medicine.objects.filter(uqid=med_id).first()
     if med:
         json_q = {
@@ -218,17 +228,7 @@ def search_meds(request, med_id):
         return JsonResponse(json_q)
     return JsonResponse({})
 
-def list_meds(request):
-    categories = MedicineCategory.objects.all()
-    cat_set = {
-        x: Medicine.objects.filter(category=x)
-        for x in categories
-    }
-    return render(
-        request,
-        'inventory/list.tpl.html',
-        {'category_set': cat_set.items()}
-    )
+
 
 def export(request):
     response = HttpResponse(content_type='text/csv')
@@ -254,7 +254,10 @@ def export(request):
         ])
     return response
 
+
+
 def api_get_camps(request):
+    # pyrefly: ignore [missing-attribute]
     camps = MedicalCamp.objects.all().order_by('id')
     data = []
     for camp in camps:
@@ -267,7 +270,8 @@ def api_get_camps(request):
     return JsonResponse(data, safe=False)
 
 def api_get_medicines(request):
-    medicines = Medicine.objects.select_related('category').all().order_by('uqid')
+    # pyrefly: ignore [missing-attribute]
+    medicines = Medicine.objects.all().order_by('uqid')
     data = []
     for med in medicines:
         data.append({
@@ -275,12 +279,61 @@ def api_get_medicines(request):
             'uqid': med.uqid,
             'name': med.name,
             'formulation': med.formulation,
-            'category': med.category.name,
+            'category': med.category.name if med.category else "General",
             'stock': med.stock
         })
     return JsonResponse(data, safe=False)
 
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_add_medicine(request):
+    try:
+        data = json.loads(request.body)
+        name = data.get('name')
+        formulation = data.get('formulation', '')
+        stock = int(data.get('stock', 0))
+        custom_uqid = data.get('uqid')
+        
+        if not name:
+            return JsonResponse({'status': 'error', 'message': 'Medicine name is required'}, status=400)
+            
+        if custom_uqid:
+            try:
+                custom_uqid = int(custom_uqid)
+                if Medicine.objects.filter(uqid=custom_uqid).exists():
+                    return JsonResponse({'status': 'error', 'message': f'Medicine with UQID {custom_uqid} already exists'}, status=400)
+                new_uqid = custom_uqid
+            except ValueError:
+                return JsonResponse({'status': 'error', 'message': 'UQID must be a number'}, status=400)
+        else:
+            # Generate new uqid
+            from django.db.models import Max
+            max_uqid = Medicine.objects.aggregate(max_uqid=Max('uqid'))['max_uqid'] or 0
+            new_uqid = max_uqid + 1
+        
+        medicine = Medicine.objects.create(
+            uqid=new_uqid,
+            name=name,
+            formulation=formulation,
+            stock=stock
+        )
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Medicine added successfully',
+            'medicine': {
+                'uqid': medicine.uqid,
+                'name': medicine.name,
+                'formulation': medicine.formulation,
+                'stock': medicine.stock
+            }
+        })
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+
 def api_get_patient_details(request, patient_id):
+    # pyrefly: ignore [missing-attribute]
     issues = PatientMedicineIssue.objects.filter(
         patient_id=patient_id
     ).order_by('-camp__date')
@@ -297,6 +350,7 @@ def api_get_patient_details(request, patient_id):
             'medicine': issue.medicine.name,
             'qty': issue.qty
         })
+    # pyrefly: ignore [missing-attribute]
     vitals_qs = Vitals.objects.filter(
         patient_id=patient_id
     ).order_by('camp__date')
@@ -333,6 +387,7 @@ def api_issue_medicine(request):
             if not med_id or qty <= 0:
                 continue
             medicine = get_object_or_404(Medicine, uqid=med_id)
+            # pyrefly: ignore [missing-attribute]
             camp_stock = CampWiseStock.objects.filter(
                 camp=camp,
                 medicine=medicine
@@ -347,6 +402,7 @@ def api_issue_medicine(request):
                     'status': 'error',
                     'message': f'Insufficient stock for {medicine.name}'
                 }, status=400)
+            # pyrefly: ignore [missing-attribute]
             PatientMedicineIssue.objects.create(
                 patient_id=patient_id,
                 camp=camp,
@@ -372,6 +428,7 @@ def api_save_vitals(request):
         camp_id = data.get('medical_camp')
         med_issues = data.get('medicines', [])
         camp = get_object_or_404(MedicalCamp, id=camp_id)
+        # pyrefly: ignore [missing-attribute]
         v = PatientVitals.objects.create(
             patient_id=patient_id,
             camp_id=camp_id,
@@ -394,8 +451,10 @@ def api_save_vitals(request):
             med_id = item.get('msNo')
             qty = int(item.get('quantity', 0))
             if med_id and qty > 0:
+                # pyrefly: ignore [missing-attribute]
                 medicine = Medicine.objects.filter(uqid=med_id).first()
                 if medicine:
+                    # pyrefly: ignore [missing-attribute]
                     camp_stock = CampWiseStock.objects.filter(
                         camp=camp,
                         medicine=medicine
@@ -412,6 +471,7 @@ def api_save_vitals(request):
                             'status': 'error',
                             'message': f'Insufficient stock for {medicine.name}'
                         }, status=400)
+                    # pyrefly: ignore [missing-attribute]
                     PatientMedicineIssue.objects.create(
                         patient_id=patient_id,
                         camp=camp,
@@ -428,8 +488,10 @@ def api_save_vitals(request):
                     camp_stock.save()
         selected_tests = data.get('selected_tests', [])
         for test_id in selected_tests:
+            # pyrefly: ignore [missing-attribute]
             test = MedicalTest.objects.filter(test_id=test_id).first()
             if test:
+                # pyrefly: ignore [missing-attribute]
                 TestIssue.objects.create(
                     patient_id=patient_id,
                     camp=camp,
@@ -447,6 +509,7 @@ def api_save_vitals(request):
 def api_register_patient(request):
     try:
         data = json.loads(request.body)
+        # pyrefly: ignore [missing-attribute]
         patient = Patient.objects.create(
             patient_id=data.get('pid'),
             patient_name=data.get('name'),
@@ -500,6 +563,7 @@ def api_login(request):
     }, status=405)
 
 def api_check_patient_id(request, pid):
+    # pyrefly: ignore [missing-attribute]
     exists = Patient.objects.filter(
         patient_id=pid
     ).exists()
@@ -555,6 +619,7 @@ def api_set_medicine_stock(request):
         }, status=400)
 
 def api_get_camp_wise_stock(request):
+    # pyrefly: ignore [missing-attribute]
     stocks = CampWiseStock.objects.select_related('medicine', 'camp')
     data = []
     for s in stocks:
@@ -571,6 +636,7 @@ def api_get_camp_wise_stock(request):
     return JsonResponse(data, safe=False)
 
 def api_get_specific_camp_stock(request, camp_id):
+    # pyrefly: ignore [missing-attribute]
     stocks = CampWiseStock.objects.filter(camp_id=camp_id)
     data = {}
     for s in stocks:
@@ -596,6 +662,7 @@ def api_allocate_to_camp(request):
                 'status': 'error',
                 'message': 'Insufficient stock'
             }, status=400)
+        # pyrefly: ignore [missing-attribute]
         camp_stock = CampWiseStock.objects.get(
             camp_id=camp_id,
             medicine=medicine
@@ -632,6 +699,7 @@ def api_set_camp_allocation(request):
             }, status=400)
         camp = get_object_or_404(MedicalCamp, id=camp_id)
         medicine = get_object_or_404(Medicine, uqid=uqid)
+        # pyrefly: ignore [missing-attribute]
         camp_stock, _ = CampWiseStock.objects.get_or_create(
             camp=camp,
             medicine=medicine,
@@ -674,6 +742,7 @@ def api_return_to_warehouse(request):
         data = json.loads(request.body)
         camp_id = data.get('camp_id')
         med_id = data.get('med_id')
+        # pyrefly: ignore [missing-attribute]
         camp_stock = CampWiseStock.objects.get(
             camp_id=camp_id,
             medicine__uqid=med_id
@@ -703,6 +772,7 @@ def api_close_camp_session(request):
     try:
         data = json.loads(request.body)
         camp_id = data.get('camp_id')
+        # pyrefly: ignore [missing-attribute]
         camp_stocks = CampWiseStock.objects.filter(camp_id=camp_id)
         for cs in camp_stocks:
             remaining = cs.remaining_stock()
@@ -731,7 +801,9 @@ def api_register_camp(request):
         camp_number = data.get('camp_number')
         venue_name = data.get('venue_name')
         camp_date = data.get('date')
+        # pyrefly: ignore [missing-attribute]
         venue, _ = MedicalCampVenue.objects.get_or_create(name=venue_name)
+        # pyrefly: ignore [missing-attribute]
         camp = MedicalCamp.objects.create(
             number=camp_number,
             venue=venue,
@@ -749,6 +821,7 @@ def api_register_camp(request):
         }, status=400)
 
 def api_get_medical_tests(request):
+    # pyrefly: ignore [missing-attribute]
     tests = MedicalTest.objects.all().order_by('test_id')
     data = []
     for t in tests:
@@ -762,38 +835,46 @@ def api_get_medical_tests(request):
 
 def api_camp_patients(request, camp_id):
     try:
+        # pyrefly: ignore [missing-attribute]
         camp = MedicalCamp.objects.get(id=camp_id)
+    # pyrefly: ignore [missing-attribute]
     except MedicalCamp.DoesNotExist:
         return JsonResponse({
             'status': 'error',
             'message': 'Camp not found'
         }, status=404)
     vitals_pids = set(
+        # pyrefly: ignore [missing-attribute]
         PatientVitals.objects.filter(
             camp=camp
         ).values_list('patient_id', flat=True)
     )
     issue_pids = set(
+        # pyrefly: ignore [missing-attribute]
         PatientMedicineIssue.objects.filter(
             camp=camp
         ).values_list('patient_id', flat=True)
     )
     test_pids = set(
+        # pyrefly: ignore [missing-attribute]
         TestIssue.objects.filter(
             camp=camp
         ).values_list('patient_id', flat=True)
     )
     registered_pids = set(
+        # pyrefly: ignore [missing-attribute]
         Patient.objects.filter(
             camp_session=camp.id
         ).values_list('patient_id', flat=True)
     )
     all_pids = vitals_pids | issue_pids | test_pids | registered_pids
     patient_names = {}
+    # pyrefly: ignore [missing-attribute]
     for p in Patient.objects.filter(patient_id__in=all_pids):
         patient_names[p.patient_id] = (p.patient_name or '')
     result = []
     for pid in sorted(all_pids):
+        # pyrefly: ignore [missing-attribute]
         issues = PatientMedicineIssue.objects.filter(
             patient_id=pid,
             camp=camp
@@ -805,6 +886,7 @@ def api_camp_patients(request, camp_id):
                 'medicine_name': iss.medicine.name,
                 'quantity': iss.qty,
             })
+        # pyrefly: ignore [missing-attribute]
         test_issues = TestIssue.objects.filter(
             patient_id=pid,
             camp=camp

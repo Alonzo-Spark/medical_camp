@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Pill, Search, PackageOpen, Filter, Box, PlusCircle, CheckCircle2, Heart, Landmark, RefreshCcw } from 'lucide-react';
+import { Pill, Search, PackageOpen, Filter, Box, PlusCircle, CheckCircle2, Heart, Landmark, RefreshCcw, AlertTriangle } from 'lucide-react';
 
 const API_BASE = 'http://127.0.0.1:8000/api';
 
@@ -15,6 +15,12 @@ const MedicineEntry = () => {
   const [allocateQtys, setAllocateQtys] = useState({});
   const [camps, setCamps] = useState([]);
   const [selectedCamp, setSelectedCamp] = useState('');
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newMed, setNewMed] = useState({ uqid: '', name: '', formulation: '', stock: '' });
+  const [isAdding, setIsAdding] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+
+
 
   useEffect(() => {
     fetchMedicines();
@@ -154,6 +160,37 @@ const MedicineEntry = () => {
     }
   };
 
+  const handleAddMedicine = async (e) => {
+    e.preventDefault();
+    if (!newMed.name) {
+      alert('Medicine name is required');
+      return;
+    }
+    setIsAdding(true);
+    try {
+      const res = await axios.post(`${API_BASE}/add_medicine`, {
+        uqid: newMed.uqid,
+        name: newMed.name,
+        formulation: newMed.formulation,
+        stock: parseInt(newMed.stock) || 0
+      });
+      
+      setSuccessMsg(res.data.message);
+      setTimeout(() => setSuccessMsg(''), 3000);
+      setNewMed({ uqid: '', name: '', formulation: '', stock: '' });
+      setShowAddForm(false);
+      fetchMedicines(); // Refresh the list
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message;
+      setErrorMsg(msg);
+      setTimeout(() => setErrorMsg(''), 5000);
+    } finally {
+      setIsAdding(false);
+    }
+
+  };
+
+
   const filteredMeds = medicines.filter(m => 
     m.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     m.uqid.toString().includes(searchTerm)
@@ -188,7 +225,15 @@ const MedicineEntry = () => {
             <span className="text-xs font-black uppercase tracking-widest">{successMsg}</span>
           </div>
         )}
+
+        {errorMsg && (
+          <div className="flex items-center gap-2 text-rose-600 bg-rose-50 px-6 py-3 rounded-xl border border-rose-200 shadow-sm animate-shake">
+            <AlertTriangle size={18} strokeWidth={3} />
+            <span className="text-xs font-black uppercase tracking-widest">{errorMsg}</span>
+          </div>
+        )}
       </div>
+
 
       {/* View Switcher */}
       <div className="flex gap-4 px-4">
@@ -249,10 +294,86 @@ const MedicineEntry = () => {
               onChange={e => setSearchTerm(e.target.value)}
             />
           </div>
-          <button onClick={() => { fetchMedicines(); fetchCampStocks(); }} className="p-4 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-teal-600 hover:border-teal-200 transition-all shadow-sm">
-            <Filter size={20} strokeWidth={2.5} />
-          </button>
+          <div className="flex gap-2">
+            {viewMode === 'total' && (
+              <button 
+                onClick={() => setShowAddForm(!showAddForm)} 
+                className={`flex items-center gap-2 px-6 py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.15em] transition-all duration-300 ${
+                  showAddForm 
+                    ? 'bg-rose-600 text-white' 
+                    : 'bg-teal-600 text-white hover:bg-teal-700'
+                } shadow-lg`}
+              >
+                {showAddForm ? 'Cancel' : (
+                  <>
+                    <PlusCircle size={18} strokeWidth={2.5} />
+                    New Medicine
+                  </>
+                )}
+              </button>
+            )}
+            <button onClick={() => { fetchMedicines(); fetchCampStocks(); }} className="p-4 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-teal-600 hover:border-teal-200 transition-all shadow-sm">
+              <Filter size={20} strokeWidth={2.5} />
+            </button>
+          </div>
         </div>
+
+        {showAddForm && viewMode === 'total' && (
+          <div className="p-8 bg-teal-50/30 border-b border-slate-100 animate-in slide-in-from-top-4 duration-300">
+            <form onSubmit={handleAddMedicine} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">UQID (Optional)</label>
+                <input
+                  type="number"
+                  placeholder="Auto-gen"
+                  className="w-full bg-white border border-slate-200 rounded-xl px-5 py-3 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-teal-500/30 transition-all"
+                  value={newMed.uqid}
+                  onChange={e => setNewMed({...newMed, uqid: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Medicine Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Paracetamol"
+                  className="w-full bg-white border border-slate-200 rounded-xl px-5 py-3 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-teal-500/30 transition-all"
+                  value={newMed.name}
+                  onChange={e => setNewMed({...newMed, name: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Formulation</label>
+                <input
+                  type="text"
+                  placeholder="e.g. 500mg Tablet"
+                  className="w-full bg-white border border-slate-200 rounded-xl px-5 py-3 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-teal-500/30 transition-all"
+                  value={newMed.formulation}
+                  onChange={e => setNewMed({...newMed, formulation: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Initial Stock</label>
+                <input
+                  type="number"
+                  placeholder="0"
+                  className="w-full bg-white border border-slate-200 rounded-xl px-5 py-3 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-teal-500/30 transition-all"
+                  value={newMed.stock}
+                  onChange={e => setNewMed({...newMed, stock: e.target.value})}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={isAdding}
+                className="w-full bg-slate-800 text-white h-[46px] rounded-xl font-black text-[11px] uppercase tracking-[0.15em] hover:bg-slate-900 transition-all disabled:opacity-50 shadow-md"
+              >
+                {isAdding ? 'Registering...' : 'Register Medicine'}
+              </button>
+            </form>
+          </div>
+        )}
+
+
 
         {viewMode === 'total' ? (
           /* Total Stock View */
