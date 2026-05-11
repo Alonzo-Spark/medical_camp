@@ -4,7 +4,7 @@ import axios from "axios";
 import { ShieldCheck, Lock, User, Eye, EyeOff, Loader2, Heart } from "lucide-react";
 import cccLogo from "../assets/ccc-logo.png";
 
-const API_BASE = 'http://127.0.0.1:8000/api';
+const API_BASE = `http://${window.location.hostname}:8000/api`;
 
 function AdminLogin() {
     const [username, setUsername] = useState("");

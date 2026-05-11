@@ -11,6 +11,7 @@ import MedicineEntry from './pages/MedicineEntry';
 import CampRegistration from './pages/CampRegistration';
 import CampPatients from './pages/CampPatients';
 import OldPatientRegistration from './pages/OldPatientRegistration';
+import MobileUpload from './pages/MobileUpload';
 
 function App() {
   return (
@@ -32,6 +33,9 @@ function App() {
           <Route path="/camp-registration" element={<CampRegistration />} />
           <Route path="/camp-patients" element={<CampPatients />} />
         </Route>
+
+        {/* Mobile scan upload - no layout */}
+        <Route path="/mobile-upload/:sessionId" element={<MobileUpload />} />
       </Routes>
     </Router>
   );

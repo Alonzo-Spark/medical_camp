@@ -9,6 +9,12 @@ from django.db import transaction
 import json
 import csv
 import datetime
+import threading
+from django.db import close_old_connections
+from .ocr_service import MedicalOCRService
+
+# Global OCR Service instance
+ocr_service = MedicalOCRService()
 
 from .forms import IssueForm, VitalsForm
 from .models import (
@@ -24,6 +30,7 @@ from .models import (
     Patient,
     CampWiseStock,
     Doctor,
+    ScanSession,
 )
 
 def charts_data(vitals):
@@ -1138,3 +1145,79 @@ def api_update_test_record(request):
             'status': 'error',
             'message': str(e)
         }, status=400)
+
+
+@csrf_exempt
+def api_create_scan_session(request):
+    if request.method == 'POST':
+        session = ScanSession.objects.create()
+        return JsonResponse({
+            'status': 'success',
+            'session_id': str(session.session_id)
+        })
+    return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
+
+def run_ocr_task(session_uuid):
+    """Background task to process OCR"""
+    try:
+        close_old_connections()
+        print(f"DEBUG: OCR Task started for session {session_uuid}")
+        session = ScanSession.objects.get(session_id=session_uuid)
+        session.ocr_status = 'processing'
+        session.save()
+        
+        # Trigger OCR
+        print(f"DEBUG: Triggering OCR for {session.image.path}")
+        structured_data, raw_text = ocr_service.process_report(session.image.path)
+        
+        print(f"DEBUG: OCR completed for {session_uuid}, saving results...")
+        session.ocr_data = structured_data
+        session.ocr_raw_text = raw_text
+        session.ocr_status = 'completed'
+        session.save()
+        print(f"DEBUG: Session {session_uuid} updated to completed.")
+    except Exception as e:
+        print(f"OCR Task Error for {session_uuid}: {e}")
+        try:
+            close_old_connections()
+            session = ScanSession.objects.get(session_id=session_uuid)
+            session.ocr_status = 'error'
+            session.save()
+        except Exception as e2:
+            print(f"OCR Error status update failed: {e2}")
+    finally:
+        close_old_connections()
+
+@csrf_exempt
+def api_upload_scan(request, session_id):
+    if request.method == 'POST' and request.FILES.get('image'):
+        try:
+            session = ScanSession.objects.get(session_id=session_id)
+            if session.is_completed:
+                return JsonResponse({'status': 'error', 'message': 'Session already completed'}, status=400)
+            
+            session.image = request.FILES['image']
+            session.is_completed = True
+            session.save()
+
+            # Start OCR in background thread
+            threading.Thread(target=run_ocr_task, args=(session.session_id,)).start()
+
+            return JsonResponse({'status': 'success', 'message': 'Image uploaded successfully'})
+        except ScanSession.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Invalid session'}, status=404)
+    return JsonResponse({'status': 'error', 'message': 'No image provided'}, status=400)
+
+def api_check_scan_status(request, session_id):
+    try:
+        session = ScanSession.objects.get(session_id=session_id)
+        return JsonResponse({
+            'status': 'success',
+            'is_completed': session.is_completed,
+            'image_url': request.build_absolute_uri(session.image.url) if session.image else None,
+            'ocr_status': session.ocr_status,
+            'ocr_data': session.ocr_data,
+            'ocr_raw_text': session.ocr_raw_text
+        })
+    except ScanSession.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Invalid session'}, status=404)

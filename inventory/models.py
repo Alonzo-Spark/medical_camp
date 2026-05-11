@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+import uuid
 
 class UserProfile(models.Model):
     ROLE_CHOICES = (
@@ -184,3 +185,15 @@ class CampWiseStock(models.Model):
             f"Allocated: {self.allocated_stock}, "
             f"Used: {self.used_stock}"
         )
+
+class ScanSession(models.Model):
+    session_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    image = models.ImageField(upload_to='scanned_reports/', null=True, blank=True)
+    is_completed = models.BooleanField(default=False)
+    ocr_data = models.JSONField(null=True, blank=True)
+    ocr_raw_text = models.TextField(null=True, blank=True)
+    ocr_status = models.CharField(max_length=20, default='pending') # pending, processing, completed, error
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Session {self.session_id} - {'Uploaded' if self.is_completed else 'Pending'}"
