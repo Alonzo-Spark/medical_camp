@@ -545,8 +545,6 @@ def api_issue_medicine(request):
                 medicine=medicine,
                 qty=qty
             )
-            camp_stock.used_stock += qty
-            camp_stock.save()
         return JsonResponse({'status': 'success'})
     except Exception as e:
         return JsonResponse({
@@ -620,8 +618,6 @@ def api_save_vitals(request):
                         afternoon=int(item.get('afternoon') or 0),
                         night=int(item.get('night') or 0)
                     )
-                    camp_stock.used_stock += qty
-                    camp_stock.save()
         selected_tests = data.get('selected_tests', [])
         for test_id in selected_tests:
             # pyrefly: ignore [missing-attribute]
