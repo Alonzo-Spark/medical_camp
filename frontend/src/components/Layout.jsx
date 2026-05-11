@@ -5,7 +5,6 @@ import {
   Activity,
   Pill,
   Stethoscope,
-  Search,
   Heart,
   LogOut,
   UserPlus,
@@ -52,6 +51,7 @@ const Layout = () => {
       '/dashboard': 'Dashboard',
       '/vitals': 'Log Patient Vitals',
       '/register': 'Patient Registration',
+      '/register-old': 'Medical Fulfillment',
       '/patient': 'Patient Profile',
       '/inventory': 'Stock Inventory',
       '/medicine-entry': 'Stock Entry',
@@ -159,14 +159,6 @@ const Layout = () => {
           </div>
 
           <div className="flex items-center gap-6">
-            <div className="relative group hidden md:block">
-              <Search className="absolute left-3.5 top-2.5 text-slate-400 group-focus-within:text-teal-500 transition-colors" size={16} strokeWidth={2.5} />
-              <input
-                type="text"
-                placeholder="Search records..."
-                className="bg-slate-50 border border-slate-200 rounded-full py-2.5 pl-10 pr-4 text-xs font-semibold focus:ring-1 focus:ring-teal-500/50 outline-none w-56 transition-all placeholder:text-slate-400"
-              />
-            </div>
 
           </div>
         </header>

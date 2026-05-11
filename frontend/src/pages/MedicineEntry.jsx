@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Pill, Search, PackageOpen, Filter, Box, PlusCircle, CheckCircle2, Heart, Landmark, RefreshCcw, AlertTriangle } from 'lucide-react';
+import { Pill, Search, PackageOpen, Filter, Box, PlusCircle, CheckCircle2, Heart, Landmark, RefreshCcw, AlertTriangle, Download } from 'lucide-react';
 
 const API_BASE = 'http://127.0.0.1:8000/api';
 
@@ -227,6 +227,11 @@ const MedicineEntry = () => {
   };
 
 
+  const handleExportCampStock = () => {
+    if (!selectedCamp) return;
+    window.location.href = `http://localhost:8000/export_camp_stock/${selectedCamp}`;
+  };
+
   const filteredMeds = medicines.filter(m => 
     m.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     m.uqid.toString().includes(searchTerm)
@@ -322,6 +327,15 @@ const MedicineEntry = () => {
               ))}
             </select>
             
+            {selectedCamp && (
+              <button
+                onClick={handleExportCampStock}
+                className="flex items-center gap-2 bg-white hover:bg-slate-50 text-teal-600 px-6 py-4 rounded-2xl border border-teal-100 hover:border-teal-300 transition-all shadow-sm font-black text-[10px] uppercase tracking-widest animate-in fade-in zoom-in"
+              >
+                <Download size={16} strokeWidth={3} />
+                Export CSV
+              </button>
+            )}
           </div>
         )}
       </div>

@@ -182,68 +182,75 @@ function OldPatientRegistration() {
                 <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-orange-400 to-yellow-400" />
 
                 <div className="mb-10">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-2">
                         <Heart size={14} className="text-teal-500" />
-                        <p className="text-teal-600 text-[10px] font-extrabold uppercase tracking-[0.25em]">Returning Patient</p>
+                        <p className="text-teal-600 text-[10px] font-extrabold uppercase tracking-[0.25em]">Patient Management</p>
                     </div>
                     <h3 className="text-3xl font-black text-slate-800 tracking-tight flex items-center gap-3">
-                        <div className="p-2.5 bg-amber-50 rounded-xl border border-amber-200">
-                            <UserCheck size={24} className="text-amber-600" strokeWidth={2.5} />
+                        <div className="p-2.5 bg-teal-50 rounded-xl border border-teal-200">
+                            <UserCheck size={24} className="text-teal-600" strokeWidth={2.5} />
                         </div>
-                        Register Old Patient
+                        Medical Fulfillment
                     </h3>
-                    <p className="text-slate-400 text-sm font-bold mt-2 ml-[52px]">Re-register existing patients for a new camp session</p>
+                    <p className="text-slate-400 text-sm font-bold mt-2 ml-[52px]">Re-verify and register existing patients for the current camp session</p>
                 </div>
 
                 <form id="old-patient-registration-form" onSubmit={handleSubmit} className="space-y-8">
                     {/* Patient Search Section */}
-                    <div className="p-6 bg-amber-50/50 rounded-xl border border-amber-100">
-                        <h4 className="text-[11px] font-extrabold text-amber-600 uppercase tracking-[0.2em] mb-5 flex items-center gap-2">
-                            <div className="w-1.5 h-4 bg-amber-500 rounded-full" />
-                            Search Patient
+                    <div className="p-8 bg-slate-50/50 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group">
+                        <div className="absolute top-0 left-0 w-1 h-full bg-teal-500" />
+                        <h4 className="text-[11px] font-black text-teal-600 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                            <Search size={14} />
+                            Search Patient Database
                         </h4>
-                        <div className="grid md:grid-cols-2 gap-6">
-                            <div>
-                                <label className="block text-[12px] font-extrabold text-slate-600 uppercase tracking-wide mb-2.5">
-                                    Patient ID <span className="text-red-400">*</span>
+                        <div className="grid md:grid-cols-12 gap-5 items-end">
+                            <div className="md:col-span-8">
+                                <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2.5 ml-1">
+                                    Patient Unique ID <span className="text-teal-500">*</span>
                                 </label>
                                 <div className="relative">
                                     <input
                                         type="text"
-                                        placeholder="Enter existing Patient ID"
+                                        placeholder="Enter Patient ID (e.g. 101)"
                                         value={form.pid}
                                         onChange={(e) => handleChange("pid", e.target.value)}
-                                        className={`${errors.pid ? inputError : inputNormal} text-slate-800 pr-12`}
+                                        className={`${errors.pid ? inputError : inputNormal} text-slate-800 pr-12 h-[58px] text-lg font-black tracking-tight`}
                                     />
                                     {searchLoading && (
-                                        <span className="absolute right-3.5 top-1/2 -translate-y-1/2">
-                                            <div className="w-4 h-4 border-2 border-amber-300 border-t-amber-600 rounded-full animate-spin" />
+                                        <span className="absolute right-4 top-1/2 -translate-y-1/2">
+                                            <div className="w-5 h-5 border-2 border-teal-200 border-t-teal-600 rounded-full animate-spin" />
                                         </span>
                                     )}
                                 </div>
-                                {errors.pid && (
-                                    <p className="text-red-500 text-[11px] mt-2 font-bold flex items-center gap-1.5">
-                                        <AlertTriangle size={12} /> {errors.pid}
-                                    </p>
-                                )}
-                                {patientFound && (
-                                    <p className="text-emerald-600 text-[11px] mt-2 font-bold flex items-center gap-1.5">
-                                        <CheckCircle2 size={12} /> Patient found! Details auto-filled below.
-                                    </p>
-                                )}
                             </div>
-                            <div className="flex items-end">
+                            <div className="md:col-span-4">
                                 <button
                                     type="button"
                                     onClick={handleSearchPatient}
                                     disabled={searchLoading}
-                                    className="flex items-center justify-center gap-2 px-8 h-[54px] bg-amber-600 hover:bg-amber-700 text-white rounded-xl transition-all font-black text-xs uppercase tracking-widest shadow-lg shadow-amber-100 disabled:opacity-50 active:scale-[0.98]"
+                                    className="w-full flex items-center justify-center gap-3 h-[58px] bg-slate-800 hover:bg-slate-900 text-white rounded-xl transition-all font-black text-xs uppercase tracking-widest shadow-lg shadow-slate-200 disabled:opacity-50 active:scale-[0.98]"
                                 >
-                                    <Search size={16} strokeWidth={2.5} />
-                                    Search
+                                    <Search size={18} strokeWidth={2.5} />
+                                    Find Patient
                                 </button>
                             </div>
                         </div>
+                        {errors.pid && (
+                            <p className="text-rose-500 text-[11px] mt-3 font-bold flex items-center gap-1.5 ml-1">
+                                <AlertTriangle size={14} /> {errors.pid}
+                            </p>
+                        )}
+                        {patientFound && (
+                            <div className="mt-4 p-4 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center gap-3 animate-fade-in">
+                                <div className="p-2 bg-emerald-100 rounded-lg text-emerald-600">
+                                    <CheckCircle2 size={16} strokeWidth={3} />
+                                </div>
+                                <div>
+                                    <p className="text-emerald-800 text-xs font-black uppercase tracking-wide">Record Located</p>
+                                    <p className="text-emerald-600/80 text-[10px] font-bold uppercase tracking-widest mt-0.5">Details have been successfully retrieved from the registry.</p>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Patient Identity - Read Only */}
@@ -398,37 +405,42 @@ function OldPatientRegistration() {
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex items-center gap-4 pt-2">
+                    <div className="flex items-center gap-4 pt-6 border-t border-slate-100">
                         <button
                             type="submit"
                             disabled={loading || !patientFound}
-                            className="flex-1 relative overflow-hidden bg-amber-600 hover:bg-amber-700 text-white h-14 rounded-xl transition-all shadow-lg shadow-amber-100 group disabled:opacity-50 active:scale-[0.98]"
+                            className="flex-1 relative overflow-hidden bg-teal-600 hover:bg-teal-700 text-white h-16 rounded-2xl transition-all shadow-xl shadow-teal-100 group disabled:opacity-50 active:scale-[0.98]"
                         >
                             <div className="relative flex items-center justify-center gap-3">
                                 {loading ? (
-                                    <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    <div className="h-6 w-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                 ) : (
                                     <>
-                                        <UserCheck size={18} strokeWidth={2.5} />
-                                        <span className="text-xs font-black uppercase tracking-widest">Register</span>
+                                        <CheckCircle2 size={20} strokeWidth={2.5} />
+                                        <span className="text-sm font-black uppercase tracking-[0.2em]">Complete Fulfillment</span>
                                     </>
                                 )}
                             </div>
                         </button>
-
+ 
                         <button
                             type="button"
                             onClick={handleClear}
-                            className="flex items-center justify-center gap-2 px-8 h-14 bg-white border border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all font-black text-xs uppercase tracking-widest"
+                            className="flex items-center justify-center gap-2 px-10 h-16 bg-white border border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-2xl transition-all font-black text-xs uppercase tracking-widest"
                         >
-                            <RotateCcw size={16} strokeWidth={2.5} />
+                            <RotateCcw size={18} strokeWidth={2.5} />
                             Reset
                         </button>
-
+ 
                         {success && (
-                            <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 px-5 py-3 rounded-xl border border-emerald-200 shadow-sm animate-bounce">
-                                <CheckCircle2 size={18} strokeWidth={3} />
-                                <span className="text-xs font-black uppercase tracking-widest">Registered Successfully</span>
+                            <div className="fixed bottom-10 right-10 flex items-center gap-3 text-emerald-700 bg-white px-8 py-5 rounded-2xl border-2 border-emerald-500 shadow-2xl shadow-emerald-200 animate-bounce z-50">
+                                <div className="p-2 bg-emerald-500 rounded-lg text-white">
+                                    <CheckCircle2 size={24} strokeWidth={3} />
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-sm font-black uppercase tracking-widest">Success</span>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Registration Record Updated</span>
+                                </div>
                             </div>
                         )}
                     </div>

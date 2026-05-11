@@ -383,39 +383,41 @@ const PatientProfile = () => {
 
           {/* Medicine Timeline */}
           <div className="col-span-12 lg:col-span-5 glass-panel-light p-8">
-             <div className="flex items-center gap-3 mb-8">
-                <div className="p-3 bg-teal-50 rounded-2xl">
-                  <History className="text-teal-600" size={24} />
-                </div>
-                <h3 className="text-xl font-black text-slate-800 tracking-tight">Medicine Fulfillment</h3>
-                          <div className="space-y-8 max-h-[600px] overflow-auto pr-2 custom-scrollbar">
-                {Object.keys(data.medicine_history).length > 0 ? (
-                  Object.entries(data.medicine_history).map(([camp, items], i) => (
-                    <div key={i} className="relative pl-6 border-l-2 border-slate-100 pb-2 last:pb-0">
-                      <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-white border-2 border-teal-500 shadow-sm" />
-                      <h4 className="text-[10px] font-black text-teal-600 uppercase tracking-[0.2em] mb-4">{camp}</h4>
-                      <div className="space-y-3">
-                        {items.map((item) => (
-                          <div key={`${camp}-${item.medicine}`} className="flex items-center justify-between bg-slate-50/50 border border-slate-100 p-4 rounded-xl group hover:border-teal-200 transition-all">
-                            <div className="flex items-center gap-3">
-                              <Layers size={14} className="text-slate-400 group-hover:text-teal-500 transition-colors" />
-                              <span className="text-sm font-bold text-slate-700 group-hover:text-teal-900">{item.medicine}</span>
-                            </div>
-                            <span className="text-[10px] font-black text-teal-700 bg-teal-50 border border-teal-100 px-3 py-1 rounded-lg">
-                              {item.qty} QTY
-                            </span>
+            <div className="flex items-center gap-3 mb-8">
+              <div className="p-3 bg-teal-50 rounded-2xl">
+                <History className="text-teal-600" size={24} />
+              </div>
+              <h3 className="text-xl font-black text-slate-800 tracking-tight">Medicine Fulfillment</h3>
+            </div>
+
+            <div className="space-y-8 max-h-[600px] overflow-auto pr-2 custom-scrollbar">
+              {Object.keys(data.medicine_history).length > 0 ? (
+                Object.entries(data.medicine_history).map(([camp, items], i) => (
+                  <div key={i} className="relative pl-6 border-l-2 border-slate-100 pb-2 last:pb-0">
+                    <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-white border-2 border-teal-500 shadow-sm" />
+                    <h4 className="text-[10px] font-black text-teal-600 uppercase tracking-[0.2em] mb-4">{camp}</h4>
+                    <div className="space-y-3">
+                      {items.map((item) => (
+                        <div key={`${camp}-${item.medicine}`} className="flex items-center justify-between bg-slate-50/50 border border-slate-100 p-4 rounded-xl group hover:border-teal-200 transition-all">
+                          <div className="flex items-center gap-3">
+                            <Layers size={14} className="text-slate-400 group-hover:text-teal-500 transition-colors" />
+                            <span className="text-sm font-bold text-slate-700 group-hover:text-teal-900">{item.medicine}</span>
                           </div>
-                        ))}
-                      </div>
+                          <span className="text-[10px] font-black text-teal-700 bg-teal-50 border border-teal-100 px-3 py-1 rounded-lg">
+                            {item.qty} QTY
+                          </span>
+                        </div>
+                      ))}
                     </div>
-                  ))
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-                    <History size={32} strokeWidth={1} className="mb-2 opacity-50" />
-                    <p className="text-xs font-bold italic">No medicine history found.</p>
                   </div>
-                )}
-              </div>    </div>
+                ))
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                  <History size={32} strokeWidth={1} className="mb-2 opacity-50" />
+                  <p className="text-xs font-bold italic">No medicine history found.</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

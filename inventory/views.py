@@ -288,6 +288,40 @@ def export(request):
     return response
 
 
+def export_camp_stock(request, camp_id):
+    camp = get_object_or_404(MedicalCamp, number=camp_id)
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = (
+        f'attachment; filename="camp_{camp_id}_stock_allocation.csv"'
+    )
+
+    writer = csv.writer(response)
+    writer.writerow([
+        'Camp Number',
+        'Venue',
+        'Medicine UQID',
+        'Medicine Name',
+        'Allocated Stock',
+        'Used Stock',
+        'Remaining Stock'
+    ])
+
+    stocks = CampWiseStock.objects.filter(camp=camp).select_related('medicine').order_by('medicine__uqid')
+    
+    for s in stocks:
+        writer.writerow([
+            camp.number,
+            camp.venue,
+            s.medicine.uqid,
+            s.medicine.name,
+            s.allocated_stock,
+            s.used_stock,
+            s.remaining_stock()
+        ])
+    
+    return response
+
+
 
 def api_get_camps(request):
     # pyrefly: ignore [missing-attribute]

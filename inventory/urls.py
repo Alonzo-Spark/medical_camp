@@ -11,6 +11,7 @@ urlpatterns = [
 
     # Data Export
     path('export', export),
+    path('export_camp_stock/<int:camp_id>', export_camp_stock),
 
 
     # API Endpoints
