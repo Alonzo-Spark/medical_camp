@@ -705,11 +705,18 @@ def api_register_patient(request):
             'contact_no': data.get('contact'),
         }
         
-        if data.get('regdate'):
-            defaults_data['registered_date'] = data.get('regdate')
-            
         if data.get('camp_session'):
-            defaults_data['camp_session'] = data.get('camp_session')
+            camp_num = data.get('camp_session')
+            defaults_data['camp_session'] = camp_num
+            # Auto-sync registered_date with the camp's actual date
+            from .models import MedicalCamp
+            camp_obj = MedicalCamp.objects.filter(number=camp_num).first()
+            if camp_obj:
+                defaults_data['registered_date'] = camp_obj.date
+        
+        if data.get('regdate') and 'registered_date' not in defaults_data:
+            defaults_data['registered_date'] = data.get('regdate')
+
 
         # pyrefly: ignore [missing-attribute]
         patient, created = Patient.objects.update_or_create(
@@ -732,8 +739,11 @@ def api_get_doctor(request, doctor_id):
         doctor = Doctor.objects.get(id=doctor_id)
         return JsonResponse({
             'status': 'success',
-            'name': doctor.name
+            'name': doctor.name,
+            'specialization': doctor.specialization or ''
         })
+
+
     # pyrefly: ignore [missing-attribute, unknown-name]
     except Doctor.DoesNotExist:
         return JsonResponse({
@@ -1238,7 +1248,145 @@ def api_check_scan_status(request, session_id):
         return JsonResponse({'status': 'error', 'message': 'Invalid session'}, status=404)
 
 def api_get_doctors(request):
+    doctors = Doctor.objects.all().order_by('id')
+    data = []
+    for dr in doctors:
+        data.append({
+            'dr_id': str(dr.id),
+            'dr_name': dr.name,
+            'specialization': dr.specialization or '',
+        })
+    return JsonResponse(data, safe=False)
+
+
+
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_add_doctor(request):
+    try:
+        data = json.loads(request.body)
+        name = data.get('name')
+        specialization = data.get('specialization')
+        
+        if not name:
+            return JsonResponse({'status': 'error', 'message': 'Doctor name is required'}, status=400)
+            
+        doctor = Doctor.objects.create(
+            name=name,
+            specialization=specialization
+        )
+        
+        return JsonResponse({
+            'status': 'success',
+            'doctor_id': doctor.id,
+            'message': 'Doctor registered successfully'
+        })
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_update_doctor(request):
+    try:
+        data = json.loads(request.body)
+        dr_id = data.get('dr_id')
+        name = data.get('dr_name')
+        specialization = data.get('specialization')
+        
+        doctor = get_object_or_404(Doctor, id=dr_id)
+        doctor.name = name
+        doctor.specialization = specialization
+        doctor.save()
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Doctor details updated successfully'
+        })
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+@csrf_exempt
+@require_http_methods(["DELETE", "POST"])
+def api_delete_doctor(request, doctor_id):
+    try:
+        doctor = get_object_or_404(Doctor, id=doctor_id)
+        doctor.delete()
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Doctor deleted successfully'
+        })
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+def api_doctor_analytics(request):
     from django.db.models import Count
-    doctors = PatientVitals.objects.exclude(dr_name__isnull=True).exclude(dr_name='').values('dr_name', 'dr_id').annotate(patient_count=Count('patient_id', distinct=True)).order_by('dr_name')
-    return JsonResponse(list(doctors), safe=False)
+    # Group by doctor and camp
+    stats = PatientVitals.objects.values(
+        'dr_name', 
+        'dr_id', 
+        'camp__number', 
+        'camp__venue__name'
+    ).annotate(
+        patient_count=Count('patient_id', distinct=True)
+    ).order_by('dr_name', 'camp__number')
+    
+    return JsonResponse(list(stats), safe=False)
+
+def api_get_camp_details(request, camp_id):
+    from django.db.models import Count
+    camp = get_object_or_404(MedicalCamp, id=camp_id)
+    
+    # Get all vitals for this camp
+    # PatientVitals.camp is linked to MedicalCamp via 'number'
+    vitals = PatientVitals.objects.filter(camp=camp.number).order_by('dr_name')
+    
+    doctors_map = {}
+    for v in vitals:
+        dr_key = v.dr_name or "Unknown Doctor"
+        if dr_key not in doctors_map:
+            doctors_map[dr_key] = []
+            
+        # Get medications for this patient visit
+        # Match by patient_id and camp number
+        meds = PatientMedicineIssue.objects.filter(patient_id=v.patient_id, camp=camp.number).values_list('medicine__name', flat=True)
+        # Get tests
+        tests = TestIssue.objects.filter(patient_id=v.patient_id, camp=camp.number).values_list('test__name', flat=True)
+        
+        # Get patient name from Patient table
+        p_obj = Patient.objects.filter(patient_id=v.patient_id).first()
+        p_name = p_obj.patient_name if p_obj else f"Patient {v.patient_id}"
+
+        doctors_map[dr_key].append({
+            'patient_name': p_name,
+            'medications': list(meds),
+            'tests': list(tests)
+        })
+    
+    data = {
+        'camp_number': camp.number,
+        'venue': camp.venue.name if camp.venue else "N/A",
+        'doctors': []
+    }
+    
+    for dr_name, patients in doctors_map.items():
+        data['doctors'].append({
+            'dr_name': dr_name,
+            'patients': patients
+        })
+        
+    return JsonResponse(data)
+
+def api_get_all_camps(request):
+    camps = MedicalCamp.objects.all().order_by('-number')
+    data = []
+    for c in camps:
+        data.append({
+            'id': c.id,
+            'number': c.number,
+            'venue': c.venue.name if c.venue else "N/A",
+            'date': c.date.strftime('%Y-%m-%d') if c.date else "N/A"
+        })
+    return JsonResponse(data, safe=False)
 

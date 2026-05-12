@@ -1,22 +1,127 @@
 import React, { useState, useEffect } from 'react';
-import { UserCircle, Search, Users, Activity, Edit2, Save, X } from 'lucide-react';
+import { UserCircle, Search, Users, Activity, Edit2, Save, X, Trash2 } from 'lucide-react';
 
 const DoctorsList = () => {
-  const [doctors, setDoctors] = useState([
-    { dr_id: '', dr_name: '', specialization: '', patient_count: '' }
-  ]);
 
-  const [loading, setLoading] = useState(false);
+  const [doctors, setDoctors] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('doctorsList');
-  
+
+  // Registration form state
+  const [newDr, setNewDr] = useState({ name: '', specialization: '' });
+  const [regLoading, setRegLoading] = useState(false);
+
+  // Analytics state
+  const [camps, setCamps] = useState([]);
+  const [selectedCamp, setSelectedCamp] = useState('');
+  const [detailedData, setDetailedData] = useState(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+
   // Local state for editing
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({ dr_name: '', dr_id: '', specialization: '' });
 
+  const API_BASE = `http://${window.location.hostname}:8000/api`;
+
+  useEffect(() => {
+    if (activeTab === 'doctorsList') fetchDoctors();
+    if (activeTab === 'analytics') fetchCamps();
+  }, [activeTab]);
+
+  const fetchDoctors = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/doctors`);
+      const data = await res.json();
+      setDoctors(data);
+    } catch (err) {
+      console.error("Error fetching doctors:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchCamps = async () => {
+    setAnalyticsLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/camps`);
+      const data = await res.json();
+      setCamps(data);
+      if (data.length > 0 && !selectedCamp) {
+        setSelectedCamp(data[0].id);
+        fetchCampDetails(data[0].id);
+      }
+    } catch (err) {
+      console.error("Error fetching camps:", err);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
+
+  const fetchCampDetails = async (campId) => {
+    if (!campId) return;
+    setAnalyticsLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/camp_details/${campId}`);
+      const data = await res.json();
+      setDetailedData(data);
+    } catch (err) {
+      console.error("Error fetching camp details:", err);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
 
 
-  const filteredDoctors = doctors.filter(doc => 
+
+  const handleRegisterDoctor = async (e) => {
+    e.preventDefault();
+    setRegLoading(true);
+    try {
+      // We'll need a new endpoint or use an existing one if available.
+      // For now, let's assume we can add them.
+      const res = await fetch(`${API_BASE}/add_doctor`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newDr)
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        setNewDr({ name: '', specialization: '' });
+        setActiveTab('doctorsList');
+        fetchDoctors();
+      }
+    } catch (err) {
+      console.error("Error registering doctor:", err);
+    } finally {
+      setRegLoading(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this doctor?")) return;
+    try {
+      const res = await fetch(`${API_BASE}/delete_doctor/${id}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        fetchDoctors();
+      } else {
+        alert("Error deleting doctor: " + data.message);
+      }
+    } catch (err) {
+      console.error("Error deleting doctor:", err);
+      alert("Failed to delete doctor.");
+    }
+  };
+
+
+
+
+
+  const filteredDoctors = doctors.filter(doc =>
     doc.dr_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (doc.dr_id && doc.dr_id.toLowerCase().includes(searchTerm.toLowerCase()))
   );
@@ -34,21 +139,31 @@ const DoctorsList = () => {
     setEditingId(null);
   };
 
-  const handleSaveEdit = () => {
-    setDoctors(prevDoctors => prevDoctors.map(doc => {
-      const docKey = doc.dr_id || doc.dr_name;
-      if (docKey === editingId) {
-        return {
-          ...doc,
+  const handleSaveEdit = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/update_doctor`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dr_id: editingId,
           dr_name: editForm.dr_name,
-          dr_id: editForm.dr_id,
           specialization: editForm.specialization
-        };
+
+        })
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        fetchDoctors(); // Refresh list from server
+        setEditingId(null);
+      } else {
+        alert("Error updating doctor: " + data.message);
       }
-      return doc;
-    }));
-    setEditingId(null);
+    } catch (err) {
+      console.error("Error saving doctor:", err);
+      alert("Failed to save changes.");
+    }
   };
+
 
   return (
     <div className="space-y-6">
@@ -60,10 +175,10 @@ const DoctorsList = () => {
           </div>
           <div>
             <h1 className="text-2xl font-black text-slate-800 tracking-tight">Doctors List</h1>
-            <p className="text-slate-500 text-sm font-medium">Manage and view medical staff performance</p>
+
           </div>
         </div>
-        
+
         <div className="relative group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-teal-500 transition-colors" size={18} strokeWidth={2.5} />
           <input
@@ -78,25 +193,33 @@ const DoctorsList = () => {
 
       <div className="flex border-b border-slate-200">
         <button
-          className={`py-3 px-6 text-sm font-bold border-b-2 transition-colors ${
-            activeTab === 'doctorsList' 
-              ? 'border-teal-500 text-teal-600' 
-              : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-          }`}
+          className={`py-3 px-6 text-sm font-bold border-b-2 transition-colors ${activeTab === 'doctorsList'
+            ? 'border-teal-500 text-teal-600'
+            : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+            }`}
           onClick={() => setActiveTab('doctorsList')}
         >
           Doctors List
         </button>
         <button
-          className={`py-3 px-6 text-sm font-bold border-b-2 transition-colors ${
-            activeTab === 'newTab' 
-              ? 'border-teal-500 text-teal-600' 
-              : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-          }`}
-          onClick={() => setActiveTab('newTab')}
+          className={`py-3 px-6 text-sm font-bold border-b-2 transition-colors ${activeTab === 'analytics'
+            ? 'border-teal-500 text-teal-600'
+            : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+            }`}
+          onClick={() => setActiveTab('analytics')}
         >
-          New Tab
+          Doctor Analytics
         </button>
+        <button
+          className={`py-3 px-6 text-sm font-bold border-b-2 transition-colors ${activeTab === 'registerDoctor'
+            ? 'border-teal-500 text-teal-600'
+            : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+            }`}
+          onClick={() => setActiveTab('registerDoctor')}
+        >
+          Register Doctor
+        </button>
+
       </div>
 
       {activeTab === 'doctorsList' && (
@@ -107,7 +230,7 @@ const DoctorsList = () => {
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-500"></div>
             </div>
           ) : (
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
@@ -115,7 +238,7 @@ const DoctorsList = () => {
                       <th className="p-4 pl-6">Doctor ID</th>
                       <th className="p-4">Doctor Name</th>
                       <th className="p-4">Specialization</th>
-                      <th className="p-4 pr-6 text-right"></th>
+                      <th className="p-4 pr-6 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -128,18 +251,9 @@ const DoctorsList = () => {
                           <tr key={index} className="hover:bg-slate-50/50 transition-colors group">
                             {/* ID Column */}
                             <td className="p-4 pl-6 align-middle">
-                              {isEditing ? (
-                                <input
-                                  type="text"
-                                  value={editForm.dr_id}
-                                  onChange={(e) => setEditForm({...editForm, dr_id: e.target.value})}
-                                  className="w-24 px-2 py-1.5 text-sm bg-white border border-teal-300 rounded focus:outline-none focus:ring-2 focus:ring-teal-500/30"
-                                />
-                              ) : (
-                                <span className="text-sm font-bold text-slate-600">
-                                  {doc.dr_id || '-'}
-                                </span>
-                              )}
+                              <span className="text-sm font-bold text-slate-600">
+                                #{doc.dr_id || '-'}
+                              </span>
                             </td>
 
                             {/* Name Column */}
@@ -148,13 +262,18 @@ const DoctorsList = () => {
                                 <input
                                   type="text"
                                   value={editForm.dr_name}
-                                  onChange={(e) => setEditForm({...editForm, dr_name: e.target.value})}
+                                  onChange={(e) => setEditForm({ ...editForm, dr_name: e.target.value })}
                                   className="w-48 px-2 py-1.5 text-sm bg-white border border-teal-300 rounded focus:outline-none focus:ring-2 focus:ring-teal-500/30"
                                 />
                               ) : (
-                                <span className="text-sm font-bold text-slate-800">
-                                  {doc.dr_name}
-                                </span>
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center text-teal-700 font-bold text-xs">
+                                    {doc.dr_name.charAt(0).toUpperCase()}
+                                  </div>
+                                  <span className="text-sm font-bold text-slate-800">
+                                    {doc.dr_name}
+                                  </span>
+                                </div>
                               )}
                             </td>
 
@@ -164,43 +283,48 @@ const DoctorsList = () => {
                                 <input
                                   type="text"
                                   value={editForm.specialization}
-                                  onChange={(e) => setEditForm({...editForm, specialization: e.target.value})}
+                                  onChange={(e) => setEditForm({ ...editForm, specialization: e.target.value })}
                                   className="w-48 px-2 py-1.5 text-sm bg-white border border-teal-300 rounded focus:outline-none focus:ring-2 focus:ring-teal-500/30"
                                 />
                               ) : (
-                                <span className="text-sm font-medium text-slate-600">
-                                  {doc.specialization}
+                                <span className="px-2.5 py-1 bg-teal-50 text-teal-600 rounded-full text-[10px] font-black uppercase tracking-wider">
+                                  {doc.specialization || 'Not Specified'}
                                 </span>
                               )}
                             </td>
 
-                            {/* Actions Column (No Heading) */}
+                            {/* Actions Column */}
                             <td className="p-4 pr-6 align-middle text-right">
                               {isEditing ? (
                                 <div className="flex items-center justify-end gap-2">
-                                  <button 
+                                  <button
                                     onClick={handleSaveEdit}
                                     className="p-1.5 bg-teal-500 text-white rounded hover:bg-teal-600 transition-colors shadow-sm"
-                                    title="Save"
                                   >
                                     <Save size={16} />
                                   </button>
-                                  <button 
-                                    onClick={handleCancelEdit}
-                                    className="p-1.5 bg-slate-100 text-slate-500 rounded hover:bg-slate-200 hover:text-slate-700 transition-colors"
-                                    title="Cancel"
-                                  >
+                                  <button onClick={handleCancelEdit} className="p-1.5 bg-slate-100 text-slate-500 rounded hover:bg-slate-200">
                                     <X size={16} />
                                   </button>
                                 </div>
                               ) : (
-                                <button
-                                  onClick={() => handleEditClick(doc)}
-                                  className="p-1.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded transition-colors opacity-0 group-hover:opacity-100"
-                                  title="Edit Details"
-                                >
-                                  <Edit2 size={16} />
-                                </button>
+                                <div className="flex items-center justify-end gap-2">
+                                  <button
+                                    onClick={() => handleEditClick(doc)}
+                                    className="p-2 bg-slate-100 text-slate-600 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-all active:scale-95 shadow-sm inline-flex items-center gap-2"
+                                  >
+                                    <Edit2 size={14} strokeWidth={2.5} />
+                                    <span className="text-[10px] font-black uppercase tracking-wider">Edit</span>
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(doc.dr_id)}
+                                    className="p-2 bg-slate-100 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all active:scale-95 shadow-sm"
+                                    title="Delete Doctor"
+                                  >
+                                    <Trash2 size={14} strokeWidth={2.5} />
+                                  </button>
+                                </div>
+
                               )}
                             </td>
                           </tr>
@@ -208,11 +332,8 @@ const DoctorsList = () => {
                       })
                     ) : (
                       <tr>
-                        <td colSpan="4" className="p-8 text-center text-slate-500">
-                          <div className="flex flex-col items-center justify-center gap-2">
-                            <UserCircle size={32} className="text-slate-300" />
-                            <p className="font-medium">No doctors found matching your search.</p>
-                          </div>
+                        <td colSpan="4" className="p-12 text-center text-slate-400">
+                          No doctors registered yet.
                         </td>
                       </tr>
                     )}
@@ -224,15 +345,175 @@ const DoctorsList = () => {
         </>
       )}
 
-      {activeTab === 'newTab' && (
-        <div className="bg-white p-12 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center text-center">
-          <div className="bg-teal-50 w-16 h-16 rounded-full flex items-center justify-center mb-4">
-            <Activity className="text-teal-500" size={32} />
+
+      {activeTab === 'analytics' && (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          {/* Camp Selector */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center gap-4">
+            <div className="flex items-center gap-3">
+               <div className="p-2 bg-amber-50 rounded-lg">
+                 <Activity className="text-amber-600" size={20} />
+               </div>
+               <div>
+                  <h3 className="text-sm font-black text-slate-800">Select Medical Camp</h3>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">View detailed performance reports</p>
+               </div>
+            </div>
+            
+            <select
+              className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all cursor-pointer"
+              value={selectedCamp}
+              onChange={(e) => {
+                setSelectedCamp(e.target.value);
+                fetchCampDetails(e.target.value);
+              }}
+            >
+              {camps.map((c) => (
+                <option key={c.id} value={c.id}>
+                  Camp #{c.number} — {c.venue} ({c.date})
+                </option>
+              ))}
+            </select>
           </div>
-          <h3 className="text-xl font-black text-slate-800 mb-2">New Tab Area</h3>
-          <p className="text-slate-500 max-w-sm">This is an empty tab workspace. You can request to add new tables, charts, or forms here.</p>
+
+          {analyticsLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-500"></div>
+            </div>
+          ) : detailedData ? (
+            <div className="space-y-6">
+              {detailedData.doctors.map((dr, drIdx) => (
+                <div key={drIdx} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all hover:shadow-md">
+                   {/* Doctor Header */}
+                   <div className="bg-slate-50/50 p-4 border-b border-slate-100 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                         <div className="w-10 h-10 rounded-full bg-teal-600 flex items-center justify-center text-white font-black text-sm shadow-sm">
+                            {dr.dr_name.charAt(0).toUpperCase()}
+                         </div>
+                         <div>
+                            <h4 className="text-base font-black text-slate-800">{dr.dr_name || "Unknown Doctor"}</h4>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{dr.patients.length} Patients Attended</p>
+                         </div>
+                      </div>
+                   </div>
+
+                   {/* Patients Table */}
+                   <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                           <tr className="bg-slate-50/30 border-b border-slate-100 text-slate-400 text-[10px] font-black uppercase tracking-wider">
+                              <th className="p-4 pl-6 w-1/4">Patient Name</th>
+                              <th className="p-4 w-1/3">Medications Provided</th>
+                              <th className="p-4 pr-6">Tests Recommended</th>
+                           </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                           {dr.patients.map((p, pIdx) => (
+                             <tr key={pIdx} className="hover:bg-slate-50/30 transition-colors">
+                                <td className="p-4 pl-6 align-top">
+                                   <span className="text-sm font-bold text-slate-700">{p.patient_name}</span>
+                                </td>
+                                <td className="p-4 align-top">
+                                   <div className="flex flex-wrap gap-1.5">
+                                      {p.medications.length > 0 ? p.medications.map((m, mIdx) => (
+                                        <span key={mIdx} className="px-2 py-0.5 bg-teal-50 text-teal-700 rounded text-[10px] font-bold border border-teal-100">
+                                          {m}
+                                        </span>
+                                      )) : <span className="text-[10px] text-slate-400 italic">No meds issued</span>}
+                                   </div>
+                                </td>
+                                <td className="p-4 pr-6 align-top">
+                                   <div className="flex flex-wrap gap-1.5">
+                                      {p.tests.length > 0 ? p.tests.map((t, tIdx) => (
+                                        <span key={tIdx} className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded text-[10px] font-bold border border-indigo-100">
+                                          {t}
+                                        </span>
+                                      )) : <span className="text-[10px] text-slate-400 italic">No tests ordered</span>}
+                                   </div>
+                                </td>
+                             </tr>
+                           ))}
+                        </tbody>
+                      </table>
+                   </div>
+                </div>
+              ))}
+
+              {detailedData.doctors.length === 0 && (
+                 <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center flex flex-col items-center">
+                    <div className="p-4 bg-slate-50 rounded-full mb-4">
+                      <Users className="text-slate-300" size={32} />
+                    </div>
+                    <h3 className="text-lg font-black text-slate-800">No Patient Records</h3>
+                    <p className="text-sm text-slate-500">No patients were recorded for this camp session.</p>
+                 </div>
+              )}
+            </div>
+          ) : (
+            <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center">
+               <p className="text-slate-400 font-bold">Select a camp to view detailed reports.</p>
+            </div>
+          )}
         </div>
       )}
+
+
+
+
+      {activeTab === 'registerDoctor' && (
+        <div className="bg-white p-10 rounded-2xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="max-w-md mx-auto">
+            <div className="flex flex-col items-center text-center mb-8">
+              <div className="w-16 h-16 bg-teal-50 rounded-full flex items-center justify-center mb-4">
+                <Users className="text-teal-500" size={32} />
+              </div>
+              <h2 className="text-2xl font-black text-slate-800 tracking-tight">Register New Doctor</h2>
+              <p className="text-slate-500 text-sm font-medium">Add medical staff to the database</p>
+            </div>
+
+            <form onSubmit={handleRegisterDoctor} className="space-y-5">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Doctor Full Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Dr. Jane Smith"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
+                  value={newDr.name}
+                  onChange={(e) => setNewDr({ ...newDr, name: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Specialization</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Cardiologist"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
+                  value={newDr.specialization}
+                  onChange={(e) => setNewDr({ ...newDr, specialization: e.target.value })}
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={regLoading}
+                className="w-full bg-teal-600 hover:bg-teal-700 text-white py-4 rounded-xl font-black text-xs uppercase tracking-[0.2em] transition-all shadow-lg shadow-teal-100 flex items-center justify-center gap-2"
+              >
+                {regLoading ? (
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <Save size={18} strokeWidth={2.5} />
+                    Register Doctor
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
 
     </div>
   );

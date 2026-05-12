@@ -43,5 +43,16 @@ urlpatterns = [
     path('api/check_scan_status/<uuid:session_id>', api_check_scan_status),
     
     path('api/doctors', api_get_doctors),
+    path('api/add_doctor', api_add_doctor),
+    path('api/update_doctor', api_update_doctor),
+    path('api/delete_doctor/<int:doctor_id>', api_delete_doctor),
+    path('api/doctor_analytics', api_doctor_analytics),
+    path('api/camps', api_get_all_camps),
+    path('api/camp_details/<int:camp_id>', api_get_camp_details),
+
+
+
+
+
 
 ]

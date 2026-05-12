@@ -17,9 +17,11 @@ class UserProfile(models.Model):
 
 class Doctor(models.Model):
     name = models.CharField(max_length=2000)
+    specialization = models.CharField(max_length=500, null=True, blank=True)
     
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.specialization or 'General'})"
+
 
 # Create your models here.
 class MedicineCategory(models.Model):
