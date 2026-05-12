@@ -11,6 +11,7 @@ import MedicineEntry from './pages/MedicineEntry';
 import CampRegistration from './pages/CampRegistration';
 import CampPatients from './pages/CampPatients';
 import OldPatientRegistration from './pages/OldPatientRegistration';
+import DoctorsList from './pages/DoctorsList';
 
 function App() {
   return (
@@ -31,6 +32,7 @@ function App() {
           <Route path="/medicine-entry" element={<MedicineEntry />} />
           <Route path="/camp-registration" element={<CampRegistration />} />
           <Route path="/camp-patients" element={<CampPatients />} />
+          <Route path="/doctors" element={<DoctorsList />} />
         </Route>
       </Routes>
     </Router>

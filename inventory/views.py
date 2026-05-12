@@ -926,3 +926,8 @@ def api_update_test_record(request):
             'status': 'error',
             'message': str(e)
         }, status=400)
+
+def api_get_doctors(request):
+    from django.db.models import Count
+    doctors = PatientVitals.objects.exclude(dr_name__isnull=True).exclude(dr_name='').values('dr_name', 'dr_id').annotate(patient_count=Count('patient_id', distinct=True)).order_by('dr_name')
+    return JsonResponse(list(doctors), safe=False)
