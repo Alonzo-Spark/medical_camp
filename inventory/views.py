@@ -16,6 +16,7 @@ from .ocr_service import MedicalOCRService
 # Global OCR Service instance
 ocr_service = MedicalOCRService()
 
+
 from .forms import IssueForm, VitalsForm
 from .models import (
     Medicine,
@@ -31,6 +32,7 @@ from .models import (
     CampWiseStock,
     Doctor,
     ScanSession,
+
 )
 
 def charts_data(vitals):
@@ -325,6 +327,7 @@ def export_camp_stock(request, camp_id):
             s.medicine.uqid,
             s.medicine.name,
             s.medicine.stock,
+
             s.allocated_stock,
             s.used_stock,
             s.remaining_stock()
@@ -593,6 +596,7 @@ def api_issue_medicine(request):
             # Update used stock in camp wise stock
             camp_stock.used_stock += qty
             camp_stock.save()
+
         return JsonResponse({'status': 'success'})
     except Exception as e:
         return JsonResponse({
@@ -669,6 +673,7 @@ def api_save_vitals(request):
                     # Update used stock in camp wise stock
                     camp_stock.used_stock += qty
                     camp_stock.save()
+
         selected_tests = data.get('selected_tests', [])
         for test_id in selected_tests:
             # pyrefly: ignore [missing-attribute]
@@ -1157,7 +1162,6 @@ def api_update_test_record(request):
             'message': str(e)
         }, status=400)
 
-
 @csrf_exempt
 def api_create_scan_session(request):
     if request.method == 'POST':
@@ -1232,3 +1236,9 @@ def api_check_scan_status(request, session_id):
         })
     except ScanSession.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': 'Invalid session'}, status=404)
+
+def api_get_doctors(request):
+    from django.db.models import Count
+    doctors = PatientVitals.objects.exclude(dr_name__isnull=True).exclude(dr_name='').values('dr_name', 'dr_id').annotate(patient_count=Count('patient_id', distinct=True)).order_by('dr_name')
+    return JsonResponse(list(doctors), safe=False)
+

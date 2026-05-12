@@ -194,7 +194,6 @@ const Vitals = () => {
     if (tests.length > 0) {
         setSelectedTests(tests.map(id => parseInt(id)).filter(id => !isNaN(id)));
     }
-
     
     // Medicines with Inventory Lookup
     const meds = d.medicines || (d.clinical && d.clinical.medicines) || [];

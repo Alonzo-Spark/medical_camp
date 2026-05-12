@@ -113,7 +113,7 @@ const Dashboard = () => {
 
             <div>
               <h4 className="text-xl font-black text-slate-800 tracking-tight mb-1.5 group-hover:text-teal-700 transition-colors">
-                Old Patient Registration
+                Medical Fulfillment
               </h4>
               <p className="text-sm text-slate-400 font-bold leading-relaxed">
                 Re-verify and register returning patients for the current camp session
@@ -121,7 +121,8 @@ const Dashboard = () => {
             </div>
 
             <div className="flex items-center gap-2 text-[10px] font-black text-teal-500 uppercase tracking-widest opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300">
-              <span>Open Old Patient Registration Form</span>
+              <span>Open Fulfillment Form</span>
+
               <ArrowRight size={12} strokeWidth={3} />
             </div>
           </div>

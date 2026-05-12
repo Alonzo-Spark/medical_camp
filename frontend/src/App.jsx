@@ -1,7 +1,6 @@
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
-
 // Lazy load pages to improve initial load time, especially for mobile
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Vitals = lazy(() => import('./pages/Vitals'));
@@ -13,6 +12,7 @@ const MedicineEntry = lazy(() => import('./pages/MedicineEntry'));
 const CampRegistration = lazy(() => import('./pages/CampRegistration'));
 const CampPatients = lazy(() => import('./pages/CampPatients'));
 const OldPatientRegistration = lazy(() => import('./pages/OldPatientRegistration'));
+const DoctorsList = lazy(() => import('./pages/DoctorsList'));
 const MobileUpload = lazy(() => import('./pages/MobileUpload'));
 
 // Loading component
@@ -22,6 +22,7 @@ const PageLoader = () => (
     <p className="text-slate-400 text-xs font-black uppercase tracking-[0.3em] animate-pulse">Loading Application...</p>
   </div>
 );
+
 
 function App() {
   return (
@@ -43,12 +44,14 @@ function App() {
             <Route path="/medicine-entry" element={<MedicineEntry />} />
             <Route path="/camp-registration" element={<CampRegistration />} />
             <Route path="/camp-patients" element={<CampPatients />} />
+            <Route path="/doctors" element={<DoctorsList />} />
           </Route>
 
           {/* Mobile scan upload - no layout */}
           <Route path="/mobile-upload/:sessionId" element={<MobileUpload />} />
         </Routes>
       </Suspense>
+
     </Router>
   );
 }

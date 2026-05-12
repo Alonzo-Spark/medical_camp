@@ -57,6 +57,7 @@ const Layout = () => {
       '/medicine-entry': 'Stock Entry',
       '/camp-registration': 'Camp Registration',
       '/camp-patients': 'Camp Patients List',
+      '/doctors': 'Doctors List',
     };
     return titles[path] || path.replace('/', '').replace('-', ' ');
   };
@@ -106,7 +107,10 @@ const Layout = () => {
             )}
 
             {(userRole === 'main_admin' || userRole === 'log_vitals_staff') && (
-              <SidebarLink to="/vitals" icon={Activity} label="Log Vitals" active={location.pathname === '/vitals'} />
+              <>
+                <SidebarLink to="/vitals" icon={Activity} label="Log Vitals" active={location.pathname === '/vitals'} />
+                <SidebarLink to="/doctors" icon={UserCircle} label="Doctors List" active={location.pathname === '/doctors'} />
+              </>
             )}
 
             {userRole === 'main_admin' && (
@@ -115,6 +119,7 @@ const Layout = () => {
                 <SidebarLink to="/medicine-entry" icon={PlusSquare} label="Stock Entry" active={location.pathname === '/medicine-entry'} />
               </>
             )}
+
           </nav>
         </div>
 
