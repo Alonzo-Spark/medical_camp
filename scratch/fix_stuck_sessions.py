@@ -12,6 +12,7 @@ from inventory.models import ScanSession
 
 # Fix sessions stuck in 'processing' for more than 10 minutes
 ten_minutes_ago = timezone.now() - timedelta(minutes=10)
+# pyrefly: ignore [missing-attribute]
 stuck_sessions = ScanSession.objects.filter(ocr_status='processing', created_at__lt=ten_minutes_ago)
 
 count = stuck_sessions.count()

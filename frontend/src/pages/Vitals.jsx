@@ -189,9 +189,12 @@ const Vitals = () => {
     setDrName(getV('doctor_name', 'clinical'));
     setDiagnosis(getV('diagnosis', 'clinical'));
     
-    // Lab Tests (handle both d.lab_tests and d.clinical.lab_tests)
+    // Lab Tests (ensure IDs are numbers for the checkboxes to work)
     const tests = d.lab_tests || (d.clinical && d.clinical.lab_tests) || [];
-    if (tests.length > 0) setSelectedTests(tests);
+    if (tests.length > 0) {
+        setSelectedTests(tests.map(id => parseInt(id)).filter(id => !isNaN(id)));
+    }
+
     
     // Medicines with Inventory Lookup
     const meds = d.medicines || (d.clinical && d.clinical.medicines) || [];

@@ -9,6 +9,7 @@ django.setup()
 from inventory.models import ScanSession
 
 # Get the most recent completed session
+# pyrefly: ignore [missing-attribute]
 session = ScanSession.objects.filter(ocr_status='completed').order_by('-created_at').first()
 
 if session:
