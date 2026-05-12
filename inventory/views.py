@@ -296,18 +296,20 @@ def export(request):
 
 
 def export_camp_stock(request, camp_id):
-    camp = get_object_or_404(MedicalCamp, number=camp_id)
+    camp = get_object_or_404(MedicalCamp, id=camp_id)
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = (
-        f'attachment; filename="camp_{camp_id}_stock_allocation.csv"'
+        f'attachment; filename="camp_{camp.number}_stock_allocation.csv"'
     )
 
     writer = csv.writer(response)
     writer.writerow([
         'Camp Number',
         'Venue',
+        'Date',
         'Medicine UQID',
         'Medicine Name',
+        'Warehouse Stock',
         'Allocated Stock',
         'Used Stock',
         'Remaining Stock'
@@ -318,9 +320,11 @@ def export_camp_stock(request, camp_id):
     for s in stocks:
         writer.writerow([
             camp.number,
-            camp.venue,
+            camp.venue.name,
+            camp.date.strftime('%Y-%m-%d'),
             s.medicine.uqid,
             s.medicine.name,
+            s.medicine.stock,
             s.allocated_stock,
             s.used_stock,
             s.remaining_stock()
@@ -586,6 +590,9 @@ def api_issue_medicine(request):
                 medicine=medicine,
                 qty=qty
             )
+            # Update used stock in camp wise stock
+            camp_stock.used_stock += qty
+            camp_stock.save()
         return JsonResponse({'status': 'success'})
     except Exception as e:
         return JsonResponse({
@@ -659,6 +666,9 @@ def api_save_vitals(request):
                         afternoon=int(item.get('afternoon') or 0),
                         night=int(item.get('night') or 0)
                     )
+                    # Update used stock in camp wise stock
+                    camp_stock.used_stock += qty
+                    camp_stock.save()
         selected_tests = data.get('selected_tests', [])
         for test_id in selected_tests:
             # pyrefly: ignore [missing-attribute]
@@ -840,7 +850,8 @@ def api_get_camp_wise_stock(request):
 
 def api_get_specific_camp_stock(request, camp_id):
     # pyrefly: ignore [missing-attribute]
-    stocks = CampWiseStock.objects.filter(camp_id=camp_id)
+    camp = get_object_or_404(MedicalCamp, id=camp_id)
+    stocks = CampWiseStock.objects.filter(camp=camp)
     data = {}
     for s in stocks:
         data[s.medicine.uqid] = {
