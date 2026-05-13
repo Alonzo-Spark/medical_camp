@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { ShieldCheck, Lock, User, Eye, EyeOff, Loader2, Heart } from "lucide-react";
+import { ShieldCheck, Lock, User, Eye, EyeOff, Loader2, Heart, Activity, Stethoscope, Pill } from "lucide-react";
 import cccLogo from "../assets/ccc-logo.png";
+import medicalCampBg from "../assets/medical_camp_bg.png";
 
 const API_BASE = `http://${window.location.hostname}:8000/api`;
 
@@ -36,13 +37,15 @@ function AdminLogin() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-50 relative overflow-hidden font-sans">
-            {/* Dynamic Background Elements */}
-            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-teal-500/5 rounded-full blur-[120px]" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-500/5 rounded-full blur-[120px]" />
+        <div
+            className="min-h-screen flex items-center justify-center relative overflow-hidden font-sans bg-cover bg-center"
+            style={{ backgroundImage: `url(${medicalCampBg})` }}
+        >
+            {/* Elegant Dark Overlay */}
+            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm z-0" />
 
             {/* Login Card */}
-            <div className="relative w-full max-w-md px-4 animate-fade-in">
+            <div className="relative w-full max-w-md px-4 animate-fade-in z-10">
                 <div className="glass-panel-light p-10 relative overflow-hidden bg-white/80 backdrop-blur-xl">
                     <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-teal-500 via-teal-400 to-emerald-400" />
 
