@@ -113,10 +113,10 @@ const Dashboard = () => {
 
             <div>
               <h4 className="text-xl font-black text-slate-800 tracking-tight mb-1.5 group-hover:text-teal-700 transition-colors">
-                Medical Fulfillment
+                Old Patient Registration
               </h4>
               <p className="text-sm text-slate-400 font-bold leading-relaxed">
-                Re-verify and register returning patients for the current camp session
+                Re-verify and register returning patients
               </p>
             </div>
 

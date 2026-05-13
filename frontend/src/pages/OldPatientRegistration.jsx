@@ -82,16 +82,25 @@ function OldPatientRegistration() {
             if (res.data.exists) {
                 // Patient found — fetch full details
                 const patientRes = await axios.get(`${API_BASE}/patient/${pid}`);
-                const patient = patientRes.data;
+                const patient = patientRes.data.info;
                 setOriginalPatient(patient);
-                setForm(prev => ({
-                    ...prev,
-                    name: patient.name || "",
-                    age: patient.age ? String(patient.age) : "",
-                    gender: patient.gender || "",
-                    contact: patient.contact || "",
-                    address: patient.address || "",
-                }));
+                setForm(prev => {
+                    let formattedDate = prev.regdate;
+                    if (patient.registered_date) {
+                        const [y, m, d] = patient.registered_date.split('-');
+                        formattedDate = `${d}/${m}/${y}`;
+                    }
+                    return {
+                        ...prev,
+                        name: patient.name || "",
+                        age: patient.age ? String(patient.age) : "",
+                        gender: patient.gender || "",
+                        contact: patient.contact || "",
+                        address: patient.address || "",
+                        regdate: formattedDate,
+                        camp_session: patient.camp_session || prev.camp_session
+                    };
+                });
                 setPatientFound(true);
                 setErrors(prev => ({ ...prev, pid: "" }));
             } else {
@@ -132,13 +141,12 @@ function OldPatientRegistration() {
 
         setLoading(true);
         try {
+            const [d, m, y] = form.regdate.split('/');
+            const apiDate = `${y}-${m}-${d}`;
+
             await axios.post(`${API_BASE}/register_patient`, { 
-                pid: form.pid,
-                name: form.name,
-                age: form.age,
-                gender: form.gender,
-                contact: form.contact,
-                address: form.address
+                ...form, 
+                regdate: apiDate 
             });
 
             setSuccess(true);
@@ -191,9 +199,9 @@ function OldPatientRegistration() {
                         <div className="p-2.5 bg-teal-50 rounded-xl border border-teal-200">
                             <UserCheck size={24} className="text-teal-600" strokeWidth={2.5} />
                         </div>
-                        Medical Fulfillment
+                        Old Patient Registration
                     </h3>
-                    <p className="text-slate-400 text-sm font-bold mt-2 ml-[52px]">Re-verify and register existing patients for the current camp session</p>
+                    <p className="text-slate-400 text-sm font-bold mt-2 ml-[52px]">Re-verify and register existing patients</p>
 
                 </div>
 
@@ -424,7 +432,7 @@ function OldPatientRegistration() {
                                 )}
                             </div>
                         </button>
- 
+
                         <button
                             type="button"
                             onClick={handleClear}
@@ -433,7 +441,7 @@ function OldPatientRegistration() {
                             <RotateCcw size={18} strokeWidth={2.5} />
                             Reset
                         </button>
- 
+
                         {success && (
                             <div className="fixed bottom-10 right-10 flex items-center gap-3 text-emerald-700 bg-white px-8 py-5 rounded-2xl border-2 border-emerald-500 shadow-2xl shadow-emerald-200 animate-bounce z-50">
                                 <div className="p-2 bg-emerald-500 rounded-lg text-white">

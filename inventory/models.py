@@ -69,6 +69,7 @@ class PatientMedicineIssue(models.Model):
     
     # New clinical fields to link with Vitals
     vitals_record = models.ForeignKey('PatientVitals', on_delete=models.CASCADE, null=True, blank=True, related_name='issued_medicines')
+    formulation = models.CharField(max_length=100, null=True, blank=True)
     strength = models.CharField(max_length=100, null=True, blank=True)
     days = models.IntegerField(default=0)
     morning = models.IntegerField(default=0)

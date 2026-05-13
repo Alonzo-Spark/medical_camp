@@ -55,7 +55,7 @@ const Vitals = () => {
 
   // Medicine table state
   const [medicines, setMedicines] = useState([
-    { msNo: '', medicine: '', strength: '', days: '', morning: '', afternoon: '', night: '', quantity: '' }
+    { msNo: '', medicine: '', formulation: '', strength: '', days: '', morning: '', afternoon: '', night: '', quantity: '' }
   ]);
   const [allMedicines, setAllMedicines] = useState([]); // Master list for auto-fill
   const [campStocks, setCampStocks] = useState({}); // Real-time stock for selected camp (Object)
@@ -131,6 +131,24 @@ const Vitals = () => {
     }
   };
 
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !scanSessionId) return;
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+        await axios.post(`${API_BASE}/upload_scan/${scanSessionId}`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        // Polling will handle the state update
+    } catch (err) {
+        console.error("Upload failed", err);
+        setError("Image upload failed. Please try again.");
+    }
+  };
+
   const startPolling = (sessionId) => {
     const interval = setInterval(async () => {
       try {
@@ -202,7 +220,8 @@ const Vitals = () => {
             let medData = {
                 msNo: m.ms_no || '', 
                 medicine: m.medicine_name || '', 
-                strength: m.strength || '', 
+                formulation: m.formulation || m.strength || '', // Support migration
+                strength: m.strength_value || m.strength || '', 
                 days: m.days || '', 
                 morning: m.morning || '', 
                 afternoon: m.afternoon || '', 
@@ -215,7 +234,7 @@ const Vitals = () => {
                 const found = allMedicines.find(am => am.uqid === parseInt(medData.msNo));
                 if (found) {
                     medData.medicine = found.name;
-                    medData.strength = found.formulation || '';
+                    medData.formulation = found.formulation || '';
                 }
             }
             return medData;
@@ -228,7 +247,7 @@ const Vitals = () => {
   const addMedicineRow = () => {
     setMedicines(prev => [
       ...prev,
-      { msNo: '', medicine: '', strength: '', days: '', morning: '', afternoon: '', night: '', quantity: '' }
+      { msNo: '', medicine: '', formulation: '', strength: '', days: '', morning: '', afternoon: '', night: '', quantity: '' }
     ]);
   };
 
@@ -248,7 +267,7 @@ const Vitals = () => {
         const foundMed = allMedicines.find(am => am.uqid === parseInt(value));
         if (foundMed) {
           updatedMed.medicine = foundMed.name;
-          updatedMed.strength = foundMed.formulation || ''; // Use formulation as strength if available
+          updatedMed.formulation = foundMed.formulation || ''; // Use formulation from inventory
         }
       }
 
@@ -269,6 +288,12 @@ const Vitals = () => {
     e.preventDefault();
     if (!patientId) {
       setError('Patient ID is required');
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+
+    if (!selectedCamp) {
+      setError('Please select an active medical camp session');
       setTimeout(() => setError(''), 3000);
       return;
     }
@@ -551,6 +576,7 @@ const Vitals = () => {
                 <tr className="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
                   <th className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] w-20 text-center">M.S.No</th>
                   <th className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] min-w-[200px]">Medicines</th>
+                  <th className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] w-24 text-center">Formulation</th>
                   <th className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] w-24 text-center">Strength</th>
                   <th className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] w-20 text-center">Days</th>
                   <th className="px-4 py-4 text-[10px] font-black text-amber-500 uppercase tracking-[0.15em] w-20 text-center">Morning</th>
@@ -587,12 +613,23 @@ const Vitals = () => {
                         />
                       </td>
 
+                      {/* Formulation */}
+                      <td className="px-3 py-3">
+                        <input
+                          type="text"
+                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-bold text-slate-800 text-center placeholder:text-slate-300 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+                          placeholder="e.g. Tab"
+                          value={med.formulation}
+                          onChange={e => updateMedicine(index, 'formulation', e.target.value)}
+                        />
+                      </td>
+
                       {/* Strength */}
                       <td className="px-3 py-3">
                         <input
                           type="text"
                           className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-bold text-slate-800 text-center placeholder:text-slate-300 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
-                          placeholder="mg"
+                          placeholder="mg/ml"
                           value={med.strength}
                           onChange={e => updateMedicine(index, 'strength', e.target.value)}
                         />
@@ -760,6 +797,30 @@ const Vitals = () => {
                             <div className="w-1.5 h-1.5 bg-teal-500 rounded-full" />
                             Waiting for upload...
                         </div>
+
+                        {/* Divider */}
+                        <div className="w-full flex items-center gap-4 my-8">
+                            <div className="flex-1 h-px bg-slate-100" />
+                            <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">OR</span>
+                            <div className="flex-1 h-px bg-slate-100" />
+                        </div>
+
+                        {/* Local Upload */}
+                        <label className="w-full flex flex-col items-center justify-center gap-4 p-8 border-2 border-dashed border-slate-200 rounded-[32px] bg-slate-50/50 hover:bg-teal-50/30 hover:border-teal-200 transition-all cursor-pointer group">
+                            <input 
+                                type="file" 
+                                className="sr-only" 
+                                accept="image/*" 
+                                onChange={handleFileUpload}
+                            />
+                            <div className="p-4 bg-white rounded-2xl shadow-sm border border-slate-100 text-slate-400 group-hover:text-teal-600 transition-colors">
+                                <ImageIcon size={28} strokeWidth={2.5} />
+                            </div>
+                            <div className="text-center">
+                                <p className="text-[11px] font-black text-slate-700 uppercase tracking-widest mb-1">Upload from Computer</p>
+                                <p className="text-[10px] font-bold text-slate-400 tracking-wide">Choose report photo from your folder</p>
+                            </div>
+                        </label>
                     </>
                 ) : (
                     <div className="w-full animate-in fade-in zoom-in duration-500">
