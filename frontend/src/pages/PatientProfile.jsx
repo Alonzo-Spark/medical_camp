@@ -28,6 +28,8 @@ import {
   Filler
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
+import annotationPlugin from 'chartjs-plugin-annotation';
+import ChartDataLabels from 'chartjs-plugin-datalabels';
 
 ChartJS.register(
   CategoryScale,
@@ -37,7 +39,9 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  Filler
+  Filler,
+  annotationPlugin,
+  ChartDataLabels
 );
 
 const API_BASE = `http://${window.location.hostname}:8000/api`;
@@ -118,15 +122,15 @@ const PatientProfile = () => {
     }
   };
 
-  const chartOptions = (title, color) => ({
+  const chartOptions = (title) => ({
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: { display: false },
-      title: { 
-        display: true, 
-        text: title, 
-        color: '#1e293b', 
+      title: {
+        display: true,
+        text: title,
+        color: '#1e293b',
         font: { size: 12, weight: 'bold', family: 'Inter' },
         padding: { bottom: 20 }
       },
@@ -141,78 +145,148 @@ const PatientProfile = () => {
         displayColors: false,
         borderColor: '#e2e8f0',
         borderWidth: 1
+      },
+      datalabels: {
+        display: true,
+        align: 'top',
+        anchor: 'end',
+        offset: 4,
+        color: '#334155',
+        font: { family: 'Inter', size: 10, weight: 'bold' },
+        formatter: (value) => value || ''
       }
     },
     scales: {
-      y: { 
-        grid: { color: 'rgba(0, 0, 0, 0.05)', drawBorder: false }, 
-        ticks: { color: '#94a3b8', font: { family: 'Inter', size: 10 } } 
+      y: {
+        grid: { color: 'rgba(0, 0, 0, 0.05)' },
+        ticks: { color: '#94a3b8', font: { family: 'Inter', size: 10 } }
       },
-      x: { 
-        grid: { display: false }, 
-        ticks: { color: '#94a3b8', font: { family: 'Inter', size: 10 } } 
+      x: {
+        grid: { display: false },
+        ticks: { color: '#94a3b8', font: { family: 'Inter', size: 10 } }
       },
     },
   });
 
-  const getHBChartData = () => ({
-    labels: data.charts.haemoglobin.map(i => i.label),
-    datasets: [{
-      label: 'Haemoglobin',
-      data: data.charts.haemoglobin.map(i => parseFloat(i.value) || 0),
-      borderColor: '#f43f5e',
-      borderWidth: 3,
-      pointBackgroundColor: '#f43f5e',
-      pointBorderColor: '#ffffff',
-      pointBorderWidth: 2,
-      pointRadius: 4,
-      pointHoverRadius: 6,
-      backgroundColor: 'rgba(244, 63, 94, 0.05)',
-      fill: true,
-      tension: 0.4,
-    }]
-  });
+  const hbAnnotations = {
+    normalHB: {
+      type: 'box', yMin: 12, yMax: 17,
+      backgroundColor: 'rgba(34,197,94,0.07)', borderWidth: 0,
+      label: { content: 'Normal (12–17)', display: true, position: 'start', font: { size: 9 }, color: '#16a34a' }
+    },
+    lowHB: {
+      type: 'box', yMin: 0, yMax: 12,
+      backgroundColor: 'rgba(239,68,68,0.07)', borderWidth: 0,
+      label: { content: 'Low (<12)', display: true, position: 'start', font: { size: 9 }, color: '#dc2626' }
+    }
+  };
 
-  const getSugarChartData = () => ({
-    labels: data.charts.glucose.map(i => i.label),
-    datasets: [{
-      label: 'Sugar',
-      data: data.charts.glucose.map(i => parseFloat(i.value) || 0),
-      borderColor: '#f59e0b',
-      borderWidth: 3,
-      pointBackgroundColor: '#f59e0b',
-      pointBorderColor: '#ffffff',
-      pointBorderWidth: 2,
-      pointRadius: 4,
-      pointHoverRadius: 6,
-      backgroundColor: 'rgba(245, 158, 11, 0.05)',
-      fill: true,
-      tension: 0.4,
-    }]
-  });
+  const getHBChartData = () => {
+    const values = data.charts.haemoglobin.map(i => parseFloat(i.value) || 0);
+    return {
+      labels: data.charts.haemoglobin.map(i => i.label),
+      datasets: [{
+        label: 'Haemoglobin',
+        data: values,
+        borderColor: '#f43f5e',
+        borderWidth: 3,
+        pointBackgroundColor: values.map(v => v < 12 ? '#dc2626' : v > 17 ? '#f97316' : '#22c55e'),
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 2,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        backgroundColor: 'rgba(244, 63, 94, 0.05)',
+        fill: true,
+        tension: 0.4,
+      }]
+    };
+  };
+
+  const sugarAnnotations = {
+    normal: {
+      type: 'box', yMin: 0, yMax: 140,
+      backgroundColor: 'rgba(34,197,94,0.07)', borderWidth: 0,
+      label: { content: 'Normal (<140)', display: true, position: 'start', font: { size: 9 }, color: '#16a34a' }
+    },
+    prediabetic: {
+      type: 'box', yMin: 140, yMax: 199,
+      backgroundColor: 'rgba(234,179,8,0.08)', borderWidth: 0,
+      label: { content: 'Prediabetic (140–199)', display: true, position: 'start', font: { size: 9 }, color: '#a16207' }
+    },
+    diabetic: {
+      type: 'box', yMin: 199, yMax: 600,
+      backgroundColor: 'rgba(239,68,68,0.07)', borderWidth: 0,
+      label: { content: 'Diabetic (≥200)', display: true, position: 'start', font: { size: 9 }, color: '#dc2626' }
+    }
+  };
+
+  const getSugarChartData = () => {
+    const values = data.charts.glucose.map(i => parseFloat(i.value) || 0);
+    return {
+      labels: data.charts.glucose.map(i => i.label),
+      datasets: [{
+        label: 'Sugar',
+        data: values,
+        borderColor: '#f59e0b',
+        borderWidth: 3,
+        pointBackgroundColor: values.map(v => v >= 200 ? '#dc2626' : v >= 140 ? '#eab308' : '#22c55e'),
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 2,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        backgroundColor: 'rgba(245, 158, 11, 0.05)',
+        fill: true,
+        tension: 0.4,
+      }]
+    };
+  };
+
+  const bpAnnotations = {
+    normal: {
+      type: 'box', yMin: 0, yMax: 120,
+      backgroundColor: 'rgba(34,197,94,0.07)', borderWidth: 0,
+      label: { content: 'Normal (<120)', display: true, position: 'start', font: { size: 9 }, color: '#16a34a' }
+    },
+    elevated: {
+      type: 'box', yMin: 120, yMax: 140,
+      backgroundColor: 'rgba(234,179,8,0.08)', borderWidth: 0,
+      label: { content: 'Elevated (120–139)', display: true, position: 'start', font: { size: 9 }, color: '#a16207' }
+    },
+    high: {
+      type: 'box', yMin: 140, yMax: 300,
+      backgroundColor: 'rgba(239,68,68,0.07)', borderWidth: 0,
+      label: { content: 'High (≥140)', display: true, position: 'start', font: { size: 9 }, color: '#dc2626' }
+    }
+  };
 
   const getBPChartData = () => {
+    const systolic = data.charts.blood_pressure.map(i => parseFloat(i.systolic) || 0);
+    const diastolic = data.charts.blood_pressure.map(i => parseFloat(i.diastolic) || 0);
     return {
       labels: data.charts.blood_pressure.map(i => i.label),
       datasets: [
         {
           label: 'Systolic',
-          data: data.charts.blood_pressure.map(i => parseFloat(i.systolic) || 0),
+          data: systolic,
           borderColor: '#0ea5e9',
           borderWidth: 3,
-          pointBackgroundColor: '#0ea5e9',
+          pointBackgroundColor: systolic.map(v => v >= 140 ? '#dc2626' : v >= 120 ? '#eab308' : '#22c55e'),
           pointBorderColor: '#ffffff',
-          pointRadius: 4,
+          pointBorderWidth: 2,
+          pointRadius: 5,
+          pointHoverRadius: 7,
           tension: 0.4,
         },
         {
           label: 'Diastolic',
-          data: data.charts.blood_pressure.map(i => parseFloat(i.diastolic) || 0),
+          data: diastolic,
           borderColor: '#8b5cf6',
           borderWidth: 3,
-          pointBackgroundColor: '#8b5cf6',
+          pointBackgroundColor: diastolic.map(v => v >= 90 ? '#dc2626' : v >= 80 ? '#eab308' : '#22c55e'),
           pointBorderColor: '#ffffff',
-          pointRadius: 4,
+          pointBorderWidth: 2,
+          pointRadius: 5,
+          pointHoverRadius: 7,
           tension: 0.4,
         }
       ]
@@ -327,13 +401,22 @@ const PatientProfile = () => {
           {/* Charts Row */}
           <div className="col-span-12 grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
-              { id: 'hb', data: getHBChartData, label: 'haemoglobin', title: 'Haemoglobin trend', color: 'red' },
-              { id: 'sugar', data: getSugarChartData, label: 'glucose', title: 'Sugar / Glucose trend', color: 'amber' },
-              { id: 'bp', data: getBPChartData, label: 'blood_pressure', title: 'Blood Pressure trend', color: 'blue' }
+              { id: 'hb',    data: getHBChartData,    label: 'haemoglobin',    title: 'Haemoglobin (g/dL)',       annotations: hbAnnotations },
+              { id: 'sugar', data: getSugarChartData, label: 'glucose',        title: 'Blood Sugar / RBS (mg/dL)', annotations: sugarAnnotations },
+              { id: 'bp',    data: getBPChartData,    label: 'blood_pressure', title: 'Blood Pressure (mmHg)',     annotations: bpAnnotations }
             ].map(chart => (
               data.charts[chart.label] && data.charts[chart.label].length > 0 && (
-                <div key={chart.id} className="glass-panel-light p-6 h-[320px] hover:border-teal-500/30 transition-all group">
-                  <Line data={chart.data()} options={chartOptions(chart.title, chart.color)} />
+                <div key={chart.id} className="glass-panel-light p-6 h-[340px] hover:border-teal-500/30 transition-all group">
+                  <Line
+                    data={chart.data()}
+                    options={{
+                      ...chartOptions(chart.title),
+                      plugins: {
+                        ...chartOptions(chart.title).plugins,
+                        annotation: { annotations: chart.annotations }
+                      }
+                    }}
+                  />
                 </div>
               )
             ))}
