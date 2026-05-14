@@ -101,7 +101,7 @@ const Layout = () => {
                 <SidebarLink to="/dashboard" icon={LayoutDashboard} label="Dashboard" active={location.pathname === '/dashboard'} />
               </>
             )}
-            
+
             {(userRole === 'main_admin' || userRole === 'registration_staff' || userRole === 'log_vitals_staff') && (
               <SidebarLink to="/camp-patients" icon={Users} label="Camp Patient List" active={location.pathname === '/camp-patients'} />
             )}
@@ -120,6 +120,16 @@ const Layout = () => {
               </>
             )}
 
+            {userRole === 'main_admin' && (
+              <SidebarLink
+                to="/camp-report"
+                icon={ClipboardList}
+                label="Camp Reports"
+                active={location.pathname === '/camp-report'}
+              />
+            )}
+
+
           </nav>
         </div>
 
@@ -135,10 +145,10 @@ const Layout = () => {
             </div>
           </div>
           <button
-            onClick={() => { 
-              localStorage.removeItem('medicamp_username'); 
-              localStorage.removeItem('userRole'); 
-              navigate('/login'); 
+            onClick={() => {
+              localStorage.removeItem('medicamp_username');
+              localStorage.removeItem('userRole');
+              navigate('/login');
             }}
             className="flex items-center justify-center gap-2 w-full py-2.5 text-xs font-bold text-slate-400 hover:text-red-500 bg-white rounded-lg transition-all duration-200 border border-slate-200 hover:border-red-200 hover:bg-red-50"
           >

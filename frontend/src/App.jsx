@@ -14,11 +14,13 @@ const CampPatients = lazy(() => import('./pages/CampPatients'));
 const OldPatientRegistration = lazy(() => import('./pages/OldPatientRegistration'));
 const DoctorsList = lazy(() => import('./pages/DoctorsList'));
 const MobileUpload = lazy(() => import('./pages/MobileUpload'));
+const CampReport = lazy(() => import('./pages/CampReport'));
+
 
 // Loading component
 const PageLoader = () => (
   <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-4">
-    <div className="w-12 h-12 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
+    <div className="w-12 h-12 border-4 border-What is main.jsx?blue-500/20 border-t-blue-500 rounded-full animate-spin" />
     <p className="text-slate-400 text-xs font-black uppercase tracking-[0.3em] animate-pulse">Loading Application...</p>
   </div>
 );
@@ -45,6 +47,8 @@ function App() {
             <Route path="/camp-registration" element={<CampRegistration />} />
             <Route path="/camp-patients" element={<CampPatients />} />
             <Route path="/doctors" element={<DoctorsList />} />
+            <Route path="/camp-report" element={<CampReport />} />
+
           </Route>
 
           {/* Mobile scan upload - no layout */}

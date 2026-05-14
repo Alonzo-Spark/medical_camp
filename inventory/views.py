@@ -1384,3 +1384,91 @@ def api_get_all_camps(request):
     serializer = MedicalCampSerializer(camps, many=True)
     return Response(serializer.data)
 
+@api_view(['GET'])
+def api_get_camp_report(request,camp_id):
+    try:
+
+        camp=MedicalCamp.objects.get(number=camp_id)
+        
+        # 1. Get IDs from Vitals
+        vitals_ids = PatientVitals.objects.filter(camp=camp).values_list('patient_id', flat=True)
+
+        # 2. Get IDs from Medicine Issue
+        medicine_ids = PatientMedicineIssue.objects.filter(camp=camp).values_list('patient_id', flat=True)
+
+        # 3. Get IDs from Test Issue
+        test_ids = TestIssue.objects.filter(camp=camp).values_list('patient_id', flat=True)
+
+        # 4. Combine them and remove duplicates (set)
+        # This will find everyone who did ANYTHING at the camp
+        attended_patient_ids = set(list(vitals_ids) + list(medicine_ids) + list(test_ids))
+
+        total_patients = len(attended_patient_ids)
+
+
+        total_patients = len(attended_patient_ids)
+
+        new_patients= Patient.objects.filter(patient_id__in=attended_patient_ids,camp_session=camp_id).count()
+
+        old_patients=total_patients - new_patients
+
+        # 4. Get Doctors who attended (Unique by dr_id)
+        doctors_query = PatientVitals.objects.filter(camp=camp).values('dr_id', 'dr_name').distinct()
+        
+        unique_doctors = {}
+        for d in doctors_query:
+            if d['dr_id']:
+                unique_doctors[d['dr_id']] = d['dr_name'] or "Unknown Doctor"
+        
+        doctor_names = list(unique_doctors.values())
+        total_doctors = len(unique_doctors)
+
+        stock_data=CampWiseStock.objects.filter(camp=camp)
+
+        total_allocated = sum(s.allocated_stock for s in stock_data)
+
+        total_used=sum(s.used_stock for s in stock_data)
+
+        remaining_stock=total_allocated-total_used
+
+        total_tests= TestIssue.objects.filter(camp=camp).count()
+
+        report_data = {
+            "camp_number":camp.number,
+            "venue":camp.venue.name,
+            "date":camp.date,
+            "patients":{
+                "total":total_patients,
+                "new":new_patients,
+                "old":old_patients,
+            },
+            "doctors":{
+                "count":total_doctors,
+                "names":doctor_names,
+            },
+            "medicine":{
+                "allocated":total_allocated,
+                "used":total_used,
+                "remaining":remaining_stock,
+            },
+            "tests":{
+                "total_issued":total_tests,
+            },
+            
+            
+        }
+
+        return Response(report_data)
+        
+    except MedicalCamp.DoesNotExist:
+        return Response({"error": "Camp not found"}, status=404)
+
+       
+
+
+       
+        
+
+    
+        
+        

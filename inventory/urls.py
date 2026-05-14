@@ -37,6 +37,7 @@ urlpatterns = [
     path('api/tests', api_get_medical_tests),
     path('api/camp_patients/<int:camp_id>', api_camp_patients),
     path('api/update_test_record', api_update_test_record),
+    path('api/camp_report/<int:camp_id>',api_get_camp_report),
     # Mobile Scan APIs
     path('api/create_scan_session', api_create_scan_session),
     path('api/upload_scan/<uuid:session_id>', api_upload_scan),
