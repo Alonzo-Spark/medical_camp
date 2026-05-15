@@ -35,7 +35,13 @@ const VitalInput = ({ icon: Icon, label, value, onChange, type = 'text', placeho
 const Vitals = () => {
   // Patient Vitals state
   const [patientId, setPatientId] = useState('');
-  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(() => {
+    const d = new Date();
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  });
   const [time, setTime] = useState(() => new Date().toTimeString().slice(0, 5));
   const [eNo, setENo] = useState('');
   const [weight, setWeight] = useState('');
@@ -184,6 +190,21 @@ const Vitals = () => {
     }, 100);
   };
 
+  const handleDateChange = (value) => {
+    let val = value.replace(/\D/g, '');
+    if (val.length > 2) val = val.slice(0, 2) + '/' + val.slice(2);
+    if (val.length > 5) val = val.slice(0, 5) + '/' + val.slice(5, 10);
+    setDate(val);
+  };
+
+  const handleNativeDateChange = (e) => {
+    const val = e.target.value; // YYYY-MM-DD
+    if (val) {
+        const [y, m, d] = val.split('-');
+        setDate(`${d}/${m}/${y}`);
+    }
+  };
+
   const handleAutoFill = () => {
     if (!scanStatus.ocr_data) return;
     const d = scanStatus.ocr_data;
@@ -300,10 +321,16 @@ const Vitals = () => {
 
     setLoading(true);
     try {
+      let apiDate = date;
+      if (date.includes('/')) {
+        const [d, m, y] = date.split('/');
+        apiDate = `${y}-${m}-${d}`;
+      }
+
       await axios.post(`${API_BASE}/save_vitals`, {
         patient_id: patientId,
         medical_camp: selectedCamp,
-        date,
+        date: apiDate,
         time,
         e_no: eNo,
         weight,
@@ -432,7 +459,36 @@ const Vitals = () => {
           {/* Row 1: Patient ID, Date, Time, E.No */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mb-5">
             <VitalInput icon={User} label="Patient ID" value={patientId} onChange={setPatientId} placeholder="Enter ID" required iconColor="text-blue-500" />
-            <VitalInput icon={Calendar} label="Date" value={date} onChange={setDate} type="date" iconColor="text-indigo-500" />
+            
+            <div className="space-y-2">
+                <label className="flex items-center gap-1.5 text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                <Calendar size={11} className="text-indigo-500" strokeWidth={2.5} />
+                Date (DD/MM/YYYY)
+                </label>
+                <div className="relative">
+                    <input
+                        type="text"
+                        className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 placeholder:text-slate-300 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 outline-none transition-all shadow-sm bg-white hover:border-slate-300"
+                        placeholder="DD/MM/YYYY"
+                        value={date}
+                        onChange={e => handleDateChange(e.target.value)}
+                    />
+                    <button
+                        type="button"
+                        onClick={() => document.getElementById('native-date-picker').showPicker()}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-teal-500 transition-colors"
+                    >
+                        <Calendar size={16} />
+                    </button>
+                    <input 
+                        type="date"
+                        id="native-date-picker"
+                        className="absolute opacity-0 pointer-events-none right-0"
+                        onChange={handleNativeDateChange}
+                    />
+                </div>
+            </div>
+
             <VitalInput icon={Clock} label="Time" value={time} onChange={setTime} type="time" iconColor="text-violet-500" />
             <VitalInput icon={Hash} label="E.No" value={eNo} onChange={setENo} placeholder="Entry No." iconColor="text-cyan-500" />
           </div>

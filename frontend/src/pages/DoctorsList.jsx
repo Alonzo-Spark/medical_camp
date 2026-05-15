@@ -116,7 +116,19 @@ const DoctorsList = () => {
       alert("Failed to delete doctor.");
     }
   };
-
+  const handleToggleStatus = async (id) => {
+    try {
+      const res = await fetch(`${API_BASE}/toggle_doctor_status/${id}`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        fetchDoctors();
+      }
+    } catch (err) {
+      console.error("Error toggling status:", err);
+    }
+  };
 
 
 
@@ -125,22 +137,6 @@ const DoctorsList = () => {
     doc.dr_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (doc.dr_id && doc.dr_id.toLowerCase().includes(searchTerm.toLowerCase()))
   );
-
-  const handleTogglePresence = async (id) => {
-    try {
-      const res = await fetch(`${API_BASE}/toggle_doctor_presence/${id}`, {
-        method: 'POST'
-      });
-      const data = await res.json();
-      if (data.status === 'success') {
-        setDoctors(prev => prev.map(doc =>
-          doc.dr_id === id ? { ...doc, is_present: data.is_present } : doc
-        ));
-      }
-    } catch (err) {
-      console.error("Error toggling doctor presence:", err);
-    }
-  };
 
   const handleEditClick = (doc) => {
     setEditingId(doc.dr_id || doc.dr_name); // use dr_id or name as unique key for this view
@@ -254,8 +250,8 @@ const DoctorsList = () => {
                       <th className="p-4 pl-6">Doctor ID</th>
                       <th className="p-4">Doctor Name</th>
                       <th className="p-4">Specialization</th>
-                      <th className="p-4 text-right">Actions</th>
-                      <th className="p-4 pr-6 text-center">Status</th>
+                      <th className="p-4">Actions</th>
+                      <th className="p-4 pr-6 text-right">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -311,9 +307,9 @@ const DoctorsList = () => {
                             </td>
 
                             {/* Actions Column */}
-                            <td className="p-4 align-middle text-right">
+                            <td className="p-4 align-middle">
                               {isEditing ? (
-                                <div className="flex items-center justify-end gap-2">
+                                <div className="flex items-center gap-2">
                                   <button
                                     onClick={handleSaveEdit}
                                     className="p-1.5 bg-teal-500 text-white rounded hover:bg-teal-600 transition-colors shadow-sm"
@@ -325,7 +321,7 @@ const DoctorsList = () => {
                                   </button>
                                 </div>
                               ) : (
-                                <div className="flex items-center justify-end gap-2">
+                                <div className="flex items-center gap-2">
                                   <button
                                     onClick={() => handleEditClick(doc)}
                                     className="p-2 bg-slate-100 text-slate-600 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-all active:scale-95 shadow-sm inline-flex items-center gap-2"
@@ -341,25 +337,24 @@ const DoctorsList = () => {
                                     <Trash2 size={14} strokeWidth={2.5} />
                                   </button>
                                 </div>
-
                               )}
                             </td>
 
                             {/* Status Column */}
-                            <td className="p-4 pr-6 align-middle text-center">
+                            <td className="p-4 pr-6 align-middle text-right">
                               <button
-                                onClick={() => handleTogglePresence(doc.dr_id)}
-                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer border ${
-                                  doc.is_present
-                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                                    : 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'
+                                onClick={() => handleToggleStatus(doc.id)}
+                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 border ${
+                                  doc.is_active 
+                                    ? 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100' 
+                                    : 'bg-rose-50 text-rose-600 border-rose-100 hover:bg-rose-100'
                                 }`}
-                                title={`Click to mark as ${doc.is_present ? 'inactive' : 'active'}`}
+                                title={doc.is_active ? "Click to mark as inactive" : "Click to mark as active"}
                               >
-                                {doc.is_present ? (
-                                  <><CheckCircle2 size={13} strokeWidth={2.5} /> Active</>
+                                {doc.is_active ? (
+                                  <><CheckCircle2 size={12} /> Active</>
                                 ) : (
-                                  <><XCircle size={13} strokeWidth={2.5} /> Inactive</>
+                                  <><XCircle size={12} /> Inactive</>
                                 )}
                               </button>
                             </td>
@@ -368,7 +363,7 @@ const DoctorsList = () => {
                       })
                     ) : (
                       <tr>
-                        <td colSpan="5" className="p-12 text-center text-slate-400">
+                        <td colSpan="4" className="p-12 text-center text-slate-400">
                           No doctors registered yet.
                         </td>
                       </tr>

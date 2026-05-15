@@ -61,15 +61,10 @@ def charts_data(vitals):
         if not d_obj:
             continue
             
-        d_str = d_obj.strftime('%Y-%m-%d')
+        d_str = d_obj.strftime('%d/%m/%Y')
         
         bp_value = (vital.blood_pressure or '').strip()
-        glucose_value = (vital.glucose or '').strip()
-        
-        # RBS check for PatientVitals specifically
-        if not glucose_value and hasattr(vital, 'rbs') and vital.rbs:
-            glucose_value = (vital.rbs or '').strip()
-            
+        glucose_value = (vital.rbs or '').strip()
         hb_value = (vital.haemoglobin or '').strip()
         
         if bp_value not in ["NA", "-", ""]:
@@ -453,8 +448,11 @@ def api_get_patient_details(request, patient_id):
     for issue in serializer_issues.data:
         camp_key = issue['camp_info']
         if camp_key not in history:
-            history[camp_key] = []
-        history[camp_key].append({
+            history[camp_key] = {
+                'vitals_id': issue['vitals_record'],
+                'items': []
+            }
+        history[camp_key]['items'].append({
             'medicine': issue['medicine_name'],
             'qty': issue['qty']
         })
@@ -482,26 +480,29 @@ def api_get_patient_details(request, patient_id):
     
     for v in combined_vitals:
         bp = (v.blood_pressure or '').strip()
-        glu = (v.glucose or '').strip()
-        if not glu and hasattr(v, 'rbs') and v.rbs:
-            glu = (v.rbs or '').strip()
+        sugar = (v.rbs or '').strip()
         hb = (v.haemoglobin or '').strip()
         
-        has_data = any(val not in ["NA", "-", "", None] for val in [bp, glu, hb])
+        has_data = any(val not in ["NA", "-", "", None] for val in [bp, sugar, hb])
         
         if has_data:
             display_date = 'N/A'
             if hasattr(v, 'date') and v.date:
-                display_date = v.date.strftime('%Y-%m-%d')
+                display_date = v.date.strftime('%d/%m/%Y')
             elif v.camp and v.camp.date:
-                display_date = v.camp.date.strftime('%Y-%m-%d')
+                display_date = v.camp.date.strftime('%d/%m/%Y')
 
             vitals_list.append({
+                'id': getattr(v, 'id', None),
                 'camp': f"{v.camp.venue.name if v.camp and v.camp.venue else 'Unknown'} - {v.camp.number if v.camp else '?'}",
                 'date': display_date,
                 'blood_pressure': bp if bp not in ["NA", "-"] else "",
-                'glucose': glu if glu not in ["NA", "-"] else "",
-                'haemoglobin': hb if hb not in ["NA", "-"] else ""
+                'glucose': sugar if sugar not in ["NA", "-"] else "", # Keep key as 'glucose' for frontend compatibility but use rbs value
+                'haemoglobin': hb if hb not in ["NA", "-"] else "",
+                'weight': getattr(v, 'weight', ''),
+                'height': getattr(v, 'height', ''),
+                'pulse': getattr(v, 'pulse', ''),
+                'is_old': not hasattr(v, 'diagnosis') # To distinguish between Vitals and PatientVitals
             })
             filtered_vitals_for_charts.append(v)
 
@@ -518,10 +519,14 @@ def api_get_patient_details(request, patient_id):
     except Patient.DoesNotExist:
         pass
 
+    # Fetch issued tests
+    issued_tests = TestIssue.objects.filter(patient_id=patient_id).select_related('test', 'camp', 'camp__venue')
+
     return Response({
         'patient_id': patient_id,
         'info': patient_info,
         'medicine_history': history,
+        'issued_tests': TestIssueSerializer(issued_tests, many=True).data,
         'vitals': vitals_list,
         'charts': charts
     })
@@ -613,7 +618,6 @@ def api_save_vitals(request):
             height=data.get('height'),
             blood_pressure=data.get('blood_pressure'),
             pulse=data.get('pulse'),
-            glucose=data.get('glucose'),
             rbs=data.get('rbs'),
             haemoglobin=data.get('haemoglobin'),
             last_food_time=data.get('last_food_time'),
@@ -681,7 +685,8 @@ def api_save_vitals(request):
                 TestIssue.objects.create(
                     patient_id=safe_int(patient_id),
                     camp=camp,
-                    test=test
+                    test=test,
+                    vitals_record=v
                 )
 
         return Response({'status': 'success', 'message': 'Vitals and medicines saved successfully'})
@@ -691,6 +696,199 @@ def api_save_vitals(request):
             'status': 'error',
             'message': f"System error while saving: {str(e)}"
         }, status=400)
+
+@api_view(['GET'])
+def api_get_visit_details(request, vitals_id):
+    try:
+        vitals = get_object_or_404(PatientVitals, id=vitals_id)
+        serializer_vitals = PatientVitalsSerializer(vitals)
+        
+        # Get medicines: Try vitals_record first, fallback to patient+camp for legacy records
+        medicines = PatientMedicineIssue.objects.filter(vitals_record=vitals)
+        if not medicines.exists():
+            medicines = PatientMedicineIssue.objects.filter(patient_id=vitals.patient_id, camp=vitals.camp)
+            
+        serializer_meds = PatientMedicineIssueSerializer(medicines, many=True)
+        
+        # Get tests: Same logic for tests
+        tests = TestIssue.objects.filter(vitals_record=vitals)
+        if not tests.exists():
+             tests = TestIssue.objects.filter(patient_id=vitals.patient_id, camp=vitals.camp)
+        
+        test_ids = [t.test.test_id for t in tests]
+        
+        return Response({
+            'status': 'success',
+            'vitals': serializer_vitals.data,
+            'medicines': serializer_meds.data,
+            'test_ids': test_ids
+        })
+    except Exception as e:
+        return Response({'status': 'error', 'message': str(e)}, status=400)
+
+@api_view(['POST', 'DELETE'])
+@transaction.atomic
+def api_delete_visit(request, vitals_id):
+    try:
+        # Try PatientVitals first
+        v = PatientVitals.objects.filter(id=vitals_id).first()
+        is_legacy = False
+        
+        if not v:
+            # Try legacy Vitals table
+            v = Vitals.objects.filter(id=vitals_id).first()
+            is_legacy = True
+            
+        if not v:
+            return Response({'status': 'error', 'message': f"Visit ID {vitals_id} not found in any record table."}, status=404)
+
+        camp = v.camp
+        
+        # 1. Revert medicine stock and delete issues
+        # (Only PatientVitals have linked issues in the new system, but we check anyway)
+        issues = PatientMedicineIssue.objects.filter(vitals_record_id=v.id) if not is_legacy else []
+        for issue in issues:
+            cs = CampWiseStock.objects.filter(camp=camp, medicine=issue.medicine).first()
+            if cs:
+                cs.used_stock = max(0, cs.used_stock - issue.qty)
+                cs.save()
+            issue.delete()
+            
+        # 2. Delete test issues
+        if not is_legacy:
+            TestIssue.objects.filter(vitals_record_id=v.id).delete()
+        
+        # 3. Delete vitals
+        v.delete()
+        
+        return Response({'status': 'success', 'message': 'Visit deleted successfully'})
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return Response({'status': 'error', 'message': f"Delete failed: {str(e)}"}, status=400)
+
+@api_view(['POST'])
+@transaction.atomic
+def api_update_visit_details(request, vitals_id):
+    try:
+        data = request.data
+        v = get_object_or_404(PatientVitals, id=vitals_id)
+        camp = v.camp
+        
+        # Helper to safely parse int
+        def safe_int(val, default=0):
+            try:
+                if val is None or str(val).strip() == '': return default
+                clean_val = ''.join(filter(str.isdigit, str(val)))
+                return int(clean_val) if clean_val else default
+            except: return default
+
+        # 1. Update Vitals
+        from datetime import datetime
+        date_str = data.get('date', '').strip()
+        if date_str and '/' in date_str:
+            try:
+                v.date = datetime.strptime(date_str, '%d/%m/%Y').date()
+            except:
+                pass # Keep original if invalid
+        elif not date_str:
+            v.date = None
+
+        v.time = data.get('time', v.time)
+        v.weight = data.get('weight', v.weight)
+        v.height = data.get('height', v.height)
+        v.blood_pressure = data.get('blood_pressure', v.blood_pressure)
+        v.pulse = data.get('pulse', v.pulse)
+        v.rbs = data.get('rbs', v.rbs)
+        v.haemoglobin = data.get('haemoglobin', v.haemoglobin)
+        v.last_food_time = data.get('last_food_time', v.last_food_time)
+        v.dr_name = data.get('dr_name', v.dr_name)
+        v.dr_id = data.get('dr_id', v.dr_id)
+        v.diagnosis = data.get('diagnosis', v.diagnosis)
+        v.save()
+
+        # 2. Update Medicines (Smarter Reconciliation)
+        new_med_data = data.get('medicines', [])
+        existing_issues = {issue.id: issue for issue in PatientMedicineIssue.objects.filter(vitals_record=v)}
+        kept_ids = []
+        
+        for item in new_med_data:
+            med_id_val = item.get('msNo') or item.get('medicine')
+            qty = safe_int(item.get('qty') or item.get('quantity'))
+            if not med_id_val or qty <= 0: continue
+            
+            # Find medicine
+            medicine = None
+            if str(med_id_val).isdigit():
+                medicine = Medicine.objects.filter(uqid=int(med_id_val)).first()
+            if not medicine:
+                medicine = Medicine.objects.filter(name=med_id_val).first()
+            if not medicine: continue
+            
+            # Match with existing
+            match = None
+            for eid, eissue in existing_issues.items():
+                if eid not in kept_ids and eissue.medicine == medicine:
+                    match = eissue
+                    break
+            
+            if match:
+                # Update existing
+                diff = qty - match.qty
+                cs = CampWiseStock.objects.filter(camp=camp, medicine=medicine).first()
+                if cs:
+                    cs.used_stock += diff
+                    cs.save()
+                
+                match.qty = qty
+                match.days = safe_int(item.get('days'))
+                match.morning = safe_int(item.get('morning'))
+                match.afternoon = safe_int(item.get('afternoon'))
+                match.night = safe_int(item.get('night'))
+                match.formulation = item.get('formulation')
+                match.strength = item.get('strength')
+                match.save()
+                kept_ids.append(match.id)
+            else:
+                # New record
+                PatientMedicineIssue.objects.create(
+                    patient_id=v.patient_id,
+                    camp=camp,
+                    medicine=medicine,
+                    qty=qty,
+                    vitals_record=v,
+                    formulation=item.get('formulation'),
+                    strength=item.get('strength'),
+                    days=safe_int(item.get('days')),
+                    morning=safe_int(item.get('morning')),
+                    afternoon=safe_int(item.get('afternoon')),
+                    night=safe_int(item.get('night'))
+                )
+                cs = CampWiseStock.objects.filter(camp=camp, medicine=medicine).first()
+                if cs:
+                    cs.used_stock += qty
+                    cs.save()
+        
+        # Cleanup
+        for eid, eissue in existing_issues.items():
+            if eid not in kept_ids:
+                cs = CampWiseStock.objects.filter(camp=camp, medicine=eissue.medicine).first()
+                if cs:
+                    cs.used_stock = max(0, cs.used_stock - eissue.qty)
+                    cs.save()
+                eissue.delete()
+
+        # 3. Update Tests
+        TestIssue.objects.filter(vitals_record=v).delete()
+        selected_tests = data.get('selected_tests', [])
+        for tid in selected_tests:
+            test = MedicalTest.objects.filter(test_id=tid).first()
+            if test:
+                TestIssue.objects.create(patient_id=v.patient_id, camp=camp, test=test, vitals_record=v)
+
+        return Response({'status': 'success', 'message': 'Visit details updated successfully'})
+    except Exception as e:
+        return Response({'status': 'error', 'message': str(e)}, status=400)
 
 @api_view(['POST'])
 @transaction.atomic
@@ -1067,7 +1265,8 @@ def api_get_medical_tests(request):
     data = []
     for t in serializer.data:
         data.append({
-            'id': t['test_id'],
+            'id': t['id'],
+            'test_id': t['test_id'],
             'name': t['name'],
             'actual_cost': float(t['actual_cost']),
             'patient_cost': float(t['patient_cost']),
@@ -1243,10 +1442,11 @@ def api_get_doctors(request):
     data = []
     for dr in serializer.data:
         data.append({
+            'id': dr['id'],
             'dr_id': str(dr['id']),
             'dr_name': dr['name'],
             'specialization': dr['specialization'] or '',
-            'is_present': dr['is_present'],
+            'is_active': dr['is_active']
         })
     return Response(data)
 
@@ -1318,17 +1518,16 @@ def api_delete_doctor(request, doctor_id):
     except Exception as e:
         return Response({'status': 'error', 'message': str(e)}, status=400)
 
-@csrf_exempt
 @api_view(['POST'])
-def api_toggle_doctor_presence(request, doctor_id):
+def api_toggle_doctor_status(request, doctor_id):
     try:
         doctor = get_object_or_404(Doctor, id=doctor_id)
-        doctor.is_present = not doctor.is_present
+        doctor.is_active = not doctor.is_active
         doctor.save()
         return Response({
             'status': 'success',
-            'is_present': doctor.is_present,
-            'message': f'Doctor marked as {"present" if doctor.is_present else "absent"}'
+            'message': f'Doctor marked as {"Active" if doctor.is_active else "Inactive"}',
+            'is_active': doctor.is_active
         })
     except Exception as e:
         return Response({'status': 'error', 'message': str(e)}, status=400)

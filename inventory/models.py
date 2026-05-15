@@ -18,7 +18,7 @@ class UserProfile(models.Model):
 class Doctor(models.Model):
     name = models.CharField(max_length=2000)
     specialization = models.CharField(max_length=500, null=True, blank=True)
-    is_present = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True)
     
     def __str__(self):
         return f"{self.name} ({self.specialization or 'General'})"
@@ -88,11 +88,10 @@ class Vitals(models.Model):
     patient_id = models.IntegerField()
     camp = models.ForeignKey(MedicalCamp, on_delete=models.CASCADE, to_field='number')
     blood_pressure = models.CharField(max_length = 100)
-    glucose = models.CharField(max_length = 100)
     haemoglobin = models.CharField(max_length = 100)
 
     def __str__(self):
-        return f"Patient : {self.patient_id}, Camp : {self.camp}, Blood Pressure : {self.blood_pressure}, Sugar : {self.glucose}, Haemoglobin : {self.haemoglobin}"
+        return f"Patient : {self.patient_id}, Camp : {self.camp}, Blood Pressure : {self.blood_pressure}, Haemoglobin : {self.haemoglobin}"
 
 class PatientVitals(models.Model):
     class Meta:
@@ -108,7 +107,6 @@ class PatientVitals(models.Model):
     height = models.CharField(max_length=100, null=True, blank=True)
     blood_pressure = models.CharField(max_length=100, null=True, blank=True)
     pulse = models.CharField(max_length=100, null=True, blank=True)
-    glucose = models.CharField(max_length=100, null=True, blank=True)
     rbs = models.CharField(max_length=100, null=True, blank=True)
     haemoglobin = models.CharField(max_length=100, null=True, blank=True)
     last_food_time = models.CharField(max_length=200, null=True, blank=True)
@@ -134,6 +132,7 @@ class TestIssue(models.Model):
     camp = models.ForeignKey(MedicalCamp, on_delete=models.CASCADE, to_field='number')
     test = models.ForeignKey(MedicalTest, on_delete=models.CASCADE)
     reports_issued = models.BooleanField(default=False)
+    vitals_record = models.ForeignKey('PatientVitals', on_delete=models.CASCADE, null=True, blank=True, related_name='issued_tests')
     
     def __str__(self):
         return f"Patient {self.patient_id}, Camp: {self.camp} issued {self.test} (Reports Issued: {self.reports_issued})"
