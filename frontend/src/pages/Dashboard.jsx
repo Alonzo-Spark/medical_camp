@@ -45,7 +45,7 @@ const Dashboard = () => {
 
             <div>
               <h4 className="text-xl font-black text-slate-800 tracking-tight mb-1.5 group-hover:text-blue-700 transition-colors">
-                Existing Patient
+                Patient Profile
               </h4>
               <p className="text-sm text-slate-400 font-bold leading-relaxed">
                 Search and view patient profiles, medical history and past records

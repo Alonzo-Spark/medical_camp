@@ -15,9 +15,15 @@ class MedicineSerializer(serializers.ModelSerializer):
 class MedicalCampSerializer(serializers.ModelSerializer):
     venue = serializers.ReadOnlyField(source='venue.name')
     venue_name = serializers.ReadOnlyField(source='venue.name')
+    date = serializers.SerializerMethodField()
     class Meta:
         model = MedicalCamp
         fields = ['id', 'number', 'venue', 'venue_name', 'date']
+    
+    def get_date(self, obj):
+        if obj.date:
+            return obj.date.strftime('%d/%m/%Y')
+        return None
 
 class PatientSerializer(serializers.ModelSerializer):
     name = serializers.ReadOnlyField(source='patient_name')
@@ -25,6 +31,7 @@ class PatientSerializer(serializers.ModelSerializer):
     gender = serializers.ReadOnlyField(source='patient_gender')
     contact = serializers.ReadOnlyField(source='contact_no')
     address = serializers.ReadOnlyField(source='patient_addr')
+    registered_date = serializers.SerializerMethodField()
 
     class Meta:
         model = Patient
@@ -34,6 +41,11 @@ class PatientSerializer(serializers.ModelSerializer):
             'contact_no', 'contact', 'patient_addr', 'address', 
             'registered_date', 'camp_session'
         ]
+    
+    def get_registered_date(self, obj):
+        if obj.registered_date:
+            return obj.registered_date.strftime('%d/%m/%Y')
+        return None
 
 class PatientVitalsSerializer(serializers.ModelSerializer):
     camp_name = serializers.ReadOnlyField(source='camp.venue.name')
@@ -54,15 +66,24 @@ class DoctorSerializer(serializers.ModelSerializer):
 class MedicalTestSerializer(serializers.ModelSerializer):
     class Meta:
         model = MedicalTest
-        fields = '__all__'
+        fields = ['id', 'test_id', 'name', 'actual_cost', 'patient_cost']
 
 class TestIssueSerializer(serializers.ModelSerializer):
     test_name = serializers.ReadOnlyField(source='test.name')
     test_id = serializers.ReadOnlyField(source='test.test_id')
     test_issue_id = serializers.ReadOnlyField(source='id')
+    camp_info = serializers.SerializerMethodField()
     class Meta:
         model = TestIssue
-        fields = ['id', 'test_issue_id', 'patient_id', 'camp', 'test', 'test_id', 'test_name', 'reports_issued']
+        fields = ['id', 'test_issue_id', 'patient_id', 'camp', 'test', 'test_id', 'test_name', 'reports_issued', 'camp_info', 'vitals_record']
+
+    def get_camp_info(self, obj):
+        try:
+            if obj.camp and hasattr(obj.camp, 'venue'):
+                return f"{obj.camp.venue.name} - {obj.camp.number} ({obj.camp.date})"
+            return f"Camp {obj.camp_id}" if obj.camp_id else "Unknown Camp"
+        except:
+            return "Unknown Camp"
 
 class PatientMedicineIssueSerializer(serializers.ModelSerializer):
     medicine_name = serializers.ReadOnlyField(source='medicine.name')
@@ -75,9 +96,12 @@ class PatientMedicineIssueSerializer(serializers.ModelSerializer):
         fields = ['id', 'patient_id', 'camp', 'medicine', 'medicine_id', 'medicine_name', 'qty', 'quantity', 'camp_info', 'vitals_record', 'formulation', 'strength', 'days', 'morning', 'afternoon', 'night']
 
     def get_camp_info(self, obj):
-        if obj.camp:
-            return f"{obj.camp.venue.name} - {obj.camp.number} ({obj.camp.date})"
-        return "Unknown"
+        try:
+            if obj.camp and hasattr(obj.camp, 'venue'):
+                return f"{obj.camp.venue.name} - {obj.camp.number} ({obj.camp.date})"
+            return f"Camp {obj.camp_id}" if obj.camp_id else "Unknown Camp"
+        except:
+            return "Unknown Camp"
 
 class CampWiseStockSerializer(serializers.ModelSerializer):
     medicine_name = serializers.ReadOnlyField(source='medicine.name')

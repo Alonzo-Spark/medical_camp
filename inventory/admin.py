@@ -15,7 +15,7 @@ class MedicineAdmin(admin.ModelAdmin):
 
 class VitalsAdmin(admin.ModelAdmin):
     # pyrefly: ignore [bad-override-mutable-attribute]
-    list_display = ['patient_id', 'camp', 'blood_pressure', 'glucose', 'haemoglobin']
+    list_display = ['patient_id', 'camp', 'blood_pressure', 'haemoglobin']
     # pyrefly: ignore [bad-override-mutable-attribute]
     list_filter = ['camp']
 
@@ -26,7 +26,7 @@ class IssueInline(admin.TabularInline):
 
 class PatientVitalsAdmin(admin.ModelAdmin):
     # pyrefly: ignore [bad-override-mutable-attribute]
-    list_display = ['patient_id', 'camp', 'date', 'weight', 'blood_pressure', 'glucose', 'pulse', 'dr_name']
+    list_display = ['patient_id', 'camp', 'date', 'weight', 'blood_pressure', 'rbs', 'pulse', 'dr_name']
     # pyrefly: ignore [bad-override-mutable-attribute]
     list_filter = ['camp', 'date', 'dr_name']
     # pyrefly: ignore [bad-override-mutable-attribute]
