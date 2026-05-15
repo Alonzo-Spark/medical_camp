@@ -1442,9 +1442,11 @@ def api_get_doctors(request):
     data = []
     for dr in serializer.data:
         data.append({
+            'id': dr['id'],
             'dr_id': str(dr['id']),
             'dr_name': dr['name'],
             'specialization': dr['specialization'] or '',
+            'is_active': dr['is_active']
         })
     return Response(data)
 
@@ -1512,6 +1514,20 @@ def api_delete_doctor(request, doctor_id):
         return Response({
             'status': 'success',
             'message': 'Doctor deleted successfully'
+        })
+    except Exception as e:
+        return Response({'status': 'error', 'message': str(e)}, status=400)
+
+@api_view(['POST'])
+def api_toggle_doctor_status(request, doctor_id):
+    try:
+        doctor = get_object_or_404(Doctor, id=doctor_id)
+        doctor.is_active = not doctor.is_active
+        doctor.save()
+        return Response({
+            'status': 'success',
+            'message': f'Doctor marked as {"Active" if doctor.is_active else "Inactive"}',
+            'is_active': doctor.is_active
         })
     except Exception as e:
         return Response({'status': 'error', 'message': str(e)}, status=400)

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserCircle, Search, Users, Activity, Edit2, Save, X, Trash2 } from 'lucide-react';
+import { UserCircle, Search, Users, Activity, Edit2, Save, X, Trash2, CheckCircle2, XCircle } from 'lucide-react';
 
 const DoctorsList = () => {
 
@@ -116,7 +116,19 @@ const DoctorsList = () => {
       alert("Failed to delete doctor.");
     }
   };
-
+  const handleToggleStatus = async (id) => {
+    try {
+      const res = await fetch(`${API_BASE}/toggle_doctor_status/${id}`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        fetchDoctors();
+      }
+    } catch (err) {
+      console.error("Error toggling status:", err);
+    }
+  };
 
 
 
@@ -238,7 +250,8 @@ const DoctorsList = () => {
                       <th className="p-4 pl-6">Doctor ID</th>
                       <th className="p-4">Doctor Name</th>
                       <th className="p-4">Specialization</th>
-                      <th className="p-4 pr-6 text-right">Actions</th>
+                      <th className="p-4">Actions</th>
+                      <th className="p-4 pr-6 text-right">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -294,9 +307,9 @@ const DoctorsList = () => {
                             </td>
 
                             {/* Actions Column */}
-                            <td className="p-4 pr-6 align-middle text-right">
+                            <td className="p-4 align-middle">
                               {isEditing ? (
-                                <div className="flex items-center justify-end gap-2">
+                                <div className="flex items-center gap-2">
                                   <button
                                     onClick={handleSaveEdit}
                                     className="p-1.5 bg-teal-500 text-white rounded hover:bg-teal-600 transition-colors shadow-sm"
@@ -308,7 +321,7 @@ const DoctorsList = () => {
                                   </button>
                                 </div>
                               ) : (
-                                <div className="flex items-center justify-end gap-2">
+                                <div className="flex items-center gap-2">
                                   <button
                                     onClick={() => handleEditClick(doc)}
                                     className="p-2 bg-slate-100 text-slate-600 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-all active:scale-95 shadow-sm inline-flex items-center gap-2"
@@ -324,8 +337,26 @@ const DoctorsList = () => {
                                     <Trash2 size={14} strokeWidth={2.5} />
                                   </button>
                                 </div>
-
                               )}
+                            </td>
+
+                            {/* Status Column */}
+                            <td className="p-4 pr-6 align-middle text-right">
+                              <button
+                                onClick={() => handleToggleStatus(doc.id)}
+                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 border ${
+                                  doc.is_active 
+                                    ? 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100' 
+                                    : 'bg-rose-50 text-rose-600 border-rose-100 hover:bg-rose-100'
+                                }`}
+                                title={doc.is_active ? "Click to mark as inactive" : "Click to mark as active"}
+                              >
+                                {doc.is_active ? (
+                                  <><CheckCircle2 size={12} /> Active</>
+                                ) : (
+                                  <><XCircle size={12} /> Inactive</>
+                                )}
+                              </button>
                             </td>
                           </tr>
                         );
