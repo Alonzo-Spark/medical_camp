@@ -1246,6 +1246,7 @@ def api_get_doctors(request):
             'dr_id': str(dr['id']),
             'dr_name': dr['name'],
             'specialization': dr['specialization'] or '',
+            'is_present': dr['is_present'],
         })
     return Response(data)
 
@@ -1313,6 +1314,21 @@ def api_delete_doctor(request, doctor_id):
         return Response({
             'status': 'success',
             'message': 'Doctor deleted successfully'
+        })
+    except Exception as e:
+        return Response({'status': 'error', 'message': str(e)}, status=400)
+
+@csrf_exempt
+@api_view(['POST'])
+def api_toggle_doctor_presence(request, doctor_id):
+    try:
+        doctor = get_object_or_404(Doctor, id=doctor_id)
+        doctor.is_present = not doctor.is_present
+        doctor.save()
+        return Response({
+            'status': 'success',
+            'is_present': doctor.is_present,
+            'message': f'Doctor marked as {"present" if doctor.is_present else "absent"}'
         })
     except Exception as e:
         return Response({'status': 'error', 'message': str(e)}, status=400)

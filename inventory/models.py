@@ -18,6 +18,7 @@ class UserProfile(models.Model):
 class Doctor(models.Model):
     name = models.CharField(max_length=2000)
     specialization = models.CharField(max_length=500, null=True, blank=True)
+    is_present = models.BooleanField(default=True)
     
     def __str__(self):
         return f"{self.name} ({self.specialization or 'General'})"

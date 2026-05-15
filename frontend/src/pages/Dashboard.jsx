@@ -17,7 +17,7 @@ const Dashboard = () => {
           <div className="p-2.5 bg-teal-50 rounded-xl border border-teal-200">
             <LayoutDashboard className="text-teal-600" size={24} strokeWidth={2.5} />
           </div>
-          <h3 className="text-3xl font-black text-slate-800 tracking-tight">Dashboard</h3>
+          <h3 className="text-3xl font-black text-slate-800 tracking-tight">Patient Registrations</h3>
         </div>
         <p className="text-slate-400 text-sm font-bold ml-[52px]">Select an option to continue</p>
       </div>
