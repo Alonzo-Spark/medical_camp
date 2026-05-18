@@ -11,7 +11,8 @@ import {
   ClipboardList,
   PlusSquare,
   LayoutDashboard,
-  Users
+  Users,
+  FileText
 } from 'lucide-react';
 
 const SidebarLink = ({ to, icon: Icon, label, active }) => (
@@ -58,6 +59,7 @@ const Layout = () => {
       '/camp-registration': 'Camp Registration',
       '/camp-patients': 'Camp Patients List',
       '/doctors': 'Doctors List',
+      '/doctor-report': 'Doctor Report',
     };
     return titles[path] || path.replace('/', '').replace('-', ' ');
   };
@@ -110,6 +112,7 @@ const Layout = () => {
               <>
                 <SidebarLink to="/vitals" icon={Activity} label="Log Vitals" active={location.pathname === '/vitals'} />
                 <SidebarLink to="/doctors" icon={UserCircle} label="Doctors List" active={location.pathname === '/doctors'} />
+                <SidebarLink to="/doctor-report" icon={FileText} label="Doctor Report" active={location.pathname === '/doctor-report'} />
               </>
             )}
 
