@@ -12,6 +12,7 @@ urlpatterns = [
     # Data Export
     path('export', export),
     path('export_camp_stock/<int:camp_id>', export_camp_stock),
+    path('export_camp_report/<int:camp_id>', export_camp_report),
 
 
     # API Endpoints

@@ -21,9 +21,16 @@ class MedicalCampSerializer(serializers.ModelSerializer):
         fields = ['id', 'number', 'venue', 'venue_name', 'date']
     
     def get_date(self, obj):
-        if obj.date:
-            return obj.date.strftime('%d/%m/%Y')
-        return None
+        if not obj.date:
+            return None
+        if isinstance(obj.date, str):
+            from datetime import datetime
+            try:
+                # If it's a string, try parsing it from YYYY-MM-DD
+                return datetime.strptime(obj.date, '%Y-%m-%d').strftime('%d/%m/%Y')
+            except ValueError:
+                return obj.date
+        return obj.date.strftime('%d/%m/%Y')
 
 class PatientSerializer(serializers.ModelSerializer):
     name = serializers.ReadOnlyField(source='patient_name')
@@ -43,9 +50,15 @@ class PatientSerializer(serializers.ModelSerializer):
         ]
     
     def get_registered_date(self, obj):
-        if obj.registered_date:
-            return obj.registered_date.strftime('%d/%m/%Y')
-        return None
+        if not obj.registered_date:
+            return None
+        if isinstance(obj.registered_date, str):
+            from datetime import datetime
+            try:
+                return datetime.strptime(obj.registered_date, '%Y-%m-%d').strftime('%d/%m/%Y')
+            except ValueError:
+                return obj.registered_date
+        return obj.registered_date.strftime('%d/%m/%Y')
 
 class PatientVitalsSerializer(serializers.ModelSerializer):
     camp_name = serializers.ReadOnlyField(source='camp.venue.name')

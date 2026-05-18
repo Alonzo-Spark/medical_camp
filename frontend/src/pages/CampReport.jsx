@@ -79,6 +79,13 @@ const CampReport = () => {
                             </option>
                         ))}
                     </select>
+                    <button
+                        onClick={() => window.open(`http://${window.location.hostname}:8000/export_camp_report/${selectedCamp}`)}
+                        className="flex items-center gap-2 px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-teal-100"
+                    >
+                        <Download size={16} />
+                        Download Report
+                    </button>
                 </div>
             </div>
 

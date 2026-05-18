@@ -214,8 +214,12 @@ const PatientProfile = () => {
         const d = res.data.vitals;
         let formattedDate = '';
         if (d.date) {
-            const [y, m, d_val] = d.date.split('-');
-            formattedDate = `${d_val}/${m}/${y}`;
+            if (d.date.includes('/')) {
+                formattedDate = d.date;
+            } else {
+                const [y, m, d_val] = d.date.split('-');
+                formattedDate = `${d_val}/${m}/${y}`;
+            }
         }
         setVisitData({
           id: vId,

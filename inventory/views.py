@@ -337,6 +337,58 @@ def export_camp_stock(request, camp_id):
     
     return response
 
+@api_view(['GET'])
+def export_camp_report(request, camp_id):
+    camp = get_object_or_404(MedicalCamp, id=camp_id)
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="Camp_{camp.number}_Clinical_Report_{camp.date}.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow([
+        'Patient ID', 'Name', 'Age', 'Gender', 'Contact', 
+        'BP', 'Sugar(RBS)', 'Hb', 'Weight', 'Height', 'Pulse',
+        'Diagnosis', 'Doctor Name', 'Doctor ID', 
+        'Medicines Issued', 'Lab Tests Issued', 'Visit Date'
+    ])
+
+    # Fetch all vitals for this camp
+    vitals = PatientVitals.objects.filter(camp=camp).order_by('id')
+    
+    for v in vitals:
+        # Get Patient info (using try-except for robustness)
+        p = Patient.objects.filter(patient_id=v.patient_id).first()
+        
+        # Get Medicines
+        meds = PatientMedicineIssue.objects.filter(vitals_record=v).select_related('medicine')
+        med_list = ", ".join([f"{m.medicine.name} ({m.qty})" for m in meds])
+        
+        # Get Lab Tests
+        tests = TestIssue.objects.filter(vitals_record=v).select_related('test')
+        test_list = ", ".join([t.test.name for t in tests])
+
+        writer.writerow([
+            v.patient_id,
+            p.patient_name if p else "Unknown",
+            p.patient_age if p else "N/A",
+            p.patient_gender if p else "N/A",
+            p.contact_no if p else "N/A",
+            v.blood_pressure or "-",
+            v.rbs or "-",
+            v.haemoglobin or "-",
+            v.weight or "-",
+            v.height or "-",
+            v.pulse or "-",
+            v.diagnosis or "-",
+            v.dr_name or "-",
+            v.dr_id or "-",
+            med_list or "None",
+            test_list or "None",
+            camp.date.strftime('%d/%m/%Y') if camp.date else (v.date.strftime('%d/%m/%Y') if v.date else "-")
+        ])
+
+    return response
+
+
 
 
 @api_view(['GET'])
@@ -487,10 +539,10 @@ def api_get_patient_details(request, patient_id):
         
         if has_data:
             display_date = 'N/A'
-            if hasattr(v, 'date') and v.date:
-                display_date = v.date.strftime('%d/%m/%Y')
-            elif v.camp and v.camp.date:
+            if v.camp and v.camp.date:
                 display_date = v.camp.date.strftime('%d/%m/%Y')
+            elif hasattr(v, 'date') and v.date:
+                display_date = v.date.strftime('%d/%m/%Y')
 
             vitals_list.append({
                 'id': getattr(v, 'id', None),
@@ -921,6 +973,7 @@ def api_register_patient(request):
             patient_id=data.get('pid'),
             defaults=defaults_data
         )
+        patient.refresh_from_db()
         serializer = PatientSerializer(patient)
         return Response({
             'status': 'success',
@@ -1235,6 +1288,9 @@ def api_register_camp(request):
         camp_number = data.get('camp_number')
         venue_name = data.get('venue_name')
         camp_date = data.get('date')
+        
+        if MedicalCamp.objects.filter(number=camp_number).exists():
+            return Response({'status': 'error', 'message': f'Camp number {camp_number} already exists.'}, status=400)
         # pyrefly: ignore [missing-attribute]
         venue, _ = MedicalCampVenue.objects.get_or_create(name=venue_name)
         # pyrefly: ignore [missing-attribute]
@@ -1243,6 +1299,7 @@ def api_register_camp(request):
             venue=venue,
             date=camp_date
         )
+        camp.refresh_from_db()
         serializer = MedicalCampSerializer(camp)
         return Response({
             'status': 'success',
@@ -1603,7 +1660,13 @@ def api_get_all_camps(request):
 def api_get_camp_report(request,camp_id):
     try:
 
-        camp=MedicalCamp.objects.get(number=camp_id)
+        # Try to find by number first, then by ID as fallback
+        camp = MedicalCamp.objects.filter(number=camp_id).first()
+        if not camp:
+            camp = MedicalCamp.objects.filter(id=camp_id).first()
+            
+        if not camp:
+            return Response({'status': 'error', 'message': 'Camp not found'}, status=404)
         
         # 1. Get IDs from Vitals
         vitals_ids = PatientVitals.objects.filter(camp=camp).values_list('patient_id', flat=True)

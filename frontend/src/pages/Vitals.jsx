@@ -93,10 +93,20 @@ const Vitals = () => {
       axios.get(`${API_BASE}/camp_stock/${selectedCamp}`).then(res => {
         setCampStocks(res.data);
       });
+      // Synchronize session date with camp date
+      const camp = camps.find(c => c.number === parseInt(selectedCamp));
+      if (camp && camp.date) {
+        if (camp.date.includes('/')) {
+            setDate(camp.date); // Already in DD/MM/YYYY
+        } else {
+            const [y, m, d] = camp.date.split('-');
+            setDate(`${d}/${m}/${y}`);
+        }
+      }
     } else {
       setCampStocks({});
     }
-  }, [selectedCamp]);
+  }, [selectedCamp, camps]);
 
   // Effect to auto-fill Doctor Name
   useEffect(() => {
