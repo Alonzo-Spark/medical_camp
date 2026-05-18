@@ -41,8 +41,12 @@ function AdminLogin() {
             className="min-h-screen flex items-center justify-center relative overflow-hidden font-sans bg-cover bg-center"
             style={{ backgroundImage: `url(${medicalCampBg})` }}
         >
-            {/* Elegant Dark Overlay */}
-            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm z-0" />
+            {/* Enhanced Gradient Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-br from-teal-900/60 via-slate-900/70 to-emerald-900/60 backdrop-blur-[6px] z-0" />
+            
+            {/* Decorative Glowing Orbs */}
+            <div className="absolute -top-40 -right-40 w-96 h-96 bg-teal-400/30 rounded-full blur-[80px] z-0 animate-pulse" style={{ animationDuration: '4s' }} />
+            <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-emerald-400/20 rounded-full blur-[100px] z-0 animate-pulse" style={{ animationDuration: '6s' }} />
 
             {/* Login Card */}
             <div className="relative w-full max-w-md px-4 animate-fade-in z-10">

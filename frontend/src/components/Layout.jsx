@@ -48,7 +48,7 @@ const Layout = () => {
     const path = location.pathname;
     const titles = {
       '/': 'Medicine Dispatch',
-      '/dashboard': 'Dashboard',
+      '/dashboard': 'Patient Registrations',
       '/vitals': 'Log Patient Vitals',
       '/register': 'Patient Registration',
       '/register-old': 'Medical Fulfillment',
@@ -98,7 +98,7 @@ const Layout = () => {
             {(userRole === 'main_admin' || userRole === 'registration_staff') && (
               <>
                 <SidebarLink to="/camp-registration" icon={Stethoscope} label="Camp Registration" active={location.pathname === '/camp-registration'} />
-                <SidebarLink to="/dashboard" icon={LayoutDashboard} label="Dashboard" active={location.pathname === '/dashboard'} />
+                <SidebarLink to="/dashboard" icon={LayoutDashboard} label="Patient Registrations" active={location.pathname === '/dashboard'} />
               </>
             )}
 

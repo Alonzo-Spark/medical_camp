@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { UserPlus, Save, RotateCcw, ArrowLeft, Heart, Calendar, MapPin, Phone, User, Landmark, Hash, CheckCircle2, AlertTriangle } from "lucide-react";
+import { UserPlus, Save, RotateCcw, ArrowLeft, Heart, Calendar, MapPin, Phone, User, Landmark, Hash, CheckCircle2, AlertTriangle, UserCheck } from "lucide-react";
 
 const API_BASE = `http://${window.location.hostname}:8000/api`;
 
@@ -153,7 +153,24 @@ function PatientRegistration() {
     const inputError = `${inputBase} border-red-300 focus:ring-red-300/30 focus:border-red-500 bg-red-50/30`;
 
     return (
-        <div className="max-w-5xl mx-auto py-4">
+        <div className="max-w-5xl mx-auto py-4 space-y-6">
+            {/* Tabs */}
+            <div className="flex bg-slate-100/80 p-1.5 rounded-2xl w-fit mx-auto border border-slate-200/60 backdrop-blur-sm shadow-sm">
+                <button 
+                    onClick={() => navigate('/register-old')}
+                    className="flex items-center gap-2 px-8 py-3.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 text-slate-400 hover:text-slate-600 hover:bg-slate-200/50"
+                >
+                    <UserCheck size={16} strokeWidth={2.5} />
+                    Old Patient Registration
+                </button>
+                <button 
+                    className="flex items-center gap-2 px-8 py-3.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 bg-white text-teal-600 shadow-md shadow-slate-200/50"
+                >
+                    <UserPlus size={16} strokeWidth={2.5} />
+                    New Patient Registration
+                </button>
+            </div>
+
             <div className="glass-panel-light p-10 relative overflow-hidden">
                 <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-teal-500 via-teal-400 to-emerald-400" />
 

@@ -641,13 +641,10 @@ const Vitals = () => {
               <thead>
                 <tr className="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
                   <th className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] w-20 text-center">M.S.No</th>
-                  <th className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] min-w-[200px]">Medicines</th>
-                  <th className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] w-24 text-center">Formulation</th>
+                  <th className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] w-[35%]">Medicines</th>
+                  <th className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] w-[35%] text-center">Formulation</th>
                   <th className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] w-24 text-center">Strength</th>
-                  <th className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] w-20 text-center">Days</th>
-                  <th className="px-4 py-4 text-[10px] font-black text-amber-500 uppercase tracking-[0.15em] w-20 text-center">Morning</th>
-                  <th className="px-4 py-4 text-[10px] font-black text-blue-500 uppercase tracking-[0.15em] w-24 text-center">Afternoon</th>
-                  <th className="px-4 py-4 text-[10px] font-black text-indigo-500 uppercase tracking-[0.15em] w-20 text-center">Night</th>
+
                   <th className="px-4 py-4 text-[10px] font-black text-emerald-600 uppercase tracking-[0.15em] w-24 text-center">Quantity</th>
                   <th className="px-4 py-4 w-12"></th>
                 </tr>
@@ -701,71 +698,28 @@ const Vitals = () => {
                         />
                       </td>
 
-                      {/* Days */}
-                      <td className="px-3 py-3">
-                        <input
-                          type="number"
-                          min="0"
-                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-bold text-slate-800 text-center placeholder:text-slate-300 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
-                          placeholder="0"
-                          value={med.days}
-                          onChange={e => updateMedicine(index, 'days', e.target.value)}
-                        />
-                      </td>
 
-                      {/* Morning */}
+                      {/* Quantity */}
                       <td className="px-3 py-3">
-                        <input
-                          type="number"
-                          min="0"
-                          className="w-full bg-amber-50/50 border border-amber-200 rounded-lg px-3 py-2.5 text-sm font-bold text-slate-800 text-center placeholder:text-amber-300 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
-                          placeholder="0"
-                          value={med.morning}
-                          onChange={e => updateMedicine(index, 'morning', e.target.value)}
-                        />
-                      </td>
-
-                      {/* Afternoon */}
-                      <td className="px-3 py-3">
-                        <input
-                          type="number"
-                          min="0"
-                          className="w-full bg-blue-50/50 border border-blue-200 rounded-lg px-3 py-2.5 text-sm font-bold text-slate-800 text-center placeholder:text-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-                          placeholder="0"
-                          value={med.afternoon}
-                          onChange={e => updateMedicine(index, 'afternoon', e.target.value)}
-                        />
-                      </td>
-
-                      {/* Night */}
-                      <td className="px-3 py-3">
-                        <input
-                          type="number"
-                          min="0"
-                          className="w-full bg-indigo-50/50 border border-indigo-200 rounded-lg px-3 py-2.5 text-sm font-bold text-slate-800 text-center placeholder:text-indigo-300 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
-                          placeholder="0"
-                          value={med.night}
-                          onChange={e => updateMedicine(index, 'night', e.target.value)}
-                        />
-                      </td>
-
-                      {/* Quantity (auto-calculated) */}
-                      <td className="px-3 py-3">
-                        <div className={`w-full border rounded-lg px-3 py-2.5 text-sm font-black text-center min-h-[42px] flex flex-col items-center justify-center transition-all ${(() => {
-                          const stockItem = campStocks[med.msNo];
-                          const remaining = stockItem ? stockItem.remaining : null;
-                          if (remaining !== null && autoQty > remaining) return 'bg-rose-50 border-rose-200 text-rose-700';
-                          return 'bg-emerald-50 border-emerald-200 text-emerald-700';
-                        })()
-                          }`}>
-                          {autoQty || (
-                            <span className="text-emerald-300 font-bold">—</span>
-                          )}
+                        <div className="flex flex-col gap-1 items-center">
+                          <input
+                            type="number"
+                            min="0"
+                            className={`w-full bg-white border rounded-lg px-3 py-2.5 text-sm font-bold text-slate-800 text-center placeholder:text-slate-300 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all ${(() => {
+                              const stockItem = campStocks[med.msNo];
+                              const remaining = stockItem ? stockItem.remaining : null;
+                              if (remaining !== null && med.quantity > remaining) return 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/50';
+                              return 'border-slate-200';
+                            })()}`}
+                            placeholder="Qty"
+                            value={med.quantity}
+                            onChange={e => updateMedicine(index, 'quantity', e.target.value)}
+                          />
                           {(() => {
                             const stockItem = campStocks[med.msNo];
                             const remaining = stockItem ? stockItem.remaining : null;
-                            if (remaining !== null && autoQty > remaining) {
-                              return <span className="text-[8px] uppercase mt-1">Exceeds Stock ({remaining})</span>
+                            if (remaining !== null && med.quantity > remaining) {
+                              return <span className="text-[9px] font-bold text-rose-500 uppercase text-center leading-tight">Exceeds<br/>({remaining})</span>
                             }
                             return null;
                           })()}
@@ -791,11 +745,7 @@ const Vitals = () => {
             </table>
           </div>
 
-          {/* Quick add hint */}
-          <div className="mt-4 flex items-center gap-2 text-[10px] text-slate-400 font-bold ml-1">
-            <AlertCircle size={12} />
-            <span>Quantity is auto-calculated as <span className="text-slate-500">Days × (Morning + Afternoon + Night)</span></span>
-          </div>
+
         </div>
 
         {/* ═══════════ SUBMIT BUTTON ═══════════ */}

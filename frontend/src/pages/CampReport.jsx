@@ -3,7 +3,7 @@ import axios from 'axios';
 import {
     Users, UserPlus, History, Stethoscope,
     Pill, ClipboardList, Calendar, MapPin,
-    TrendingUp, Download
+    TrendingUp, Download, Banknote
 } from 'lucide-react';
 
 const API_BASE = `http://${window.location.hostname}:8000/api`;
@@ -111,7 +111,7 @@ const CampReport = () => {
                     </div>
 
                     {/* Main Stats Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
                         {/* ENHANCED: Total Patients Card */}
                         <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
                             <div className="flex justify-between items-start mb-4">
@@ -161,6 +161,15 @@ const CampReport = () => {
                                 </div>
                             </div>
                         </div>
+
+                        <StatCard
+                            title="Total Cost"
+                            value="₹ 0"
+                            subValue="Estimated value of medicines used"
+                            icon={Banknote}
+                            color="emerald"
+                        />
+
                         <StatCard
                             title="Doctors On Duty"
                             value={reportData.doctors.count}
