@@ -24,7 +24,11 @@ function AdminLogin() {
                 setStatus("success");
                 localStorage.setItem("userRole", res.data.role);
                 setTimeout(() => {
-                    navigate("/dashboard");
+                    if (res.data.role === "medicine_entry_staff") {
+                        navigate("/inventory");
+                    } else {
+                        navigate("/dashboard");
+                    }
                 }, 1000);
             } else {
                 setStatus("error");

@@ -40,6 +40,7 @@ const Layout = () => {
       case 'registration_staff': return 'Registration Staff';
       case 'log_vitals_staff': return 'Vitals Staff';
       case 'main_admin': return 'Main Admin';
+      case 'medicine_entry_staff': return 'Medicine Entry Staff';
       default: return 'Medical Staff';
     }
   };
@@ -113,7 +114,7 @@ const Layout = () => {
               </>
             )}
 
-            {userRole === 'main_admin' && (
+            {(userRole === 'main_admin' || userRole === 'medicine_entry_staff') && (
               <>
                 <SidebarLink to="/inventory" icon={Pill} label="Inventory" active={location.pathname === '/inventory'} />
                 <SidebarLink to="/medicine-entry" icon={PlusSquare} label="Stock Entry" active={location.pathname === '/medicine-entry'} />

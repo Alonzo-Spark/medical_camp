@@ -34,6 +34,7 @@ function OldPatientRegistration() {
 
             // Auto-fill with the latest camp if available
             if (campList.length > 0) {
+                const latestCamp = campList[campList.length - 1];
                 let formattedDate = latestCamp.date;
                 if (formattedDate && !formattedDate.includes('/')) {
                     const [y, m, d] = formattedDate.split('-');

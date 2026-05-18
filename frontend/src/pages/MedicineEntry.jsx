@@ -198,6 +198,30 @@ const MedicineEntry = () => {
     }
   };
 
+  const handleSaveEdit = async (oldUqid) => {
+    const { uqid, name, cost } = editMedData;
+    if (!name || !name.trim()) {
+      alert('Medicine name is required');
+      return;
+    }
+
+    try {
+      const res = await axios.post(`${API_BASE}/update_medicine_profile`, {
+        old_uqid: oldUqid,
+        new_uqid: parseInt(uqid),
+        name: name,
+        cost: cost !== '' && cost !== null ? parseFloat(cost) : null
+      });
+
+      setSuccessMsg(res.data.message);
+      setTimeout(() => setSuccessMsg(''), 3000);
+      setEditingMedId(null);
+      fetchMedicines(); // Refresh to get updated data
+    } catch (err) {
+      alert('Error updating details: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
   const handleAddMedicine = async (e) => {
     e.preventDefault();
     if (!newMed.name) {
@@ -526,7 +550,7 @@ const MedicineEntry = () => {
                           <div className="flex flex-col gap-1 min-w-[50px]">
                             {editingMedId === med.uqid ? (
                               <button
-                                onClick={() => setEditingMedId(null)}
+                                onClick={() => handleSaveEdit(med.uqid)}
                                 className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
                                 title="Save Edit"
                               >
@@ -688,7 +712,6 @@ const MedicineEntry = () => {
                   <th className="px-8 py-5">UQID</th>
                   <th className="px-8 py-5">Medication Name</th>
                   <th className="px-8 py-5">Company Name</th>
-                  <th className="px-8 py-5">Cost (₹)</th>
                   <th className="px-8 py-5">Expiry Date</th>
                   <th className="px-8 py-5 text-right">Action</th>
                 </tr>
@@ -712,16 +735,7 @@ const MedicineEntry = () => {
                             onChange={(e) => handleDetailsChange(med.uqid, 'company_name', e.target.value)}
                           />
                         </td>
-                        <td className="px-8 py-6">
-                          <input
-                            type="number"
-                            step="0.01"
-                            placeholder="0.00"
-                            className="w-24 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-data focus:outline-none focus:border-teal-500"
-                            value={formState.cost !== undefined ? formState.cost : (med.cost || '')}
-                            onChange={(e) => handleDetailsChange(med.uqid, 'cost', e.target.value)}
-                          />
-                        </td>
+
                         <td className="px-8 py-6">
                           <input
                             type="date"

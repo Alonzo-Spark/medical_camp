@@ -442,6 +442,64 @@ def api_update_medicine_details(request):
 
 @api_view(['POST'])
 @transaction.atomic
+def api_update_medicine_profile(request):
+    try:
+        data = request.data
+        old_uqid = data.get('old_uqid')
+        new_uqid = data.get('new_uqid')
+        name = data.get('name')
+        cost = data.get('cost')
+        
+        if not old_uqid or not new_uqid or not name:
+            return Response({'status': 'error', 'message': 'Required fields are missing.'}, status=400)
+            
+        # If UQID is changing, verify the new UQID doesn't already exist and update related foreign keys
+        if int(old_uqid) != int(new_uqid):
+            # pyrefly: ignore [missing-attribute]
+            if Medicine.objects.filter(uqid=new_uqid).exists():
+                return Response({'status': 'error', 'message': f'Medicine with UQID {new_uqid} already exists.'}, status=400)
+            
+            from django.db import connection
+            with connection.cursor() as cursor:
+                # Temporarily disable foreign key constraints in SQLite during transaction
+                cursor.execute("PRAGMA foreign_keys = OFF;")
+                
+                # Update Medicine table
+                cursor.execute("UPDATE inventory_medicine SET uqid = %s WHERE uqid = %s;", [new_uqid, old_uqid])
+                
+                # Update related tables referencing uqid
+                cursor.execute("UPDATE inventory_patientmedicineissue SET medicine_id = %s WHERE medicine_id = %s;", [new_uqid, old_uqid])
+                cursor.execute("UPDATE inventory_campwisestock SET medicine_id = %s WHERE medicine_id = %s;", [new_uqid, old_uqid])
+                
+                # Re-enable foreign key checks
+                cursor.execute("PRAGMA foreign_keys = ON;")
+            
+            # Retrieve updated instance using the new UQID
+            medicine = get_object_or_404(Medicine, uqid=new_uqid)
+        else:
+            medicine = get_object_or_404(Medicine, uqid=old_uqid)
+        
+        # Update name and cost
+        medicine.name = name
+        if cost is not None and str(cost).strip() != '':
+            medicine.cost = float(cost)
+        else:
+            medicine.cost = None
+            
+        medicine.save()
+        
+        return Response({
+            'status': 'success',
+            'message': 'Medicine profile updated successfully'
+        })
+    except Exception as e:
+        return Response({
+            'status': 'error',
+            'message': str(e)
+        }, status=400)
+
+@api_view(['POST'])
+@transaction.atomic
 def api_add_medicine(request):
     try:
         data = request.data

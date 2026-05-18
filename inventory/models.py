@@ -7,6 +7,7 @@ class UserProfile(models.Model):
         ('registration_staff', 'Registration Staff'),
         ('log_vitals_staff', 'Log Vitals Staff'),
         ('main_admin', 'Main Admin'),
+        ('medicine_entry_staff', 'Medicine Entry Staff'),
     )
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     role = models.CharField(max_length=50, choices=ROLE_CHOICES, default='main_admin')

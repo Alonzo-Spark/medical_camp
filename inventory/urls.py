@@ -20,6 +20,7 @@ urlpatterns = [
     path('api/medicines', api_get_medicines),
     path('api/add_medicine', api_add_medicine),
     path('api/update_medicine_details', api_update_medicine_details),
+    path('api/update_medicine_profile', api_update_medicine_profile),
     path('api/patient/<int:patient_id>', api_get_patient_details),
     path('api/issue', api_issue_medicine),
     path('api/save_vitals', api_save_vitals),
