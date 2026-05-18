@@ -63,7 +63,8 @@ const MedicineEntry = () => {
           total_stock: med.stock,
           camp_stock: campData.allocated,
           used_stock: campData.used,
-          remaining_stock: campData.remaining
+          remaining_stock: campData.remaining,
+          unit_cost: med.cost || 0
         };
       });
       setCampStocks(stocksArray);
@@ -616,6 +617,8 @@ const MedicineEntry = () => {
                   <th className="px-8 py-5">Warehouse</th>
                   <th className="px-8 py-5">Allocated</th>
                   <th className="px-8 py-5">Used</th>
+                  <th className="px-8 py-5">Unit Cost</th>
+                  <th className="px-8 py-5">Total Cost</th>
                   <th className="px-8 py-5">Available</th>
                   <th className="px-8 py-5 text-right">Actions</th>
                 </tr>
@@ -653,6 +656,22 @@ const MedicineEntry = () => {
                         <div className="flex items-center gap-3">
                           <span className="w-10 h-10 flex items-center justify-center bg-rose-50 text-rose-600 rounded-xl font-black font-data border border-rose-100 text-xs">
                             {stock.used_stock}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6">
+                        <div className="flex items-center gap-3">
+                          <span className="font-data font-bold text-slate-700">
+                            {stock.unit_cost ? `₹ ${Number(stock.unit_cost).toFixed(2)}` : '₹ 0.00'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6">
+                        <div className="flex items-center gap-3">
+                          <span className="font-data font-bold text-slate-900">
+                            {stock.used_stock && stock.unit_cost
+                              ? `₹ ${(stock.used_stock * stock.unit_cost).toFixed(2)}`
+                              : '₹ 0.00'}
                           </span>
                         </div>
                       </td>
@@ -697,7 +716,7 @@ const MedicineEntry = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="5" className="px-8 py-24 text-center text-slate-400 font-bold">No records found for camp allocation</td>
+                    <td colSpan="9" className="px-8 py-24 text-center text-slate-400 font-bold">No records found for camp allocation</td>
                   </tr>
                 )}
               </tbody>
