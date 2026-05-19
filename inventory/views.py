@@ -1360,6 +1360,42 @@ def api_create_scan_session(request):
         'session': serializer.data
     })
 
+import time
+import json
+import os
+from django.conf import settings
+
+def log_benchmark(session_uuid, image_path, time_taken, status, data, raw_text, error=None):
+    try:
+        # Save benchmark file in the root directory (medical_camp/)
+        benchmark_file = os.path.join(settings.BASE_DIR, 'benchmark_ocr.json')
+        benchmark_data = []
+        if os.path.exists(benchmark_file):
+            try:
+                with open(benchmark_file, 'r', encoding='utf-8') as f:
+                    benchmark_data = json.load(f)
+            except json.JSONDecodeError:
+                pass
+                
+        entry = {
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "session_id": str(session_uuid),
+            "image_path": str(image_path),
+            "status": status,
+            "time_taken_seconds": round(time_taken, 2),
+            "accuracy_score": None, # For manual grading later
+            "error_message": str(error) if error else None,
+            "extracted_data": data,
+            "raw_text_length": len(raw_text) if raw_text else 0
+        }
+        
+        benchmark_data.append(entry)
+        
+        with open(benchmark_file, 'w', encoding='utf-8') as f:
+            json.dump(benchmark_data, f, indent=4)
+    except Exception as e:
+        print(f"Failed to write benchmark: {e}")
+
 def run_ocr_task(session_uuid):
     """Background task to process OCR"""
     try:
@@ -1372,13 +1408,20 @@ def run_ocr_task(session_uuid):
         
         # Trigger OCR
         print(f"DEBUG: Triggering OCR for {session.image.path}")
+        start_time = time.time()
         structured_data, raw_text = ocr_service.process_report(session.image.path)
+        end_time = time.time()
+        time_taken = end_time - start_time
         
-        print(f"DEBUG: OCR completed for {session_uuid}, saving results...")
+        print(f"DEBUG: OCR completed for {session_uuid} in {time_taken:.2f}s, saving results...")
         session.ocr_data = structured_data
         session.ocr_raw_text = raw_text
         session.ocr_status = 'completed'
         session.save()
+        
+        # Log to benchmark file
+        log_benchmark(session_uuid, session.image.path, time_taken, 'completed', structured_data, raw_text)
+        
         print(f"DEBUG: Session {session_uuid} updated to completed.")
     except Exception as e:
         print(f"OCR Task Error for {session_uuid}: {e}")
@@ -1388,6 +1431,9 @@ def run_ocr_task(session_uuid):
             session = ScanSession.objects.get(session_id=session_uuid)
             session.ocr_status = 'error'
             session.save()
+            
+            # Log error to benchmark file
+            log_benchmark(session_uuid, session.image.path if session.image else 'Unknown', 0, 'error', None, None, str(e))
         except Exception as e2:
             print(f"OCR Error status update failed: {e2}")
     finally:

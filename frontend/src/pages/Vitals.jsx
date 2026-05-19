@@ -238,16 +238,23 @@ const Vitals = () => {
     const meds = d.medicines || (d.clinical && d.clinical.medicines) || [];
     if (meds.length > 0) {
         setMedicines(meds.map(m => {
+            // Sanitize number fields (convert dashes/slashes to '0' so input type='number' doesn't reject them)
+            const sanitizeNum = (val) => {
+                if (!val) return '';
+                const strVal = String(val).trim();
+                return (strVal === '-' || strVal === '/') ? '0' : strVal;
+            };
+
             let medData = {
-                msNo: m.ms_no || '', 
+                msNo: sanitizeNum(m.ms_no), 
                 medicine: m.medicine_name || '', 
                 formulation: m.formulation || m.strength || '', // Support migration
-                strength: m.strength_value || m.strength || '', 
-                days: m.days || '', 
-                morning: m.morning || '', 
-                afternoon: m.afternoon || '', 
-                night: m.night || '', 
-                quantity: m.quantity || '' 
+                strength: sanitizeNum(m.strength_value || m.strength), 
+                days: sanitizeNum(m.days), 
+                morning: sanitizeNum(m.morning), 
+                afternoon: sanitizeNum(m.afternoon), 
+                night: sanitizeNum(m.night), 
+                quantity: sanitizeNum(m.quantity) 
             };
 
             // If we have an ID but no name, look it up in inventory
