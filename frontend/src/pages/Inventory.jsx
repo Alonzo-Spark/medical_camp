@@ -23,7 +23,7 @@ const Inventory = () => {
   const filteredMeds = medicines.filter(m => {
     const searchTerms = searchTerm.toLowerCase().trim().split(/\s+/);
     if (searchTerms.length === 0) return true;
-    
+
     const searchableText = `${m.name} ${m.formulation || ''} ${m.category || ''} ${m.uqid}`.toLowerCase();
     return searchTerms.every(term => searchableText.includes(term));
   });
@@ -87,11 +87,10 @@ const Inventory = () => {
     <div className="max-w-7xl mx-auto space-y-8 pb-10">
       {/* Toast Notification */}
       {toast && (
-        <div className={`fixed top-6 right-6 z-50 px-6 py-4 rounded-xl shadow-lg border font-bold text-sm flex items-center gap-3 animate-fade-in ${
-          toast.type === 'success'
+        <div className={`fixed top-6 right-6 z-50 px-6 py-4 rounded-xl shadow-lg border font-bold text-sm flex items-center gap-3 animate-fade-in ${toast.type === 'success'
             ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
             : 'bg-red-50 border-red-200 text-red-700'
-        }`}>
+          }`}>
           {toast.type === 'success' ? <Check size={18} strokeWidth={3} /> : <X size={18} strokeWidth={3} />}
           {toast.message}
         </div>
@@ -124,7 +123,7 @@ const Inventory = () => {
       <div className="glass-panel-light overflow-hidden relative">
         {/* Accent line */}
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-teal-500 via-teal-400 to-emerald-400" />
-        
+
         {/* Search */}
         <div className="p-8 border-b border-slate-200 bg-slate-50/50 flex flex-col md:flex-row gap-4 items-center">
           <div className="relative flex-1 w-full">
@@ -137,7 +136,7 @@ const Inventory = () => {
               onChange={e => setSearchTerm(e.target.value)}
             />
             {searchTerm && (
-              <button 
+              <button
                 onClick={() => setSearchTerm('')}
                 className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
               >
@@ -177,9 +176,9 @@ const Inventory = () => {
                 filteredMeds.map((med) => (
                   <tr key={med.uqid} className="hover:bg-teal-50/40 transition-all group">
                     <td className="px-8 py-6">
-                       <span className="font-data text-sm text-teal-600 bg-teal-50 px-3 py-1.5 rounded-lg border border-teal-200">
+                      <span className="font-data text-sm text-teal-600 bg-teal-50 px-3 py-1.5 rounded-lg border border-teal-200">
                         #{med.uqid}
-                       </span>
+                      </span>
                     </td>
                     <td className="px-8 py-6">
                       <div className="flex flex-col">
@@ -238,8 +237,8 @@ const Inventory = () => {
                             </span>
                           </div>
                           <div className={`h-1.5 w-14 rounded-full mt-2 ${med.stock >= 50 ? 'bg-emerald-100' : 'bg-red-100'}`}>
-                             <div 
-                              className={`h-full rounded-full transition-all ${med.stock >= 50 ? 'bg-emerald-500' : 'bg-red-500'}`} 
+                            <div
+                              className={`h-full rounded-full transition-all ${med.stock >= 50 ? 'bg-emerald-500' : 'bg-red-500'}`}
                               style={{ width: `${Math.min(med.stock, 100)}%` }}
                             />
                           </div>

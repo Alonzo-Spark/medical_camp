@@ -1,0 +1,112 @@
+OCR: Gemini 3.1 Flash-Lite Vision Engine Initialized.
+
+============================================================
+🚀 SPECIFIC SCAN BENCHMARK: GEMINI 3.1 FLASH-LITE
+============================================================
+
+Processing File: image_o0vxLT8.jpg (2.28 MB)
+OCR: Starting Gemini extraction for media/scanned_reports/image_o0vxLT8.jpg...
+⏱️ Time Taken     : 10.11 seconds
+✅ Accuracy Score : 100% Completeness (Found 6/6 main fields)
+ℹ️ Status         : Extracted via Gemini 3.1 Flash-Lite Vision
+
+============================================================
+📋 FULL EXTRACTED JSON DATA
+============================================================
+{
+  "patient_id": 103,
+  "entry_no": 4,
+  "vitals": {
+    "weight": "95",
+    "height": "85",
+    "bp": "170/20",
+    "pulse": "30",
+    "rbs": "50",
+    "hemo": "30"
+  },
+  "clinical": {
+    "doctor_name": "",
+    "doctor_id": "5",
+    "diagnosis": ""
+  },
+  "lab_tests": [
+    19,
+    7,
+    20,
+    16
+  ],
+  "medicines": [
+    {
+      "ms_no": "2",
+      "medicine_name": "",
+      "strength": "2",
+      "days": "1",
+      "morning": "1",
+      "afternoon": "1",
+      "night": "2",
+      "quantity": "4"
+    },
+    {
+      "ms_no": "6",
+      "medicine_name": "",
+      "strength": "5",
+      "days": "2",
+      "morning": "2",
+      "afternoon": "2",
+      "night": "2",
+      "quantity": "4"
+    },
+    {
+      "ms_no": "7",
+      "medicine_name": "",
+      "strength": "1",
+      "days": "3",
+      "morning": "3",
+      "afternoon": "3",
+      "night": "2",
+      "quantity": "5"
+    },
+    {
+      "ms_no": "8",
+      "medicine_name": "",
+      "strength": "7",
+      "days": "4",
+      "morning": "4",
+      "afternoon": "4",
+      "night": "2",
+      "quantity": "7"
+    },
+    {
+      "ms_no": "9",
+      "medicine_name": "",
+      "strength": "2",
+      "days": "2",
+      "morning": "2",
+      "afternoon": "2",
+      "night": "2",
+      "quantity": "8"
+    },
+    {
+      "ms_no": "1",
+      "medicine_name": "",
+      "strength": "2",
+      "days": "7",
+      "morning": "7",
+      "afternoon": "7",
+      "night": "2",
+      "quantity": "9"
+    },
+    {
+      "ms_no": "3",
+      "medicine_name": "",
+      "strength": "2",
+      "days": "7",
+      "morning": "7",
+      "afternoon": "7",
+      "night": "2",
+      "quantity": "9"
+    }
+  ]
+}
+============================================================
+
