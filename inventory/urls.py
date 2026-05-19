@@ -13,6 +13,9 @@ urlpatterns = [
     path('export', export),
     path('export_camp_stock/<int:camp_id>', export_camp_stock),
     path('export_camp_report/<int:camp_id>', export_camp_report),
+    path('api/doctor_camp_reports/<int:camp_id>', api_get_doctor_report),
+    path('api/save_doctor_report', api_save_doctor_report),
+    path('api/delete_doctor_report/<int:record_id>', api_delete_doctor_report),
 
 
     # API Endpoints
@@ -21,6 +24,7 @@ urlpatterns = [
     path('api/add_medicine', api_add_medicine),
     path('api/update_medicine_details', api_update_medicine_details),
     path('api/update_medicine_profile', api_update_medicine_profile),
+    path('api/update_camp_unit_cost', api_update_camp_unit_cost),
     path('api/patient/<int:patient_id>', api_get_patient_details),
     path('api/issue', api_issue_medicine),
     path('api/save_vitals', api_save_vitals),

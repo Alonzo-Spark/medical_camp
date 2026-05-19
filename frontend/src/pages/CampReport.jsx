@@ -164,7 +164,7 @@ const CampReport = () => {
 
                         <StatCard
                             title="Total Cost"
-                            value="₹ 0"
+                            value={reportData.medicine.total_cost !== undefined ? `₹ ${Number(reportData.medicine.total_cost).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '₹ 0.00'}
                             subValue="Estimated value of medicines used"
                             icon={Banknote}
                             color="emerald"

@@ -90,8 +90,14 @@ function OldPatientRegistration() {
                 setForm(prev => {
                     let formattedDate = prev.regdate;
                     if (patient.registered_date) {
-                        const [y, m, d] = patient.registered_date.split('-');
-                        formattedDate = `${d}/${m}/${y}`;
+                        if (patient.registered_date.includes('/')) {
+                            formattedDate = patient.registered_date;
+                        } else if (patient.registered_date.includes('-')) {
+                            const [y, m, d] = patient.registered_date.split('-');
+                            formattedDate = `${d}/${m}/${y}`;
+                        } else {
+                            formattedDate = patient.registered_date;
+                        }
                     }
                     return {
                         ...prev,
@@ -149,7 +155,8 @@ function OldPatientRegistration() {
 
             await axios.post(`${API_BASE}/register_patient`, { 
                 ...form, 
-                regdate: apiDate 
+                regdate: apiDate,
+                is_new: false
             });
 
             setSuccess(true);

@@ -11,13 +11,25 @@ const DoctorReport = () => {
 
   // Manual records state for UI
   const [manualRecords, setManualRecords] = useState([]);
-  const [formData, setFormData] = useState({ doctorName: '', patientId: '', patientName: '' });
+  const [formData, setFormData] = useState({ doctorId: '', doctorName: '', patientId: '', patientName: '' });
   const [editingId, setEditingId] = useState(null);
+  const [allDoctors, setAllDoctors] = useState([]);
 
-  // Fetch Camps from DB
+  // Fetch Camps & Doctors from DB
   useEffect(() => {
     fetchCamps();
+    fetchDoctors();
   }, []);
+
+  const fetchDoctors = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/doctors`);
+      const data = await res.json();
+      setAllDoctors(data);
+    } catch (err) {
+      console.error("Error fetching doctors:", err);
+    }
+  };
 
   const fetchCamps = async () => {
     try {
@@ -27,6 +39,7 @@ const DoctorReport = () => {
       if (data.length > 0) {
         setSelectedCamp(data[0].id);
         fetchCampDetails(data[0].id);
+        fetchManualRecords(data[0].id);
       }
     } catch (err) {
       console.error("Error fetching camps:", err);
@@ -47,52 +60,113 @@ const DoctorReport = () => {
     }
   };
 
+  const fetchManualRecords = async (campId) => {
+    if (!campId) return;
+    try {
+      const res = await fetch(`${API_BASE}/doctor_camp_reports/${campId}`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+          setManualRecords(data);
+      }
+    } catch (err) {
+      console.error("Error fetching manual records:", err);
+    }
+  };
+
   const handleCampChange = (e) => {
     const campId = e.target.value;
     setSelectedCamp(campId);
     fetchCampDetails(campId);
+    fetchManualRecords(campId);
     setEditingId(null);
     setFormData({ doctorName: '', patientId: '', patientName: '' });
   };
 
-  const filteredManualRecords = manualRecords.filter(record => record.campId === selectedCamp);
+  const filteredManualRecords = manualRecords.filter(record => record.campId == selectedCamp);
 
-  const handleSaveManual = (e) => {
+  const handleSaveManual = async (e) => {
     e.preventDefault();
     if (!formData.doctorName || !formData.patientId || !formData.patientName) return;
 
-    if (editingId) {
-      setManualRecords(manualRecords.map(rec => 
-        rec.id === editingId 
-          ? { ...rec, doctorName: formData.doctorName, patientId: formData.patientId, patientName: formData.patientName }
-          : rec
-      ));
-      setEditingId(null);
-    } else {
-      const newRecord = {
-        id: Date.now().toString(),
+    try {
+      const payload = {
+        id: editingId,
         campId: selectedCamp,
+        doctorId: formData.doctorId,
         doctorName: formData.doctorName,
         patientId: formData.patientId,
         patientName: formData.patientName
       };
-      setManualRecords([...manualRecords, newRecord]);
+      
+      const res = await fetch(`${API_BASE}/save_doctor_report`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const result = await res.json();
+      
+      if (result.status === 'success') {
+        if (editingId) {
+          setManualRecords(manualRecords.map(rec => rec.id === editingId ? result.record : rec));
+        } else {
+          setManualRecords([...manualRecords, result.record]);
+        }
+        setEditingId(null);
+        setFormData({ doctorId: '', doctorName: '', patientId: '', patientName: '' });
+      } else {
+        alert("Error saving record: " + result.message);
+      }
+    } catch (err) {
+      console.error(err);
     }
-    setFormData({ doctorName: '', patientId: '', patientName: '' });
+  };
+
+  const handleDoctorIdBlur = () => {
+    setFormData(prev => {
+      if (!prev.doctorId) return prev;
+      const docObj = allDoctors.find(d => d.id.toString() === prev.doctorId.toString());
+      if (docObj) {
+        return { ...prev, doctorName: docObj.dr_name };
+      } else {
+        return { ...prev, doctorName: 'Doctor Not Found' };
+      }
+    });
+  };
+
+  const handlePatientIdBlur = async () => {
+    if (!formData.patientId) return;
+    const currentPatientId = formData.patientId;
+    try {
+      const res = await fetch(`${API_BASE}/check_patient_id/${currentPatientId}`);
+      const data = await res.json();
+      if (data.exists) {
+        setFormData(prev => ({ ...prev, patientName: data.patient_name }));
+      } else {
+        setFormData(prev => ({ ...prev, patientName: 'Patient Not Found' }));
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleEdit = (record) => {
     setEditingId(record.id);
     setFormData({
+      doctorId: record.doctorId || '',
       doctorName: record.doctorName,
       patientId: record.patientId,
       patientName: record.patientName
     });
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this manual record?')) {
-      setManualRecords(manualRecords.filter(rec => rec.id !== id));
+      try {
+        await fetch(`${API_BASE}/delete_doctor_report/${id}`, { method: 'DELETE' });
+        setManualRecords(manualRecords.filter(rec => rec.id !== id));
+      } catch (err) {
+        console.error(err);
+      }
     }
   };
 
@@ -110,8 +184,8 @@ const DoctorReport = () => {
             <FileText className="text-teal-600" size={28} strokeWidth={2.5} />
           </div>
           <div>
-            <h1 className="text-2xl font-black text-slate-800 tracking-tight">Doctor Report</h1>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Database & Manual Patient Analysis</p>
+            <h1 className="text-2xl font-black text-slate-800 tracking-tight">Doctor Consultation Log</h1>
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Consolidated Database & Manual Consultations</p>
           </div>
         </div>
       </div>
@@ -152,40 +226,70 @@ const DoctorReport = () => {
           </h3>
           
           <form onSubmit={handleSaveManual} className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Doctor Name</label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. Dr. Sarah Connor"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
-                value={formData.doctorName}
-                onChange={(e) => setFormData({ ...formData, doctorName: e.target.value })}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Doctor ID</label>
+                <input
+                  type="number"
+                  required
+                  placeholder="e.g. 4"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
+                  value={formData.doctorId}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFormData(prev => ({ ...prev, doctorId: val }));
+                  }}
+                  onBlur={handleDoctorIdBlur}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Doctor Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Auto-filled or type manually"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
+                  value={formData.doctorName}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFormData(prev => ({ ...prev, doctorName: val }));
+                  }}
+                />
+              </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Patient ID</label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. P1001"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
-                value={formData.patientId}
-                onChange={(e) => setFormData({ ...formData, patientId: e.target.value })}
-              />
-            </div>
-            
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Patient Name</label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. John Doe"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
-                value={formData.patientName}
-                onChange={(e) => setFormData({ ...formData, patientName: e.target.value })}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Patient ID</label>
+                <input
+                  type="number"
+                  required
+                  placeholder="e.g. 1001"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
+                  value={formData.patientId}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFormData(prev => ({ ...prev, patientId: val }));
+                  }}
+                  onBlur={handlePatientIdBlur}
+                />
+              </div>
+              
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Patient Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Auto-filled or type manually"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
+                  value={formData.patientName}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFormData(prev => ({ ...prev, patientName: val }));
+                  }}
+                />
+              </div>
             </div>
 
             <div className="pt-2 flex gap-3">
@@ -231,7 +335,14 @@ const DoctorReport = () => {
                           {dr.dr_name || "Unknown Doctor"}
                           <Database size={14} className="text-teal-500" title="From Database" />
                         </h4>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{dr.patients.length} DB Patients</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {dr.dr_id && (
+                            <span className="text-[10px] font-black text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded uppercase tracking-wider">
+                              ID: {dr.dr_id}
+                            </span>
+                          )}
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{dr.patients.length} DB Patients</p>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -249,13 +360,23 @@ const DoctorReport = () => {
                             <td className="p-4 pl-6 align-middle">
                               <div className="flex flex-col">
                                 <span className="text-sm font-black text-slate-700">{p.patient_name}</span>
-                                <span className="text-[10px] font-bold text-slate-400 mt-0.5">ID: {p.patient_id || 'System Generated'}</span>
+                                <span className="text-[10px] font-bold text-slate-400 mt-0.5">ID: {p.patient_id || 'N/A'}</span>
                               </div>
                             </td>
                             <td className="p-4 pr-6 align-middle text-right">
-                              <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-bold">
-                                Database
-                              </span>
+                              {p.source === 'Logged Vitals' ? (
+                                <span className="inline-block px-2.5 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded text-[10px] font-extrabold uppercase tracking-wide">
+                                  Vitals Logged
+                                </span>
+                              ) : p.source === 'Manually Added' ? (
+                                <span className="inline-block px-2.5 py-0.5 bg-amber-50 text-amber-600 border border-amber-100 rounded text-[10px] font-extrabold uppercase tracking-wide">
+                                  Manually Added
+                                </span>
+                              ) : (
+                                <span className="inline-block px-2.5 py-0.5 bg-slate-50 text-slate-500 border border-slate-100 rounded text-[10px] font-extrabold uppercase tracking-wide">
+                                  {p.source || 'Database'}
+                                </span>
+                              )}
                             </td>
                           </tr>
                         ))}
@@ -291,7 +412,12 @@ const DoctorReport = () => {
                         {filteredManualRecords.map((record) => (
                           <tr key={record.id} className="hover:bg-amber-50/10 transition-colors group">
                             <td className="p-4 pl-6 align-middle">
-                              <span className="text-sm font-black text-slate-800">{record.doctorName}</span>
+                              <div className="flex flex-col">
+                                <span className="text-sm font-black text-slate-800">{record.doctorName}</span>
+                                {record.doctorId && (
+                                  <span className="text-[10px] font-bold text-slate-400 mt-0.5 uppercase tracking-widest">Doc ID: {record.doctorId}</span>
+                                )}
+                              </div>
                             </td>
                             <td className="p-4 align-middle">
                               <div className="flex flex-col">

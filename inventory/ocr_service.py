@@ -98,8 +98,18 @@ class MedicalOCRService:
                     }
                 ],
                 max_tokens=4000,
-                temperature=0.1
+                temperature=0.1,
+                thinking={"type": "disabled"}
             )
+            
+            # Print the raw response to terminal to see the thinking process
+            print("\n--- RAW API RESPONSE (Check for thinking/reasoning) ---")
+            try:
+                print(response.model_dump_json(indent=2))
+            except AttributeError:
+                print(response)  # Fallback if model_dump_json is not available
+            print("------------------------------------------------------\n")
+            
             content = response.choices[0].message.content
             
             # Extract JSON from potential markdown code blocks

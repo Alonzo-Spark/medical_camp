@@ -154,6 +154,20 @@ class Patient(models.Model):
     def __str__(self):
         return f"{self.patient_id} - {self.patient_name or 'No Name'}"
 
+class PatientCampVisit(models.Model):
+    class Meta:
+        db_table = 'patient_camp_visits'
+        unique_together = ('patient', 'camp')
+
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='camp_visits', to_field='patient_id')
+    camp = models.ForeignKey(MedicalCamp, on_delete=models.CASCADE, to_field='number')
+    visit_date = models.DateField(null=True, blank=True)
+    is_new = models.BooleanField(default=True)
+
+    def __str__(self):
+        status = "New" if self.is_new else "Old"
+        return f"Patient {self.patient.patient_id} at Camp {self.camp.number} - {status}"
+
 class CampWiseStock(models.Model):
 
     camp = models.ForeignKey(
@@ -173,6 +187,7 @@ class CampWiseStock(models.Model):
     allocated_stock = models.IntegerField(default=0)
 
     used_stock = models.IntegerField(default=0)
+    unit_cost = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -200,5 +215,13 @@ class ScanSession(models.Model):
     ocr_status = models.CharField(max_length=20, default='pending') # pending, processing, completed, error
     created_at = models.DateTimeField(auto_now_add=True)
 
+class ManualPatientRecord(models.Model):
+    camp = models.ForeignKey(MedicalCamp, on_delete=models.CASCADE, related_name='manual_patients')
+    doctor = models.ForeignKey(Doctor, on_delete=models.CASCADE, null=True, blank=True)
+    doctor_name = models.CharField(max_length=500)
+    patient_id_string = models.CharField(max_length=100)
+    patient_name = models.CharField(max_length=500)
+    created_at = models.DateTimeField(auto_now_add=True)
+
     def __str__(self):
-        return f"Session {self.session_id} - {'Uploaded' if self.is_completed else 'Pending'}"
+        return f"{self.patient_name} seen by {self.doctor_name} at {self.camp}"

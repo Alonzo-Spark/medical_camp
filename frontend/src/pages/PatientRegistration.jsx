@@ -119,7 +119,11 @@ function PatientRegistration() {
             const [d, m, y] = form.regdate.split('/');
             const apiDate = `${y}-${m}-${d}`;
 
-            await axios.post(`${API_BASE}/register_patient`, { ...form, regdate: apiDate });
+            await axios.post(`${API_BASE}/register_patient`, { 
+                ...form, 
+                regdate: apiDate,
+                is_new: true 
+            });
             setSuccess(true);
             setForm(prev => ({
                 ...prev,

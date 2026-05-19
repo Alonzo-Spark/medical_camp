@@ -50,7 +50,7 @@ const Layout = () => {
     const path = location.pathname;
     const titles = {
       '/': 'Medicine Dispatch',
-      '/dashboard': 'Patient Registrations',
+      '/dashboard': 'Dashboard',
       '/vitals': 'Log Patient Vitals',
       '/register': 'Patient Registration',
       '/register-old': 'Medical Fulfillment',
@@ -60,7 +60,7 @@ const Layout = () => {
       '/camp-registration': 'Camp Registration',
       '/camp-patients': 'Camp Patients List',
       '/doctors': 'Doctors List',
-      '/doctor-report': 'Doctor Report',
+      '/doctor-consultation-log': 'Doctor Consultation Log',
     };
     return titles[path] || path.replace('/', '').replace('-', ' ');
   };
@@ -101,7 +101,7 @@ const Layout = () => {
             {(userRole === 'main_admin' || userRole === 'registration_staff') && (
               <>
                 <SidebarLink to="/camp-registration" icon={Stethoscope} label="Camp Registration" active={location.pathname === '/camp-registration'} />
-                <SidebarLink to="/dashboard" icon={LayoutDashboard} label="Patient Registrations" active={location.pathname === '/dashboard'} />
+                <SidebarLink to="/dashboard" icon={LayoutDashboard} label="Dashboard" active={location.pathname === '/dashboard'} />
               </>
             )}
 
@@ -113,7 +113,7 @@ const Layout = () => {
               <>
                 <SidebarLink to="/vitals" icon={Activity} label="Log Vitals" active={location.pathname === '/vitals'} />
                 <SidebarLink to="/doctors" icon={UserCircle} label="Doctors List" active={location.pathname === '/doctors'} />
-                <SidebarLink to="/doctor-report" icon={FileText} label="Doctor Report" active={location.pathname === '/doctor-report'} />
+                <SidebarLink to="/doctor-consultation-log" icon={FileText} label="Doctor Consultation Log" active={location.pathname === '/doctor-consultation-log'} />
               </>
             )}
 

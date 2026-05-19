@@ -22,6 +22,7 @@ const MedicineEntry = () => {
   const [errorMsg, setErrorMsg] = useState('');
   const [editingMedId, setEditingMedId] = useState(null);
   const [editMedData, setEditMedData] = useState({ uqid: '', name: '' });
+  const [campUnitCosts, setCampUnitCosts] = useState({});
 
 
 
@@ -56,15 +57,16 @@ const MedicineEntry = () => {
     axios.get(`${API_BASE}/camp_stock/${selectedCamp}`).then(res => {
       // Map over all medicines to ensure every medicine appears in the camp-wise view
       const stocksArray = medicines.map(med => {
-        const campData = res.data[med.uqid] || { allocated: 0, used: 0, remaining: 0 };
+        const campData = res.data[med.uqid] || { allocated: 0, used: 0, remaining: 0, unit_cost: null };
         return {
           uqid: med.uqid,
           medication: med.name,
+          formulation: med.formulation || '',
           total_stock: med.stock,
           camp_stock: campData.allocated,
           used_stock: campData.used,
           remaining_stock: campData.remaining,
-          unit_cost: med.cost || 0
+          unit_cost: campData.unit_cost !== undefined && campData.unit_cost !== null ? campData.unit_cost : (med.cost || 0)
         };
       });
       setCampStocks(stocksArray);
@@ -223,6 +225,29 @@ const MedicineEntry = () => {
     }
   };
 
+  const handleCampUnitCostChange = (uqid, value) => {
+    setCampUnitCosts(prev => ({ ...prev, [uqid]: value }));
+  };
+
+  const handleSaveCampUnitCost = async (uqid) => {
+    const value = campUnitCosts[uqid];
+    if (value === undefined) return;
+
+    try {
+      const res = await axios.post(`${API_BASE}/update_camp_unit_cost`, {
+        camp_id: selectedCamp,
+        uqid: uqid,
+        unit_cost: value !== '' ? parseFloat(value) : null
+      });
+
+      setSuccessMsg(res.data.message);
+      setTimeout(() => setSuccessMsg(''), 1500);
+      fetchCampStocks();
+    } catch (err) {
+      alert('Error updating camp unit cost: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
   const handleAddMedicine = async (e) => {
     e.preventDefault();
     if (!newMed.name) {
@@ -270,7 +295,7 @@ const MedicineEntry = () => {
   );
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 pb-10">
+    <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 space-y-8 pb-10">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 px-4">
         <div>
@@ -464,12 +489,12 @@ const MedicineEntry = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-                  <th className="px-8 py-5">System Identity (UQID)</th>
-                  <th className="px-8 py-5">Medication Description</th>
-                  <th className="px-8 py-5">Total Cost (₹)</th>
-                  <th className="px-8 py-5">Global Inventory Status</th>
-                  <th className="px-8 py-5 text-right">Add to Global Stock</th>
+                <tr className="bg-slate-50 border-b border-slate-100 text-xs font-black uppercase tracking-[0.2em] text-slate-400">
+                  <th className="px-4 py-4">System Identity (UQID)</th>
+                  <th className="px-4 py-4">Medication Description</th>
+                  <th className="px-4 py-4">Total Cost (₹)</th>
+                  <th className="px-4 py-4">Global Inventory Status</th>
+                  <th className="px-4 py-4 text-right">Add to Global Stock</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -485,7 +510,7 @@ const MedicineEntry = () => {
                 ) : filteredMeds.length > 0 ? (
                   filteredMeds.map((med) => (
                     <tr key={med.uqid} className="hover:bg-teal-50/40 transition-all group">
-                      <td className="px-8 py-6">
+                      <td className="px-4 py-4">
                         {editingMedId === med.uqid ? (
                           <input
                             type="text"
@@ -494,27 +519,32 @@ const MedicineEntry = () => {
                             onChange={(e) => setEditMedData({ ...editMedData, uqid: e.target.value })}
                           />
                         ) : (
-                          <span className="font-data text-xs font-bold text-teal-600 bg-teal-50 px-3 py-1.5 rounded-lg border border-teal-100">
+                          <span className="font-data text-sm font-bold text-teal-600 bg-teal-50 px-3 py-1.5 rounded-lg border border-teal-100">
                             #{med.uqid}
                           </span>
                         )}
                       </td>
-                      <td className="px-8 py-6">
-                        <div className="flex flex-col max-w-md">
-                          {editingMedId === med.uqid ? (
+                      <td className="px-4 py-4">
+                        {editingMedId === med.uqid ? (
+                          <div className="flex flex-col gap-1 max-w-md">
                             <input
                               type="text"
                               className="w-full bg-white border border-teal-300 rounded-lg px-2 py-1.5 text-sm font-black outline-none focus:ring-2 focus:ring-teal-500/20 shadow-sm"
                               value={editMedData.name}
                               onChange={(e) => setEditMedData({ ...editMedData, name: e.target.value })}
                             />
-                          ) : (
-                            <span className="font-black text-slate-800 group-hover:text-teal-700 transition-colors truncate">{med.name}</span>
-                          )}
-                          <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider mt-0.5 truncate">{med.formulation || 'Generic Formulation'}</span>
-                        </div>
+                            <span className="text-xs text-slate-500 font-black uppercase tracking-wider mt-0.5 truncate">{med.formulation || 'Generic Formulation'}</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 max-w-md">
+                            <span className="text-base font-black text-slate-800 group-hover:text-teal-700 transition-colors truncate">{med.name}</span>
+                            <span className="text-xs text-slate-600 font-extrabold uppercase tracking-wider px-2 py-0.5 bg-slate-50 rounded-md border border-slate-100 truncate">
+                              {med.formulation || 'Generic Formulation'}
+                            </span>
+                          </div>
+                        )}
                       </td>
-                      <td className="px-8 py-6">
+                      <td className="px-4 py-4">
                         {editingMedId === med.uqid ? (
                           <input
                             type="number"
@@ -524,20 +554,20 @@ const MedicineEntry = () => {
                             onChange={(e) => setEditMedData({ ...editMedData, cost: e.target.value })}
                           />
                         ) : (
-                          <span className="font-data font-bold text-slate-700">
+                          <span className="font-data text-sm font-black text-slate-800">
                             {med.cost ? `₹ ${med.cost}` : '₹ 0.00'}
                           </span>
                         )}
                       </td>
-                      <td className="px-8 py-6">
+                      <td className="px-4 py-4">
                         <div className="flex flex-col">
-                          <span className={`text-lg font-black font-data ${med.stock > 10 ? 'text-slate-800' : 'text-rose-600'}`}>
+                          <span className={`text-xl font-black font-data ${med.stock > 10 ? 'text-slate-800' : 'text-rose-600'}`}>
                             {med.stock}
                           </span>
-                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Available Units</span>
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Available Units</span>
                         </div>
                       </td>
-                      <td className="px-8 py-6 text-right">
+                      <td className="px-4 py-4 text-right">
                         <div className="flex items-center justify-end gap-3">
                           <div className="relative">
                             <input
@@ -611,78 +641,99 @@ const MedicineEntry = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-                  <th className="px-8 py-5">UQID</th>
-                  <th className="px-8 py-5">Medication Name</th>
-                  <th className="px-8 py-5">Warehouse</th>
-                  <th className="px-8 py-5">Allocated</th>
-                  <th className="px-8 py-5">Used</th>
-                  <th className="px-8 py-5">Unit Cost</th>
-                  <th className="px-8 py-5">Total Cost</th>
-                  <th className="px-8 py-5">Available</th>
-                  <th className="px-8 py-5 text-right">Actions</th>
+                <tr className="bg-slate-50 border-b border-slate-100 text-xs font-black uppercase tracking-[0.2em] text-slate-400">
+                  <th className="px-4 py-4">UQID</th>
+                  <th className="px-4 py-4">Medication Name</th>
+                  <th className="px-4 py-4">Formulation</th>
+                  <th className="px-4 py-4">Warehouse</th>
+                  <th className="px-4 py-4">Allocated</th>
+                  <th className="px-4 py-4">Used</th>
+                  <th className="px-4 py-4">Unit Cost</th>
+                  <th className="px-4 py-4">Total Cost</th>
+                  <th className="px-4 py-4">Available</th>
+                  <th className="px-4 py-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {filteredCampStocks.length > 0 ? (
                   filteredCampStocks.map((stock) => (
                     <tr key={stock.uqid} className="hover:bg-emerald-50/40 transition-all group">
-                      <td className="px-8 py-6">
-                        <span className="font-data text-xs font-bold text-slate-400 group-hover:text-emerald-600 transition-colors">#{stock.uqid}</span>
+                      <td className="px-4 py-4">
+                        <span className="font-data text-sm font-bold text-slate-400 group-hover:text-emerald-600 transition-colors">#{stock.uqid}</span>
                       </td>
-                      <td className="px-8 py-6 font-black text-slate-800">{stock.medication}</td>
-                      <td className="px-8 py-6">
+                      <td className="px-4 py-4 text-base font-black text-slate-800">{stock.medication}</td>
+                      <td className="px-4 py-4">
+                        <span className="text-sm font-bold text-slate-600">
+                          {stock.formulation || 'Generic Formulation'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4">
                         <div className="flex flex-col">
                           {allocateQtys[stock.uqid] > 0 && (
                             <span className="text-sm font-black text-slate-400 line-through decoration-slate-300 animate-in fade-in slide-in-from-bottom-1">
                               {stock.total_stock}
                             </span>
                           )}
-                          <span className="text-lg font-black text-slate-800 font-data">
+                          <span className="text-xl font-black text-slate-800 font-data">
                             {allocateQtys[stock.uqid] > 0
                               ? stock.total_stock - parseInt(allocateQtys[stock.uqid])
                               : stock.total_stock}
                           </span>
                         </div>
                       </td>
-                      <td className="px-8 py-6">
+                      <td className="px-4 py-4">
                         <div className="flex items-center gap-3">
-                          <span className="w-10 h-10 flex items-center justify-center bg-blue-50 text-blue-600 rounded-xl font-black font-data border border-blue-100 text-xs">
+                          <span className="w-10 h-10 flex items-center justify-center bg-blue-50 text-blue-600 rounded-xl font-black font-data border border-blue-100 text-sm">
                             {stock.camp_stock}
                           </span>
                         </div>
                       </td>
-                      <td className="px-8 py-6">
+                      <td className="px-4 py-4">
                         <div className="flex items-center gap-3">
-                          <span className="w-10 h-10 flex items-center justify-center bg-rose-50 text-rose-600 rounded-xl font-black font-data border border-rose-100 text-xs">
+                          <span className="w-10 h-10 flex items-center justify-center bg-rose-50 text-rose-600 rounded-xl font-black font-data border border-rose-100 text-sm">
                             {stock.used_stock}
                           </span>
                         </div>
                       </td>
-                      <td className="px-8 py-6">
+                      <td className="px-4 py-4">
                         <div className="flex items-center gap-3">
-                          <span className="font-data font-bold text-slate-700">
-                            {stock.unit_cost ? `₹ ${Number(stock.unit_cost).toFixed(2)}` : '₹ 0.00'}
-                          </span>
+                          <div className="relative flex items-center">
+                            <span className="absolute left-3 text-slate-400 font-bold text-sm">₹</span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              placeholder="0.00"
+                              className="w-32 bg-white border border-slate-200 rounded-lg pl-7 pr-3 py-2 text-sm font-data font-bold text-slate-700 outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 shadow-sm transition-all"
+                              value={campUnitCosts[stock.uqid] !== undefined ? campUnitCosts[stock.uqid] : (stock.unit_cost || '')}
+                              onChange={(e) => handleCampUnitCostChange(stock.uqid, e.target.value)}
+                              onBlur={() => handleSaveCampUnitCost(stock.uqid)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.target.blur(); // This will trigger onBlur which saves it
+                                }
+                              }}
+                            />
+                          </div>
                         </div>
                       </td>
-                      <td className="px-8 py-6">
+                      <td className="px-4 py-4">
                         <div className="flex items-center gap-3">
-                          <span className="font-data font-bold text-slate-900">
+                          <span className="font-data font-black text-base text-slate-900">
                             {stock.used_stock && stock.unit_cost
                               ? `₹ ${(stock.used_stock * stock.unit_cost).toFixed(2)}`
                               : '₹ 0.00'}
                           </span>
                         </div>
                       </td>
-                      <td className="px-8 py-6">
+                      <td className="px-4 py-4">
                         <div className="flex items-center gap-3">
-                          <span className="w-10 h-10 flex items-center justify-center bg-emerald-50 text-emerald-600 rounded-xl font-black font-data border border-emerald-100 text-xs">
+                          <span className="w-10 h-10 flex items-center justify-center bg-emerald-50 text-emerald-600 rounded-xl font-black font-data border border-emerald-100 text-sm">
                             {stock.remaining_stock}
                           </span>
                         </div>
                       </td>
-                      <td className="px-8 py-6 text-right">
+                      <td className="px-4 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <div className="flex items-center bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
                             <input
@@ -716,7 +767,7 @@ const MedicineEntry = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="9" className="px-8 py-24 text-center text-slate-400 font-bold">No records found for camp allocation</td>
+                    <td colSpan="10" className="px-8 py-24 text-center text-slate-400 font-bold">No records found for camp allocation</td>
                   </tr>
                 )}
               </tbody>
@@ -727,12 +778,12 @@ const MedicineEntry = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-                  <th className="px-8 py-5">UQID</th>
-                  <th className="px-8 py-5">Medication Name</th>
-                  <th className="px-8 py-5">Company Name</th>
-                  <th className="px-8 py-5">Expiry Date</th>
-                  <th className="px-8 py-5 text-right">Action</th>
+                <tr className="bg-slate-50 border-b border-slate-100 text-xs font-black uppercase tracking-[0.2em] text-slate-400">
+                  <th className="px-4 py-4">UQID</th>
+                  <th className="px-4 py-4">Medication Name</th>
+                  <th className="px-4 py-4">Company Name</th>
+                  <th className="px-4 py-4">Expiry Date</th>
+                  <th className="px-4 py-4 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -741,11 +792,11 @@ const MedicineEntry = () => {
                     const formState = detailsForm[med.uqid] || {};
                     return (
                       <tr key={`details-${med.uqid}`} className="hover:bg-slate-50/40 transition-all group">
-                        <td className="px-8 py-6">
-                          <span className="font-data text-xs font-bold text-slate-400">#{med.uqid}</span>
+                        <td className="px-4 py-4">
+                          <span className="font-data text-sm font-bold text-slate-400">#{med.uqid}</span>
                         </td>
-                        <td className="px-8 py-6 font-black text-slate-800">{med.name}</td>
-                        <td className="px-8 py-6">
+                        <td className="px-4 py-4 text-base font-black text-slate-800">{med.name}</td>
+                        <td className="px-4 py-4">
                           <input
                             type="text"
                             placeholder="e.g. Pfizer"
@@ -755,7 +806,7 @@ const MedicineEntry = () => {
                           />
                         </td>
 
-                        <td className="px-8 py-6">
+                        <td className="px-4 py-4">
                           <input
                             type="date"
                             className="w-auto bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-500 text-slate-600"
@@ -763,7 +814,7 @@ const MedicineEntry = () => {
                             onChange={(e) => handleDetailsChange(med.uqid, 'expiry_date', e.target.value)}
                           />
                         </td>
-                        <td className="px-8 py-6 text-right">
+                        <td className="px-4 py-4 text-right">
                           <button
                             onClick={() => handleSaveDetails(med.uqid)}
                             className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-sm text-xs font-black uppercase tracking-wider"

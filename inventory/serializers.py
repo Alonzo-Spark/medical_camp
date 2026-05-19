@@ -127,7 +127,7 @@ class CampWiseStockSerializer(serializers.ModelSerializer):
         model = CampWiseStock
         fields = [
             'id', 'camp', 'medicine', 'medicine_name', 'medicine_uqid', 
-            'allocated_stock', 'allocated', 'used_stock', 'used', 'remaining', 'created_at'
+            'allocated_stock', 'allocated', 'used_stock', 'used', 'remaining', 'unit_cost', 'created_at'
         ]
 
 class ScanSessionSerializer(serializers.ModelSerializer):

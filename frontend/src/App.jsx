@@ -48,7 +48,7 @@ function App() {
             <Route path="/camp-registration" element={<CampRegistration />} />
             <Route path="/camp-patients" element={<CampPatients />} />
             <Route path="/doctors" element={<DoctorsList />} />
-            <Route path="/doctor-report" element={<DoctorReport />} />
+            <Route path="/doctor-consultation-log" element={<DoctorReport />} />
             <Route path="/camp-report" element={<CampReport />} />
 
           </Route>
