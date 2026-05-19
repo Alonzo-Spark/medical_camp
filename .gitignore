@@ -78,3 +78,4 @@ Thumbs.db
 # Uncomment the line below if you want to ignore CSV/PDF files by default
 # *.csv
 # *.pdf
+*.xlsx
