@@ -40,7 +40,7 @@ def run_benchmark():
     service = MedicalOCRService()
     
     try:
-        extracted_data, msg = service.extract_with_glm_vision(test_image)
+        extracted_data, msg = service.process_report(test_image)
         end_time = time.time()
         
         duration = end_time - start_time
