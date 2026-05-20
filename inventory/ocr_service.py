@@ -4,6 +4,12 @@ import re
 import threading
 import PIL.Image
 import google.generativeai as genai
+from dotenv import load_dotenv
+
+# Load environment variables from the .env file in the project root
+current_dir = os.path.dirname(os.path.abspath(__file__))
+dotenv_path = os.path.join(current_dir, '..', '.env')
+load_dotenv(dotenv_path)
 
 class MedicalOCRService:
     def __init__(self):
@@ -15,8 +21,8 @@ class MedicalOCRService:
             return
             
         genai.configure(api_key=api_key)
-        # Using Gemini 1.5 Flash (or user mentioned 3.1 Flash-Lite, which usually translates to gemini-1.5-flash in the API as of now)
-        self.model = genai.GenerativeModel('gemini-1.5-flash')
+        # Using Gemini 3.1 Flash-Lite (as supported in this environment)
+        self.model = genai.GenerativeModel('gemini-3.1-flash-lite')
         print("OCR: Gemini Vision Engine Initialized.")
 
     def process_report(self, image_path):
