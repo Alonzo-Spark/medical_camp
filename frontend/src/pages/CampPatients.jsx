@@ -177,9 +177,18 @@ const CampPatients = () => {
                         {pat.patient_id}
                       </div>
                       <div>
-                        <p className="text-sm font-black text-slate-800">
-                          {pat.patient_name || <span className="text-slate-400 italic">No Name</span>}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-black text-slate-800">
+                            {pat.patient_name || <span className="text-slate-400 italic">No Name</span>}
+                          </p>
+                          <span className={`px-2 py-0.5 text-[9px] font-black rounded-full border ${
+                            pat.is_new 
+                              ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
+                              : 'bg-blue-50 text-blue-600 border-blue-100'
+                          }`}>
+                            {pat.is_new ? 'NEW' : 'OLD'}
+                          </span>
+                        </div>
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
                           Patient ID: {pat.patient_id}
                           {pat.medicines.length > 0 && <span className="ml-2">• {pat.medicines.length} medicine{pat.medicines.length !== 1 && 's'}</span>}

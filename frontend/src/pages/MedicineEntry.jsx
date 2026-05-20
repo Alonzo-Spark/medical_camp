@@ -17,11 +17,11 @@ const MedicineEntry = () => {
   const [camps, setCamps] = useState([]);
   const [selectedCamp, setSelectedCamp] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newMed, setNewMed] = useState({ uqid: '', name: '', formulation: '', stock: '' });
+  const [newMed, setNewMed] = useState({ uqid: '', name: '', formulation: '', stock: '', cost: '' });
   const [isAdding, setIsAdding] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [editingMedId, setEditingMedId] = useState(null);
-  const [editMedData, setEditMedData] = useState({ uqid: '', name: '' });
+  const [editMedData, setEditMedData] = useState({ uqid: '', name: '', cost: '' });
   const [campUnitCosts, setCampUnitCosts] = useState({});
 
 
@@ -260,12 +260,13 @@ const MedicineEntry = () => {
         uqid: newMed.uqid,
         name: newMed.name,
         formulation: newMed.formulation,
-        stock: parseInt(newMed.stock) || 0
+        stock: parseInt(newMed.stock) || 0,
+        cost: newMed.cost !== '' ? parseFloat(newMed.cost) : null
       });
 
       setSuccessMsg(res.data.message);
       setTimeout(() => setSuccessMsg(''), 3000);
-      setNewMed({ uqid: '', name: '', formulation: '', stock: '' });
+      setNewMed({ uqid: '', name: '', formulation: '', stock: '', cost: '' });
       setShowAddForm(false);
       fetchMedicines(); // Refresh the list
     } catch (err) {
@@ -333,8 +334,8 @@ const MedicineEntry = () => {
         <button
           onClick={() => setViewMode('total')}
           className={`flex items-center gap-3 px-8 py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.15em] transition-all duration-300 ${viewMode === 'total'
-              ? 'bg-teal-600 text-white shadow-xl shadow-teal-100 scale-[1.02]'
-              : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-50 hover:text-slate-600'
+            ? 'bg-teal-600 text-white shadow-xl shadow-teal-100 scale-[1.02]'
+            : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-50 hover:text-slate-600'
             }`}
         >
           <Box size={18} strokeWidth={2.5} />
@@ -343,8 +344,8 @@ const MedicineEntry = () => {
         <button
           onClick={() => setViewMode('camp')}
           className={`flex items-center gap-3 px-8 py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.15em] transition-all duration-300 ${viewMode === 'camp'
-              ? 'bg-teal-600 text-white shadow-xl shadow-teal-100 scale-[1.02]'
-              : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-50 hover:text-slate-600'
+            ? 'bg-teal-600 text-white shadow-xl shadow-teal-100 scale-[1.02]'
+            : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-50 hover:text-slate-600'
             }`}
         >
           <Landmark size={18} strokeWidth={2.5} />
@@ -353,8 +354,8 @@ const MedicineEntry = () => {
         <button
           onClick={() => setViewMode('details')}
           className={`flex items-center gap-3 px-8 py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.15em] transition-all duration-300 ${viewMode === 'details'
-              ? 'bg-teal-600 text-white shadow-xl shadow-teal-100 scale-[1.02]'
-              : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-50 hover:text-slate-600'
+            ? 'bg-teal-600 text-white shadow-xl shadow-teal-100 scale-[1.02]'
+            : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-50 hover:text-slate-600'
             }`}
         >
           <Pill size={18} strokeWidth={2.5} />
@@ -409,8 +410,8 @@ const MedicineEntry = () => {
               <button
                 onClick={() => setShowAddForm(!showAddForm)}
                 className={`flex items-center gap-2 px-6 py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.15em] transition-all duration-300 ${showAddForm
-                    ? 'bg-rose-600 text-white'
-                    : 'bg-teal-600 text-white hover:bg-teal-700'
+                  ? 'bg-rose-600 text-white'
+                  : 'bg-teal-600 text-white hover:bg-teal-700'
                   } shadow-lg`}
               >
                 {showAddForm ? 'Cancel' : (
@@ -429,7 +430,7 @@ const MedicineEntry = () => {
 
         {showAddForm && viewMode === 'total' && (
           <div className="p-8 bg-teal-50/30 border-b border-slate-100 animate-in slide-in-from-top-4 duration-300">
-            <form onSubmit={handleAddMedicine} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+            <form onSubmit={handleAddMedicine} className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">UQID (Optional)</label>
                 <input
@@ -471,6 +472,18 @@ const MedicineEntry = () => {
                   onChange={e => setNewMed({ ...newMed, stock: e.target.value })}
                 />
               </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Unit Cost (₹)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  className="w-full bg-white border border-slate-200 rounded-xl px-5 py-3 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-teal-500/30 transition-all"
+                  value={newMed.cost}
+                  onChange={e => setNewMed({ ...newMed, cost: e.target.value })}
+                />
+              </div>
               <button
                 type="submit"
                 disabled={isAdding}
@@ -492,6 +505,7 @@ const MedicineEntry = () => {
                 <tr className="bg-slate-50 border-b border-slate-100 text-xs font-black uppercase tracking-[0.2em] text-slate-400">
                   <th className="px-4 py-4">System Identity (UQID)</th>
                   <th className="px-4 py-4">Medication Description</th>
+                  <th className="px-4 py-4">Unit Cost (₹)</th>
                   <th className="px-4 py-4">Total Cost (₹)</th>
                   <th className="px-4 py-4">Global Inventory Status</th>
                   <th className="px-4 py-4 text-right">Add to Global Stock</th>
@@ -500,7 +514,7 @@ const MedicineEntry = () => {
               <tbody className="divide-y divide-slate-50">
                 {loading ? (
                   <tr>
-                    <td colSpan="5" className="px-8 py-24 text-center">
+                    <td colSpan="6" className="px-8 py-24 text-center">
                       <div className="flex flex-col items-center gap-4">
                         <div className="h-8 w-8 border-4 border-teal-500/10 border-t-teal-500 rounded-full animate-spin" />
                         <span className="font-black uppercase tracking-widest text-[10px] text-slate-400">Syncing Repository...</span>
@@ -554,10 +568,21 @@ const MedicineEntry = () => {
                             onChange={(e) => setEditMedData({ ...editMedData, cost: e.target.value })}
                           />
                         ) : (
-                          <span className="font-data text-sm font-black text-slate-800">
-                            {med.cost ? `₹ ${med.cost}` : '₹ 0.00'}
+                          <span className="font-data text-sm font-bold text-slate-600">
+                            {med.cost ? `₹ ${parseFloat(med.cost).toFixed(2)}` : '₹ 0.00'}
                           </span>
                         )}
+                      </td>
+                      <td className="px-4 py-4">
+                        <span className="font-data text-sm font-black text-slate-800">
+                          {editingMedId === med.uqid ? (
+                            editMedData.cost && !isNaN(parseFloat(editMedData.cost))
+                              ? `₹ ${(parseFloat(editMedData.cost) * med.stock).toFixed(2)}`
+                              : '₹ 0.00'
+                          ) : (
+                            med.cost ? `₹ ${(parseFloat(med.cost) * med.stock).toFixed(2)}` : '₹ 0.00'
+                          )}
+                        </span>
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex flex-col">
@@ -622,7 +647,7 @@ const MedicineEntry = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="5" className="px-8 py-32 text-center text-slate-700">
+                    <td colSpan="6" className="px-8 py-32 text-center text-slate-700">
                       <div className="flex flex-col items-center gap-4 animate-fade-in">
                         <div className="p-8 bg-slate-50 rounded-3xl border border-slate-100 mb-2">
                           <PackageOpen size={64} strokeWidth={1} className="text-slate-200" />
@@ -697,24 +722,9 @@ const MedicineEntry = () => {
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="relative flex items-center">
-                            <span className="absolute left-3 text-slate-400 font-bold text-sm">₹</span>
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              placeholder="0.00"
-                              className="w-32 bg-white border border-slate-200 rounded-lg pl-7 pr-3 py-2 text-sm font-data font-bold text-slate-700 outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 shadow-sm transition-all"
-                              value={campUnitCosts[stock.uqid] !== undefined ? campUnitCosts[stock.uqid] : (stock.unit_cost || '')}
-                              onChange={(e) => handleCampUnitCostChange(stock.uqid, e.target.value)}
-                              onBlur={() => handleSaveCampUnitCost(stock.uqid)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  e.target.blur(); // This will trigger onBlur which saves it
-                                }
-                              }}
-                            />
-                          </div>
+                          <span className="font-data font-bold text-slate-700 text-sm">
+                            {stock.unit_cost ? `₹ ${parseFloat(stock.unit_cost).toFixed(2)}` : '₹ 0.00'}
+                          </span>
                         </div>
                       </td>
                       <td className="px-4 py-4">

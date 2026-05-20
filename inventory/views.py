@@ -326,7 +326,7 @@ def export_camp_stock(request, camp_id):
     stocks = CampWiseStock.objects.filter(camp=camp).select_related('medicine').order_by('medicine__uqid')
     
     for s in stocks:
-        unit_cost = float(s.unit_cost or 0)
+        unit_cost = float(s.unit_cost if s.unit_cost is not None else (s.medicine.cost or 0))
         total_cost = s.used_stock * unit_cost
         writer.writerow([
             camp.number,
@@ -530,11 +530,15 @@ def api_update_camp_unit_cost(request):
         camp_stock, created = CampWiseStock.objects.get_or_create(camp=camp, medicine=medicine)
         
         if unit_cost is not None and str(unit_cost).strip() != '':
-            camp_stock.unit_cost = float(unit_cost)
+            val = float(unit_cost)
+            camp_stock.unit_cost = val
+            medicine.cost = val
         else:
             camp_stock.unit_cost = None
+            medicine.cost = None
             
         camp_stock.save()
+        medicine.save()
         
         return Response({
             'status': 'success',
@@ -576,12 +580,21 @@ def api_add_medicine(request):
             max_uqid = Medicine.objects.aggregate(max_uqid=Max('uqid'))['max_uqid'] or 0
             new_uqid = max_uqid + 1
         
+        cost = data.get('cost')
+        cost_val = None
+        if cost is not None and str(cost).strip() != '':
+            try:
+                cost_val = float(cost)
+            except ValueError:
+                pass
+
         # pyrefly: ignore [missing-attribute]
         medicine = Medicine.objects.create(
             uqid=new_uqid,
             name=name,
             formulation=formulation,
-            stock=stock
+            stock=stock,
+            cost=cost_val
         )
         
         serializer = MedicineSerializer(medicine)
@@ -1314,10 +1327,8 @@ def api_allocate_to_camp(request):
         camp_stock, created = CampWiseStock.objects.get_or_create(
             camp=camp,
             medicine=medicine,
-            defaults={'allocated_stock': 0, 'used_stock': 0, 'unit_cost': medicine.cost}
+            defaults={'allocated_stock': 0, 'used_stock': 0}
         )
-        if camp_stock.unit_cost is None:
-            camp_stock.unit_cost = medicine.cost
             
         medicine.stock -= qty
         medicine.save()
@@ -1528,6 +1539,14 @@ def api_camp_patients(request, camp_id):
     patients = Patient.objects.filter(patient_id__in=all_pids)
     patient_serializer = PatientSerializer(patients, many=True)
     patient_map = {p['patient_id']: p for p in patient_serializer.data}
+    patient_map_obj = {p.patient_id: p for p in patients}
+
+    # Map patient visits to find out if they are new or old
+    # pyrefly: ignore [missing-attribute]
+    visit_status_map = {
+        v.patient_id: v.is_new
+        for v in PatientCampVisit.objects.filter(camp=camp)
+    }
 
     result = []
     for pid in sorted(all_pids):
@@ -1540,6 +1559,19 @@ def api_camp_patients(request, camp_id):
         test_serializer = TestIssueSerializer(test_issues, many=True)
         
         p_data = patient_map.get(pid, {})
+        patient_obj = patient_map_obj.get(pid)
+        
+        # Determine is_new using PatientCampVisit first, falling back to registered_date comparison
+        is_new_val = visit_status_map.get(pid)
+        if is_new_val is None:
+            if patient_obj and patient_obj.registered_date:
+                if patient_obj.registered_date < camp.date:
+                    is_new_val = False
+                else:
+                    is_new_val = True
+            else:
+                is_new_val = True
+        
         result.append({
             'patient_id': pid,
             'patient_name': p_data.get('name', ''),
@@ -1548,6 +1580,7 @@ def api_camp_patients(request, camp_id):
             'contact': p_data.get('contact', ''),
             'address': p_data.get('address', ''),
             'registered_date': p_data.get('registered_date', ''),
+            'is_new': is_new_val,
             'medicines': med_serializer.data,
             'tests': test_serializer.data,
         })
@@ -1951,7 +1984,7 @@ def api_get_camp_report(request,camp_id):
 
         remaining_stock=total_allocated-total_used
 
-        total_cost = sum(s.used_stock * float(s.unit_cost or 0) for s in stock_data)
+        total_cost = sum(s.used_stock * float(s.unit_cost if s.unit_cost is not None else (s.medicine.cost or 0)) for s in stock_data)
 
         total_tests= TestIssue.objects.filter(camp=camp).count()
 
