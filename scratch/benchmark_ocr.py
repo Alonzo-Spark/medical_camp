@@ -13,7 +13,10 @@ from inventory.models import ScanSession
 from inventory.ocr_service import MedicalOCRService
 
 def run_benchmark():
-    session_id = "9200596902b04077850cbb0662a3b424"
+    if len(sys.argv) > 1:
+        session_id = sys.argv[1].strip()
+    else:
+        session_id = "9200596902b04077850cbb0662a3b424"
     print(f"Fetching session: {session_id}")
     
     try:
