@@ -1,1 +1,73 @@
 OCR: Initializing Qwen 2.5-VL Vision Engine...
+OCR: Qwen 2.5-VL Vision Engine Initialized Successfully.
+
+============================================================
+🚀 OCR EXTRACTION BENCHMARK
+============================================================
+
+Processing File: image_UPOg9KO.jpg (2.36 MB)
+OCR: Starting Qwen extraction for media/scanned_reports/image_UPOg9KO.jpg...
+⏱️ Time Taken     : 5711.26 seconds
+✅ Accuracy Score : 67% Completeness (Found 4/6 main fields)
+ℹ️ Status         : Extracted via Qwen 2.5-VL 3B Vision Engine
+
+============================================================
+📋 FULL EXTRACTED JSON DATA
+============================================================
+{
+  "demographics": {
+    "patient_id": "",
+    "entry_no": ""
+  },
+  "vitals": {
+    "weight": "4",
+    "height": "5",
+    "bp": "170/20",
+    "pulse": "103",
+    "rbs": "50",
+    "hemo": "30"
+  },
+  "clinical": {
+    "doctor_name": "",
+    "doctor_id": "",
+    "full_diagnosis": ""
+  },
+  "lab_tests": [
+    19,
+    20
+  ],
+  "medicines": [
+    {
+      "ms_no": "1",
+      "medicine_name": "",
+      "strength": "",
+      "days": "",
+      "morning": "",
+      "afternoon": "",
+      "night": "",
+      "quantity": ""
+    },
+    {
+      "ms_no": "2",
+      "medicine_name": "",
+      "strength": "",
+      "days": "",
+      "morning": "",
+      "afternoon": "",
+      "night": "",
+      "quantity": ""
+    },
+    {
+      "ms_no": "3",
+      "medicine_name": "",
+      "strength": "",
+      "days": "",
+      "morning": "",
+      "afternoon": "",
+      "night": "",
+      "quantity": ""
+    }
+  ]
+}
+============================================================
+

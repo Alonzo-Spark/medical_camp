@@ -1,0 +1,178 @@
+OCR: Gemini 3.1 Flash-Lite Vision Engine Initialized.
+Benchmarking OCR with image: media/scanned_reports/image_rVnqoXX.jpg
+Original size: 2.59 MB
+Sending request to Gemini API...
+
+==================================================
+FINAL PERFORMANCE REPORT
+==================================================
+Encoding Time:          0.09s (  1.7%)
+API Latency:            5.06s ( 98.3%)
+Parsing Time:           0.00s (  0.0%)
+--------------------------------------------------
+TOTAL DURATION:         5.14s
+==================================================
+EXTRACTION ACCURACY:  100.0%
+--------------------------------------------------
+ - Top-level fields: 6/6 found (100%)
+ - Vitals sub-fields: 100% complete
+ - Clinical sub-fields: 100% complete
+ - Medicines structure: 100% complete
+==================================================
+
+SAMPLE DATA EXTRACTED:
+{
+  "patient_id": 112,
+  "entry_no": 8,
+  "vitals": {
+    "weight": "55",
+    "height": "175",
+    "bp": "120/90",
+    "pulse": "70",
+    "rbs": "28",
+    "hemo": "34"
+  },
+  "clinical": {
+    "doctor_name": "",
+    "doctor_id": 9,
+    "diagnosis": ""
+  },
+  "lab_tests": [
+    6,
+    18,
+    17,
+    9,
+    19,
+    5,
+    15,
+    22,
+    11,
+    13,
+    20,
+    14,
+    12
+  ],
+  "medicines": [
+    {
+      "ms_no": 5,
+      "medicine_name": "",
+      "strength": "3",
+      "days": "1",
+      "morning": "2",
+      "afternoon": "2",
+      "night": "2",
+      "quantity": "6"
+    },
+    {
+      "ms_no": 12,
+      "medicine_name": "",
+      "strength": "4",
+      "days": "4",
+      "morning": "1",
+      "afternoon": "1",
+      "night": "1",
+      "quantity": "12"
+    },
+    {
+      "ms_no": 8,
+      "medicine_name": "",
+      "strength": "5",
+      "days": "2",
+      "morning": "3",
+      "afternoon": "3",
+      "night": "3",
+      "quantity": "18"
+    },
+    {
+      "ms_no": 16,
+      "medicine_name": "",
+      "strength": "3",
+      "days": "5",
+      "morning": "1",
+      "afternoon": "1",
+      "night": "1",
+      "quantity": "15"
+    },
+    {
+      "ms_no": 13,
+      "medicine_name": "",
+      "strength": "2",
+      "days": "1",
+      "morning": "1",
+      "afternoon": "1",
+      "night": "1",
+      "quantity": "3"
+    },
+    {
+      "ms_no": 10,
+      "medicine_name": "",
+      "strength": "6",
+      "days": "5",
+      "morning": "2",
+      "afternoon": "1",
+      "night": "1",
+      "quantity": "20"
+    },
+    {
+      "ms_no": 1,
+      "medicine_name": "",
+      "strength": "9",
+      "days": "2",
+      "morning": "1",
+      "afternoon": "1",
+      "night": "1",
+      "quantity": "6"
+    },
+    {
+      "ms_no": 4,
+      "medicine_name": "",
+      "strength": "2",
+      "days": "1",
+      "morning": "2",
+      "afternoon": "2",
+      "night": "3",
+      "quantity": ""
+    },
+    {
+      "ms_no": 6,
+      "medicine_name": "",
+      "strength": "5",
+      "days": "2",
+      "morning": "2",
+      "afternoon": "4",
+      "night": "2",
+      "quantity": ""
+    },
+    {
+      "ms_no": 3,
+      "medicine_name": "",
+      "strength": "3",
+      "days": "3",
+      "morning": "2",
+      "afternoon": "2",
+      "night": "2",
+      "quantity": ""
+    },
+    {
+      "ms_no": 7,
+      "medicine_name": "",
+      "strength": "8",
+      "days": "2",
+      "morning": "1",
+      "afternoon": "2",
+      "night": "3",
+      "quantity": ""
+    },
+    {
+      "ms_no": 2,
+      "medicine_name": "",
+      "strength": "2",
+      "days": "2",
+      "morning": "3",
+      "afternoon": "2",
+      "night": "1",
+      "quantity": ""
+    }
+  ]
+}
+==================================================

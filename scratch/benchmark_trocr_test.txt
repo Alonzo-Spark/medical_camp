@@ -1,0 +1,3 @@
+OCR: Initializing Microsoft TrOCR Engine...
+OCR: Microsoft TrOCR Initialized Successfully on cpu.
+Benchmarking OCR with image: media/scanned_reports/media/scanned_reports/image_BcyNvMk.jpg

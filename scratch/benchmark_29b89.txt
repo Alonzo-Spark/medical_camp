@@ -1,0 +1,110 @@
+OCR: Gemini 3.1 Flash-Lite Vision Engine Initialized.
+Benchmarking OCR with image: media/scanned_reports/image_BcyNvMk.jpg
+Original size: 2.37 MB
+Sending request to Gemini API...
+
+==================================================
+FINAL PERFORMANCE REPORT
+==================================================
+Encoding Time:          0.09s (  1.9%)
+API Latency:            4.72s ( 98.1%)
+Parsing Time:           0.00s (  0.0%)
+--------------------------------------------------
+TOTAL DURATION:         4.81s
+==================================================
+EXTRACTION ACCURACY:  100.0%
+--------------------------------------------------
+ - Top-level fields: 6/6 found (100%)
+ - Vitals sub-fields: 100% complete
+ - Clinical sub-fields: 100% complete
+ - Medicines structure: 100% complete
+==================================================
+
+SAMPLE DATA EXTRACTED:
+{
+  "patient_id": 103,
+  "entry_no": 4,
+  "vitals": {
+    "weight": "30",
+    "height": "52",
+    "bp": "120/80",
+    "pulse": "30",
+    "rbs": "20",
+    "hemo": "13"
+  },
+  "clinical": {
+    "doctor_name": "",
+    "doctor_id": "2",
+    "diagnosis": "Vitals - B.P (Blood pressure), RBS (Sugar), Hemo"
+  },
+  "lab_tests": [
+    1,
+    12,
+    21,
+    8,
+    4
+  ],
+  "medicines": [
+    {
+      "ms_no": "1",
+      "medicine_name": "",
+      "strength": "2",
+      "days": "2",
+      "morning": "3",
+      "afternoon": "2",
+      "night": "1",
+      "quantity": "2"
+    },
+    {
+      "ms_no": "2",
+      "medicine_name": "",
+      "strength": "4",
+      "days": "1",
+      "morning": "2",
+      "afternoon": "1",
+      "night": "3",
+      "quantity": "2"
+    },
+    {
+      "ms_no": "3",
+      "medicine_name": "",
+      "strength": "5",
+      "days": "3",
+      "morning": "3",
+      "afternoon": "2",
+      "night": "4",
+      "quantity": "1"
+    },
+    {
+      "ms_no": "4",
+      "medicine_name": "",
+      "strength": "2",
+      "days": "4",
+      "morning": "1",
+      "afternoon": "2",
+      "night": "5",
+      "quantity": "3"
+    },
+    {
+      "ms_no": "5",
+      "medicine_name": "",
+      "strength": "1",
+      "days": "5",
+      "morning": "2",
+      "afternoon": "2",
+      "night": "2",
+      "quantity": "4"
+    },
+    {
+      "ms_no": "6",
+      "medicine_name": "",
+      "strength": "2",
+      "days": "1",
+      "morning": "5",
+      "afternoon": "5",
+      "night": "3",
+      "quantity": "5"
+    }
+  ]
+}
+==================================================
