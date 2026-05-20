@@ -1,6 +1,14 @@
 import os
+import sys
 import time
 import json
+import django
+
+# Setup Django environment
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'medicalcamp_inventory.settings')
+django.setup()
+
 from inventory.models import ScanSession
 from inventory.ocr_service import MedicalOCRService
 
