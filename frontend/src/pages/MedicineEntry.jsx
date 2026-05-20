@@ -43,9 +43,10 @@ const MedicineEntry = () => {
 
   const fetchMedicines = () => {
     setLoading(true);
-    axios.get(`${API_BASE}/medicines`).then(res => {
+    return axios.get(`${API_BASE}/medicines`).then(res => {
       setMedicines(res.data);
       setLoading(false);
+      return res.data;
     });
   };
 
@@ -195,7 +196,9 @@ const MedicineEntry = () => {
 
       setSuccessMsg(res.data.message);
       setTimeout(() => setSuccessMsg(''), 3000);
-      fetchMedicines(); // Refresh to get updated DB data
+      fetchMedicines().then(updatedMeds => {
+        fetchCampStocks(updatedMeds);
+      });
     } catch (err) {
       alert('Error updating details: ' + (err.response?.data?.message || err.message));
     }
@@ -219,7 +222,9 @@ const MedicineEntry = () => {
       setSuccessMsg(res.data.message);
       setTimeout(() => setSuccessMsg(''), 3000);
       setEditingMedId(null);
-      fetchMedicines(); // Refresh to get updated data
+      fetchMedicines().then(updatedMeds => {
+        fetchCampStocks(updatedMeds);
+      });
     } catch (err) {
       alert('Error updating details: ' + (err.response?.data?.message || err.message));
     }
@@ -268,7 +273,9 @@ const MedicineEntry = () => {
       setTimeout(() => setSuccessMsg(''), 3000);
       setNewMed({ uqid: '', name: '', formulation: '', stock: '', cost: '' });
       setShowAddForm(false);
-      fetchMedicines(); // Refresh the list
+      fetchMedicines().then(updatedMeds => {
+        fetchCampStocks(updatedMeds);
+      });
     } catch (err) {
       const msg = err.response?.data?.message || err.message;
       setErrorMsg(msg);

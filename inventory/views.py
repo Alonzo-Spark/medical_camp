@@ -428,11 +428,12 @@ def api_update_medicine_details(request):
         
         # Handle cost
         cost = data.get('cost')
+        cost_val = None
         if cost is not None and cost != '':
-            medicine.cost = float(cost)
-        else:
-            medicine.cost = None
-            
+            cost_val = float(cost)
+        
+        medicine.cost = cost_val
+        
         # Handle expiry date
         expiry = data.get('expiry_date')
         if expiry and expiry.strip():
@@ -441,6 +442,9 @@ def api_update_medicine_details(request):
             medicine.expiry_date = None
             
         medicine.save()
+        
+        # Sync all camp wise stock records
+        CampWiseStock.objects.filter(medicine=medicine).update(unit_cost=cost_val)
         
         return Response({
             'status': 'success',
@@ -493,12 +497,15 @@ def api_update_medicine_profile(request):
         
         # Update name and cost
         medicine.name = name
+        cost_val = None
         if cost is not None and str(cost).strip() != '':
-            medicine.cost = float(cost)
-        else:
-            medicine.cost = None
+            cost_val = float(cost)
             
+        medicine.cost = cost_val
         medicine.save()
+        
+        # Sync all camp wise stock records
+        CampWiseStock.objects.filter(medicine=medicine).update(unit_cost=cost_val)
         
         return Response({
             'status': 'success',
@@ -529,16 +536,15 @@ def api_update_camp_unit_cost(request):
         # pyrefly: ignore [missing-attribute]
         camp_stock, created = CampWiseStock.objects.get_or_create(camp=camp, medicine=medicine)
         
+        val = None
         if unit_cost is not None and str(unit_cost).strip() != '':
             val = float(unit_cost)
-            camp_stock.unit_cost = val
-            medicine.cost = val
-        else:
-            camp_stock.unit_cost = None
-            medicine.cost = None
             
-        camp_stock.save()
+        medicine.cost = val
         medicine.save()
+        
+        # Sync all camp wise stock records for this medicine (including this camp)
+        CampWiseStock.objects.filter(medicine=medicine).update(unit_cost=val)
         
         return Response({
             'status': 'success',
