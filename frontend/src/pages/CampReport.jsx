@@ -37,7 +37,6 @@ const CampReport = () => {
     useEffect(() => {
         axios.get(`${API_BASE}/camps`).then(res => {
             setCamps(res.data);
-            if (res.data.length > 0) setSelectedCamp(res.data[0].number);
         });
     }, []);
 
@@ -73,6 +72,7 @@ const CampReport = () => {
                         onChange={(e) => setSelectedCamp(e.target.value)}
                         className="flex-1 md:w-64 bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2.5 font-bold text-slate-700 outline-none focus:border-teal-500 transition-colors"
                     >
+                        <option value="">Select Camp</option>
                         {camps.map(camp => (
                             <option key={camp.number} value={camp.number}>
                                 Camp {camp.number} - {camp.venue_name}
@@ -81,7 +81,8 @@ const CampReport = () => {
                     </select>
                     <button
                         onClick={() => window.open(`http://${window.location.hostname}:8000/export_camp_report/${selectedCamp}`)}
-                        className="flex items-center gap-2 px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-teal-100"
+                        className="flex items-center gap-2 px-6 py-2.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-teal-100"
+                        disabled={!selectedCamp}
                     >
                         <Download size={16} />
                         Download Report

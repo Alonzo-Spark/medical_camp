@@ -380,11 +380,7 @@ const DoctorReport = () => {
                             </td>
                           </tr>
                         ))}
-                        {dr.patients.length === 0 && (
-                          <tr>
-                            <td colSpan="2" className="p-4 pl-6 text-slate-400 text-xs italic">No patients recorded in database for this doctor.</td>
-                          </tr>
-                        )}
+
                       </tbody>
                     </table>
                   </div>
