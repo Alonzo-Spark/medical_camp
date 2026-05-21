@@ -55,6 +55,13 @@ function PatientRegistration() {
             if (val.length > 2) val = val.slice(0, 2) + '/' + val.slice(2);
             if (val.length > 5) val = val.slice(0, 5) + '/' + val.slice(5, 9);
             setForm({ ...form, [field]: val });
+        } else if (field === "contact") {
+            let val = value.replace(/\D/g, '');
+            if (val.length > 10) {
+                alert("Phone number cannot exceed 10 digits");
+                val = val.slice(0, 10);
+            }
+            setForm({ ...form, [field]: val });
         } else {
             setForm({ ...form, [field]: value });
         }
@@ -108,7 +115,17 @@ function PatientRegistration() {
         }
 
         if (!form.camp_session) { newErrors.camp_session = "Required"; valid = false; }
-        if (!form.contact) { newErrors.contact = "Required"; valid = false; }
+
+        const contactRegex = /^\d{10}$/;
+        if (!form.contact) { 
+            newErrors.contact = "Required"; 
+            valid = false; 
+        } else if (!contactRegex.test(form.contact)) {
+            newErrors.contact = "Phone number must be exactly 10 digits";
+            valid = false;
+            alert("Phone number must be exactly 10 digits");
+        }
+
         if (!form.address) { newErrors.address = "Required"; valid = false; }
 
         setErrors(newErrors);
