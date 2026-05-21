@@ -35,6 +35,8 @@ const VitalInput = ({ icon: Icon, label, value, onChange, type = 'text', placeho
 const Vitals = () => {
   // Patient Vitals state
   const [patientId, setPatientId] = useState('');
+  const [patientName, setPatientName] = useState('');
+  const [patientAge, setPatientAge] = useState('');
   const [date, setDate] = useState(() => {
     const d = new Date();
     const day = String(d.getDate()).padStart(2, '0');
@@ -227,6 +229,8 @@ const Vitals = () => {
     };
 
     setPatientId(getV('patient_id', 'demographics'));
+    setPatientName(getV('patient_name', 'demographics') || getV('name', 'demographics'));
+    setPatientAge(getV('age', 'demographics'));
     setENo(getV('entry_no', 'demographics'));
     setWeight(getV('weight', 'vitals'));
     setHeight(getV('height', 'vitals'));
@@ -355,6 +359,8 @@ const Vitals = () => {
       setTimeout(() => setSuccess(false), 4000);
       // Reset form
       setPatientId('');
+      setPatientName('');
+      setPatientAge('');
       setENo('');
       setWeight('');
       setHeight('');
@@ -471,10 +477,8 @@ const Vitals = () => {
             </select>
           </div>
 
-          {/* Row 1: Patient ID, Date, Time, E.No */}
+          {/* Row 1: Date, Patient ID, Patient Name, Patient Age */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mb-5">
-            <VitalInput icon={User} label="Patient ID" value={patientId} onChange={setPatientId} placeholder="Enter ID" required iconColor="text-blue-500" />
-            
             <div className="space-y-2">
                 <label className="flex items-center gap-1.5 text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                 <Calendar size={11} className="text-indigo-500" strokeWidth={2.5} />
@@ -504,20 +508,48 @@ const Vitals = () => {
                 </div>
             </div>
 
+            <div className={`space-y-2`}>
+              <label className="flex items-center gap-1.5 text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                <User size={11} className="text-blue-500" strokeWidth={2.5} />
+                Patient ID
+                <span className="text-rose-400">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                className={`w-full border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 placeholder:text-slate-300 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 outline-none transition-all shadow-sm bg-white hover:border-slate-300`}
+                placeholder="Enter ID"
+                value={patientId}
+                onChange={e => setPatientId(e.target.value)}
+                onBlur={async () => {
+                  if (!patientId) return;
+                  try {
+                    const res = await axios.get(`${API_BASE}/check_patient_id/${patientId}`);
+                    if (res.data.exists) {
+                      setPatientName(res.data.patient_name || '');
+                      setPatientAge(res.data.patient_age || '');
+                    }
+                  } catch(e) {}
+                }}
+              />
+            </div>
+
+            <VitalInput icon={User} label="Patient Name" value={patientName} onChange={setPatientName} placeholder="Auto-filled" iconColor="text-blue-500" />
+            <VitalInput icon={User} label="Age" value={patientAge} onChange={setPatientAge} placeholder="Age" iconColor="text-blue-500" />
+          </div>
+
+          {/* Row 2: Time, E.No, WT, HT */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mb-5">
             <VitalInput icon={Clock} label="Time" value={time} onChange={setTime} type="time" iconColor="text-violet-500" />
             <VitalInput icon={Hash} label="E.No" value={eNo} onChange={setENo} placeholder="Entry No." iconColor="text-cyan-500" />
-          </div>
-
-          {/* Row 2: WT, HT, B.P, PULSE */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mb-5">
             <VitalInput icon={Weight} label="WT (kg)" value={weight} onChange={setWeight} placeholder="Weight" iconColor="text-amber-500" />
             <VitalInput icon={Ruler} label="HT (cm)" value={height} onChange={setHeight} placeholder="Height" iconColor="text-orange-500" />
-            <VitalInput icon={HeartPulse} label="B.P" value={bloodPressure} onChange={setBloodPressure} placeholder="e.g. 120/80" iconColor="text-rose-500" />
-            <VitalInput icon={Activity} label="Pulse" value={pulse} onChange={setPulse} placeholder="BPM" iconColor="text-pink-500" />
           </div>
 
-          {/* Row 3: RBS, Hemo */}
-          <div className="grid grid-cols-2 md:grid-cols-2 gap-5 mb-5">
+          {/* Row 3: B.P, PULSE, RBS, Hemo */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mb-5">
+            <VitalInput icon={HeartPulse} label="B.P" value={bloodPressure} onChange={setBloodPressure} placeholder="e.g. 120/80" iconColor="text-rose-500" />
+            <VitalInput icon={Activity} label="Pulse" value={pulse} onChange={setPulse} placeholder="BPM" iconColor="text-pink-500" />
             <VitalInput icon={Droplets} label="RBS" value={rbs} onChange={setRbs} placeholder="Blood Sugar" iconColor="text-amber-500" />
             <VitalInput icon={Thermometer} label="Hemo" value={haemoglobin} onChange={setHaemoglobin} placeholder="Haemoglobin" iconColor="text-rose-500" />
           </div>
