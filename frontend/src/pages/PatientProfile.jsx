@@ -665,17 +665,19 @@ const PatientProfile = () => {
                           <div className="flex items-center justify-end gap-2">
                             <button 
                               onClick={() => handleEditVisitClick(v.id, 'vitals')}
-                              className="p-2 text-slate-300 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-all"
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-teal-600 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-lg transition-all"
                               title="Edit Visit"
                             >
-                              <Edit size={16} />
+                              <Edit size={14} />
+                              <span className="text-[10px] font-black uppercase tracking-wider">Edit</span>
                             </button>
                             <button 
                               onClick={() => handleDeleteVisit(v.id)}
-                              className="p-2 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-all"
                               title="Delete Visit"
                             >
-                              <Trash size={16} />
+                              <Trash size={14} />
+                              <span className="text-[10px] font-black uppercase tracking-wider">Delete</span>
                             </button>
                           </div>
                         </td>
