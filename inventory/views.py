@@ -1965,6 +1965,7 @@ def api_get_camp_report(request,camp_id):
         total_cost = sum(s.used_stock * float(s.unit_cost if s.unit_cost is not None else (s.medicine.cost or 0)) for s in stock_data)
 
         total_tests= TestIssue.objects.filter(camp=camp).count()
+        total_reports_issued = TestIssue.objects.filter(camp=camp, reports_issued=True).count()
 
         report_data = {
             "camp_number":camp.number,
@@ -1987,6 +1988,7 @@ def api_get_camp_report(request,camp_id):
             },
             "tests":{
                 "total_issued":total_tests,
+                "reports_issued":total_reports_issued,
             },
             
             
