@@ -740,7 +740,7 @@ def api_issue_medicine(request):
                     'message': f'Insufficient stock for {medicine.name}'
                 }, status=400)
             # pyrefly: ignore [missing-attribute]
-            issue = PatientMedicineIssue.objects.create(
+            PatientMedicineIssue.objects.create(
                 patient_id=patient_id,
                 camp=camp,
                 medicine=medicine,
@@ -749,9 +749,6 @@ def api_issue_medicine(request):
                 strength=item.get('strength'),
                 days=int(item.get('days') or 0)
             )
-            # Update used stock in camp wise stock
-            camp_stock.used_stock += qty
-            camp_stock.save()
 
         return Response({'status': 'success'})
     except Exception as e:
@@ -848,10 +845,6 @@ def api_save_vitals(request):
                         afternoon=safe_int(item.get('afternoon')),
                         night=safe_int(item.get('night'))
                     )
-                    
-                    # Update used stock
-                    camp_stock.used_stock += qty
-                    camp_stock.save()
 
         # Handle tests
         selected_tests = data.get('selected_tests', [])
@@ -933,11 +926,6 @@ def api_delete_visit(request, vitals_id):
         # pyrefly: ignore [missing-attribute]
         issues = PatientMedicineIssue.objects.filter(vitals_record_id=v.id) if not is_legacy else []
         for issue in issues:
-            # pyrefly: ignore [missing-attribute]
-            cs = CampWiseStock.objects.filter(camp=camp, medicine=issue.medicine).first()
-            if cs:
-                cs.used_stock = max(0, cs.used_stock - issue.qty)
-                cs.save()
             issue.delete()
             
         # 2. Delete test issues
@@ -1024,13 +1012,6 @@ def api_update_visit_details(request, vitals_id):
             
             if match:
                 # Update existing
-                diff = qty - match.qty
-                # pyrefly: ignore [missing-attribute]
-                cs = CampWiseStock.objects.filter(camp=camp, medicine=medicine).first()
-                if cs:
-                    cs.used_stock += diff
-                    cs.save()
-                
                 match.qty = qty
                 match.days = safe_int(item.get('days'))
                 match.morning = safe_int(item.get('morning'))
@@ -1056,18 +1037,10 @@ def api_update_visit_details(request, vitals_id):
                     afternoon=safe_int(item.get('afternoon')),
                     night=safe_int(item.get('night'))
                 )
-                cs = CampWiseStock.objects.filter(camp=camp, medicine=medicine).first()
-                if cs:
-                    cs.used_stock += qty
-                    cs.save()
         
         # Cleanup
         for eid, eissue in existing_issues.items():
             if eid not in kept_ids:
-                cs = CampWiseStock.objects.filter(camp=camp, medicine=eissue.medicine).first()
-                if cs:
-                    cs.used_stock = max(0, cs.used_stock - eissue.qty)
-                    cs.save()
                 eissue.delete()
 
         # 3. Update Tests
