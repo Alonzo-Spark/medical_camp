@@ -122,12 +122,13 @@ class CampWiseStockSerializer(serializers.ModelSerializer):
     remaining = serializers.ReadOnlyField(source='remaining_stock')
     allocated = serializers.ReadOnlyField(source='allocated_stock')
     used = serializers.ReadOnlyField(source='used_stock')
+    returned = serializers.ReadOnlyField(source='returned_stock')
 
     class Meta:
         model = CampWiseStock
         fields = [
             'id', 'camp', 'medicine', 'medicine_name', 'medicine_uqid', 
-            'allocated_stock', 'allocated', 'used_stock', 'used', 'remaining', 'unit_cost', 'created_at'
+            'allocated_stock', 'allocated', 'used_stock', 'used', 'returned_stock', 'returned', 'remaining', 'unit_cost', 'created_at'
         ]
 
 class ScanSessionSerializer(serializers.ModelSerializer):

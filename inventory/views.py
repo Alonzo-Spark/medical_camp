@@ -1267,6 +1267,7 @@ def api_get_specific_camp_stock(request, camp_id):
             data[s['medicine_uqid']] = {
                 'allocated': s['allocated_stock'],
                 'used': s['used_stock'],
+                'returned': s['returned'],
                 'remaining': s['remaining'],
                 'unit_cost': s.get('unit_cost')
             }
@@ -1393,8 +1394,7 @@ def api_return_to_warehouse(request):
         if remaining > 0:
             medicine.stock += remaining
             medicine.save()
-        camp_stock.allocated_stock = 0
-        camp_stock.used_stock = 0
+        camp_stock.returned_stock += remaining
         camp_stock.save()
         return Response({
             'status': 'success',
@@ -1420,8 +1420,7 @@ def api_close_camp_session(request):
                 medicine = cs.medicine
                 medicine.stock += remaining
                 medicine.save()
-            cs.allocated_stock = 0
-            cs.used_stock = 0
+            cs.returned_stock += remaining
             cs.save()
         return Response({
             'status': 'success',

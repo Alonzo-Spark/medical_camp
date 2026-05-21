@@ -58,7 +58,7 @@ const MedicineEntry = () => {
     axios.get(`${API_BASE}/camp_stock/${selectedCamp}`).then(res => {
       // Map over all medicines to ensure every medicine appears in the camp-wise view
       const stocksArray = medicines.map(med => {
-        const campData = res.data[med.uqid] || { allocated: 0, used: 0, remaining: 0, unit_cost: null };
+        const campData = res.data[med.uqid] || { allocated: 0, used: 0, returned: 0, remaining: 0, unit_cost: null };
         return {
           uqid: med.uqid,
           medication: med.name,
@@ -66,6 +66,7 @@ const MedicineEntry = () => {
           total_stock: med.stock,
           camp_stock: campData.allocated,
           used_stock: campData.used,
+          returned_stock: campData.returned || 0,
           remaining_stock: campData.remaining,
           unit_cost: campData.unit_cost !== undefined && campData.unit_cost !== null ? campData.unit_cost : (med.cost || 0)
         };
@@ -671,7 +672,7 @@ const MedicineEntry = () => {
         ) : viewMode === 'camp' ? (
           /* Camp Wise View */
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse min-w-[1300px]">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-100 text-xs font-black uppercase tracking-[0.2em] text-slate-400">
                   <th className="px-4 py-4">UQID</th>
@@ -683,6 +684,7 @@ const MedicineEntry = () => {
                   <th className="px-4 py-4">Unit Cost</th>
                   <th className="px-4 py-4">Total Cost</th>
                   <th className="px-4 py-4">Available</th>
+                  <th className="px-4 py-4">Returned</th>
                   <th className="px-4 py-4 text-right">Actions</th>
                 </tr>
               </thead>
@@ -750,6 +752,13 @@ const MedicineEntry = () => {
                           </span>
                         </div>
                       </td>
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-3">
+                          <span className="w-10 h-10 flex items-center justify-center bg-teal-50 text-teal-600 rounded-xl font-black font-data border border-teal-100 text-sm">
+                            {stock.returned_stock}
+                          </span>
+                        </div>
+                      </td>
                       <td className="px-4 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <div className="flex items-center bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
@@ -784,7 +793,7 @@ const MedicineEntry = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="10" className="px-8 py-24 text-center text-slate-400 font-bold">No records found for camp allocation</td>
+                    <td colSpan="11" className="px-8 py-24 text-center text-slate-400 font-bold">No records found for camp allocation</td>
                   </tr>
                 )}
               </tbody>
