@@ -37,11 +37,6 @@ const DoctorReport = () => {
       const res = await fetch(`${API_BASE}/camps`);
       const data = await res.json();
       setCamps(data);
-      if (data.length > 0) {
-        setSelectedCamp(data[0].id);
-        fetchCampDetails(data[0].id);
-        fetchManualRecords(data[0].id);
-      }
     } catch (err) {
       console.error("Error fetching camps:", err);
     }
@@ -87,6 +82,10 @@ const DoctorReport = () => {
 
   const handleSaveManual = async (e) => {
     e.preventDefault();
+    if (!selectedCamp) {
+      alert("Please select a camp first.");
+      return;
+    }
     if (!formData.doctorName || formData.patients.some(p => !p.patientId || !p.patientName)) return;
 
     try {
@@ -241,18 +240,19 @@ const DoctorReport = () => {
           value={selectedCamp}
           onChange={handleCampChange}
         >
+          <option value="">Select Camp</option>
           {camps.map((c) => (
             <option key={c.id} value={c.id}>
               Camp #{c.number} — {c.venue}
             </option>
           ))}
-          {camps.length === 0 && <option value="">Loading camps...</option>}
         </select>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Form Section */}
+        {selectedCamp && (
         <div className="lg:col-span-1 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-fit sticky top-6">
           <h3 className="text-lg font-black text-slate-800 mb-5 flex items-center gap-2">
             {editingId ? <Edit2 className="text-teal-500" size={20} /> : <Plus className="text-teal-500" size={20} />}
@@ -381,9 +381,10 @@ const DoctorReport = () => {
             </div>
           </form>
         </div>
+        )}
 
         {/* Database & Manual Records Display */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className={selectedCamp ? "lg:col-span-2 space-y-6" : "lg:col-span-3 space-y-6"}>
           {loading ? (
             <div className="flex items-center justify-center h-48 bg-white rounded-2xl border border-slate-200">
               <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-teal-500"></div>
@@ -515,7 +516,19 @@ const DoctorReport = () => {
                 </div>
               )}
 
-              {(!dbData || !dbData.doctors || dbData.doctors.length === 0) && filteredManualRecords.length === 0 && (
+              {(!selectedCamp) ? (
+                <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center">
+                   <div className="flex flex-col items-center gap-3">
+                     <div className="p-3 bg-slate-50 rounded-full">
+                       <Activity className="text-slate-300" size={32} />
+                     </div>
+                     <div>
+                       <p className="text-lg font-black text-slate-800">Select a Camp</p>
+                       <p className="text-sm text-slate-500 mt-1">Please select a medical camp from the dropdown above to view or add records.</p>
+                     </div>
+                   </div>
+                </div>
+              ) : (!dbData || !dbData.doctors || dbData.doctors.length === 0) && filteredManualRecords.length === 0 ? (
                 <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center">
                    <div className="flex flex-col items-center gap-3">
                      <div className="p-3 bg-slate-50 rounded-full">
@@ -527,7 +540,7 @@ const DoctorReport = () => {
                      </div>
                    </div>
                 </div>
-              )}
+              ) : null}
             </>
           )}
         </div>
