@@ -1017,7 +1017,7 @@ const PatientProfile = () => {
                     </div>
                     <button 
                       type="button"
-                      onClick={() => setVisitData({...visitData, medicines: [...visitData.medicines, { msNo: '', medicine: '', formulation: '', strength: '', qty: '' }]})}
+                      onClick={() => setVisitData({...visitData, medicines: [...visitData.medicines, { msNo: '', medicine: '', formulation: '', strength: '', days: '', qty: '' }]})}
                       className="flex items-center gap-2 text-[10px] font-black text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 transition-all"
                     >
                       <PlusCircle size={12} /> Add Item
@@ -1032,6 +1032,7 @@ const PatientProfile = () => {
                           <th className="px-4 py-3 w-44">Medicine</th>
                           <th className="px-4 py-3 w-36">Form.</th>
                           <th className="px-4 py-3 w-24">Str.</th>
+                          <th className="px-4 py-3 w-20 text-indigo-600">Days</th>
                           <th className="px-4 py-3 w-20 text-emerald-600">Qty</th>
                           <th className="px-4 py-3 w-10"></th>
                         </tr>
@@ -1067,6 +1068,14 @@ const PatientProfile = () => {
                                 value={med.strength}
                                 onChange={e => updateVisitMedicine(idx, 'strength', e.target.value)}
                                 placeholder="500mg"
+                              />
+                            </td>
+                            <td className="p-2">
+                              <input 
+                                className="w-full bg-indigo-50/50 border border-indigo-200 rounded-lg px-2 py-1.5 text-xs font-black text-indigo-700 text-center focus:ring-2 focus:ring-indigo-500/30 outline-none"
+                                value={med.days || ''}
+                                onChange={e => updateVisitMedicine(idx, 'days', e.target.value)}
+                                placeholder="0"
                               />
                             </td>
                             <td className="p-2">

@@ -61,7 +61,7 @@ const Vitals = () => {
 
   // Medicine table state
   const [medicines, setMedicines] = useState([
-    { msNo: '', medicine: '', formulation: '', strength: '', days: '', morning: '', afternoon: '', night: '', quantity: '' }
+    { msNo: '', medicine: '', formulation: '', strength: '', days: '', quantity: '' }
   ]);
   const [allMedicines, setAllMedicines] = useState([]); // Master list for auto-fill
   const [campStocks, setCampStocks] = useState({}); // Real-time stock for selected camp (Object)
@@ -254,9 +254,6 @@ const Vitals = () => {
                 formulation: m.formulation || m.strength || '', // Support migration
                 strength: m.strength_value || m.strength || '', 
                 days: m.days || '', 
-                morning: m.morning || '', 
-                afternoon: m.afternoon || '', 
-                night: m.night || '', 
                 quantity: m.quantity || '' 
             };
 
@@ -278,7 +275,7 @@ const Vitals = () => {
   const addMedicineRow = () => {
     setMedicines(prev => [
       ...prev,
-      { msNo: '', medicine: '', formulation: '', strength: '', days: '', morning: '', afternoon: '', night: '', quantity: '' }
+      { msNo: '', medicine: '', formulation: '', strength: '', days: '', quantity: '' }
     ]);
   };
 
@@ -304,15 +301,6 @@ const Vitals = () => {
 
       return updatedMed;
     }));
-  };
-
-  // Auto-calculate quantity based on days × (morning + afternoon + night)
-  const calcQuantity = (med) => {
-    const days = parseInt(med.days) || 0;
-    const morning = parseInt(med.morning) || 0;
-    const afternoon = parseInt(med.afternoon) || 0;
-    const night = parseInt(med.night) || 0;
-    return days > 0 ? days * (morning + afternoon + night) : '';
   };
 
   const handleSubmit = async (e) => {
@@ -355,8 +343,12 @@ const Vitals = () => {
         diagnosis,
         selected_tests: selectedTests,
         medicines: medicines.filter(m => m.medicine.trim() !== '').map(m => ({
-          ...m,
-          quantity: calcQuantity(m) || m.quantity
+          msNo: m.msNo,
+          medicine: m.medicine,
+          formulation: m.formulation,
+          strength: m.strength,
+          days: parseInt(m.days) || 0,
+          quantity: parseInt(m.quantity) || 0
         }))
       });
       setSuccess(true);
@@ -375,7 +367,7 @@ const Vitals = () => {
       setDrId('');
       setDiagnosis('');
       setSelectedTests([]);
-      setMedicines([{ msNo: '', medicine: '', strength: '', days: '', morning: '', afternoon: '', night: '', quantity: '' }]);
+      setMedicines([{ msNo: '', medicine: '', formulation: '', strength: '', days: '', quantity: '' }]);
     } catch (err) {
       setError(err.response?.data?.message || 'Error saving vitals. Please try again.');
       setTimeout(() => setError(''), 4000);
@@ -642,16 +634,15 @@ const Vitals = () => {
                 <tr className="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
                   <th className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] w-20 text-center">M.S.No</th>
                   <th className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] w-[35%]">Medicines</th>
-                  <th className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] w-[35%] text-center">Formulation</th>
+                  <th className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] w-[20%] text-center">Formulation</th>
                   <th className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] w-24 text-center">Strength</th>
-
+                  <th className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] w-20 text-center">Days</th>
                   <th className="px-4 py-4 text-[10px] font-black text-emerald-600 uppercase tracking-[0.15em] w-24 text-center">Quantity</th>
                   <th className="px-4 py-4 w-12"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {medicines.map((med, index) => {
-                  const autoQty = calcQuantity(med);
                   return (
                     <tr key={index} className="hover:bg-emerald-50/30 transition-all group">
                       {/* M.S.No */}
@@ -698,6 +689,17 @@ const Vitals = () => {
                         />
                       </td>
 
+                      {/* Days */}
+                      <td className="px-3 py-3">
+                        <input
+                          type="number"
+                          min="0"
+                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-bold text-slate-800 text-center placeholder:text-slate-300 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+                          placeholder="Days"
+                          value={med.days}
+                          onChange={e => updateMedicine(index, 'days', e.target.value)}
+                        />
+                      </td>
 
                       {/* Quantity */}
                       <td className="px-3 py-3">
