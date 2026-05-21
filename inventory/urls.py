@@ -25,6 +25,7 @@ urlpatterns = [
     path('api/update_medicine_details', api_update_medicine_details),
     path('api/update_medicine_profile', api_update_medicine_profile),
     path('api/update_camp_unit_cost', api_update_camp_unit_cost),
+    path('api/update_camp_alternate_name', api_update_camp_alternate_name),
     path('api/patient/<int:patient_id>', api_get_patient_details),
     path('api/issue', api_issue_medicine),
     path('api/save_vitals', api_save_vitals),

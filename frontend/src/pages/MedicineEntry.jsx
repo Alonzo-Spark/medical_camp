@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Pill, Search, PackageOpen, Filter, Box, PlusCircle, CheckCircle2, Heart, Landmark, RefreshCcw, AlertTriangle, Download } from 'lucide-react';
+import { Pill, Search, PackageOpen, Filter, Box, PlusCircle, CheckCircle2, Heart, Landmark, RefreshCcw, AlertTriangle, Download, Edit3, Check, X } from 'lucide-react';
 
 const API_BASE = `http://${window.location.hostname}:8000/api`;
 
@@ -23,6 +23,8 @@ const MedicineEntry = () => {
   const [editingMedId, setEditingMedId] = useState(null);
   const [editMedData, setEditMedData] = useState({ uqid: '', name: '', cost: '' });
   const [campUnitCosts, setCampUnitCosts] = useState({});
+  const [editingUqid, setEditingUqid] = useState(null);
+  const [tempAltName, setTempAltName] = useState('');
 
 
 
@@ -58,7 +60,7 @@ const MedicineEntry = () => {
     axios.get(`${API_BASE}/camp_stock/${selectedCamp}`).then(res => {
       // Map over all medicines to ensure every medicine appears in the camp-wise view
       const stocksArray = medicines.map(med => {
-        const campData = res.data[med.uqid] || { allocated: 0, used: 0, returned: 0, remaining: 0, unit_cost: null };
+        const campData = res.data[med.uqid] || { allocated: 0, used: 0, returned: 0, remaining: 0, unit_cost: null, alternate_name: '' };
         return {
           uqid: med.uqid,
           medication: med.name,
@@ -68,7 +70,8 @@ const MedicineEntry = () => {
           used_stock: campData.used,
           returned_stock: campData.returned || 0,
           remaining_stock: campData.remaining,
-          unit_cost: campData.unit_cost !== undefined && campData.unit_cost !== null ? campData.unit_cost : (med.cost || 0)
+          unit_cost: campData.unit_cost !== undefined && campData.unit_cost !== null ? campData.unit_cost : (med.cost || 0),
+          alternate_name: campData.alternate_name || ''
         };
       });
       setCampStocks(stocksArray);
@@ -251,6 +254,23 @@ const MedicineEntry = () => {
       fetchCampStocks();
     } catch (err) {
       alert('Error updating camp unit cost: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const handleSaveAlternateName = async (uqid) => {
+    try {
+      const res = await axios.post(`${API_BASE}/update_camp_alternate_name`, {
+        camp_id: selectedCamp,
+        uqid: uqid,
+        alternate_name: tempAltName.trim() || null
+      });
+
+      setSuccessMsg(res.data.message);
+      setTimeout(() => setSuccessMsg(''), 1500);
+      setEditingUqid(null);
+      fetchCampStocks();
+    } catch (err) {
+      alert('Error updating camp alternate name: ' + (err.response?.data?.message || err.message));
     }
   };
 

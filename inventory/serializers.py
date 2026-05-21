@@ -99,7 +99,7 @@ class TestIssueSerializer(serializers.ModelSerializer):
             return "Unknown Camp"
 
 class PatientMedicineIssueSerializer(serializers.ModelSerializer):
-    medicine_name = serializers.ReadOnlyField(source='medicine.name')
+    medicine_name = serializers.SerializerMethodField()
     medicine_id = serializers.ReadOnlyField(source='medicine.uqid')
     quantity = serializers.ReadOnlyField(source='qty')
     camp_info = serializers.SerializerMethodField()
@@ -107,6 +107,13 @@ class PatientMedicineIssueSerializer(serializers.ModelSerializer):
     class Meta:
         model = PatientMedicineIssue
         fields = ['id', 'patient_id', 'camp', 'medicine', 'medicine_id', 'medicine_name', 'qty', 'quantity', 'camp_info', 'vitals_record', 'formulation', 'strength', 'days', 'morning', 'afternoon', 'night']
+
+    def get_medicine_name(self, obj):
+        # pyrefly: ignore [missing-attribute]
+        alternate = CampWiseStock.objects.filter(camp=obj.camp, medicine=obj.medicine).values_list('alternate_name', flat=True).first()
+        if alternate:
+            return alternate
+        return obj.medicine.name
 
     def get_camp_info(self, obj):
         try:
@@ -117,7 +124,7 @@ class PatientMedicineIssueSerializer(serializers.ModelSerializer):
             return "Unknown Camp"
 
 class CampWiseStockSerializer(serializers.ModelSerializer):
-    medicine_name = serializers.ReadOnlyField(source='medicine.name')
+    medicine_name = serializers.SerializerMethodField()
     medicine_uqid = serializers.ReadOnlyField(source='medicine.uqid')
     remaining = serializers.ReadOnlyField(source='remaining_stock')
     allocated = serializers.ReadOnlyField(source='allocated_stock')
@@ -128,8 +135,13 @@ class CampWiseStockSerializer(serializers.ModelSerializer):
         model = CampWiseStock
         fields = [
             'id', 'camp', 'medicine', 'medicine_name', 'medicine_uqid', 
-            'allocated_stock', 'allocated', 'used_stock', 'used', 'returned_stock', 'returned', 'remaining', 'unit_cost', 'created_at'
+            'allocated_stock', 'allocated', 'used_stock', 'used', 'returned_stock', 'returned', 'remaining', 'unit_cost', 'alternate_name', 'created_at'
         ]
+
+    def get_medicine_name(self, obj):
+        if obj.alternate_name:
+            return obj.alternate_name
+        return obj.medicine.name
 
 class ScanSessionSerializer(serializers.ModelSerializer):
     class Meta:

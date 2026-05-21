@@ -558,6 +558,41 @@ def api_update_camp_unit_cost(request):
 
 @api_view(['POST'])
 @transaction.atomic
+def api_update_camp_alternate_name(request):
+    try:
+        data = request.data
+        camp_id = data.get('camp_id')
+        uqid = data.get('uqid')
+        alternate_name = data.get('alternate_name')
+        
+        if not camp_id or not uqid:
+            return Response({'status': 'error', 'message': 'Required fields are missing.'}, status=400)
+            
+        camp = get_object_or_404(MedicalCamp, id=camp_id)
+        medicine = get_object_or_404(Medicine, uqid=uqid)
+        
+        # pyrefly: ignore [missing-attribute]
+        camp_stock, created = CampWiseStock.objects.get_or_create(
+            camp=camp, 
+            medicine=medicine,
+            defaults={'allocated_stock': 0, 'used_stock': 0}
+        )
+        
+        camp_stock.alternate_name = alternate_name
+        camp_stock.save()
+        
+        return Response({
+            'status': 'success',
+            'message': 'Camp-specific alternate name updated successfully'
+        })
+    except Exception as e:
+        return Response({
+            'status': 'error',
+            'message': str(e)
+        }, status=400)
+
+@api_view(['POST'])
+@transaction.atomic
 def api_add_medicine(request):
     try:
         data = request.data
@@ -729,6 +764,19 @@ def api_issue_medicine(request):
         camp_id = data.get('medical_camp')
         med_issues = data.get('issues', [])
         camp = get_object_or_404(MedicalCamp, id=camp_id)
+        
+        # Check if patient is registered
+        try:
+            p_id_int = int(patient_id)
+        except:
+            p_id_int = 0
+        # pyrefly: ignore [missing-attribute]
+        if not Patient.objects.filter(patient_id=p_id_int).exists():
+            return Response({
+                'status': 'error',
+                'message': f'Patient ID {p_id_int} is not registered. Please register the patient first.'
+            }, status=400)
+            
         aggregated_issues = {}
         for item in med_issues:
             med_id = item.get('med_id')
@@ -812,6 +860,15 @@ def api_save_vitals(request):
                 return int(clean_val) if clean_val else default
             except:
                 return default
+
+        # Check if patient is registered
+        p_id_int = safe_int(patient_id)
+        # pyrefly: ignore [missing-attribute]
+        if not Patient.objects.filter(patient_id=p_id_int).exists():
+            return Response({
+                'status': 'error',
+                'message': f'Patient ID {p_id_int} is not registered. Please register the patient first.'
+            }, status=400)
 
         # Create the vitals record
         # pyrefly: ignore [missing-attribute]
@@ -1356,7 +1413,8 @@ def api_get_specific_camp_stock(request, camp_id):
                 'used': s['used_stock'],
                 'returned': s['returned'],
                 'remaining': s['remaining'],
-                'unit_cost': s.get('unit_cost')
+                'unit_cost': s.get('unit_cost'),
+                'alternate_name': s.get('alternate_name')
             }
         return Response(data)
     except Exception as e:

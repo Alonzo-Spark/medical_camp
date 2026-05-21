@@ -261,7 +261,8 @@ const Vitals = () => {
             if (medData.msNo && !medData.medicine) {
                 const found = allMedicines.find(am => am.uqid === parseInt(medData.msNo));
                 if (found) {
-                    medData.medicine = found.name;
+                    const campStockItem = campStocks[medData.msNo];
+                    medData.medicine = (campStockItem && campStockItem.alternate_name) ? campStockItem.alternate_name : found.name;
                     medData.formulation = found.formulation || '';
                 }
             }
@@ -294,7 +295,8 @@ const Vitals = () => {
       if (field === 'msNo' && value !== '') {
         const foundMed = allMedicines.find(am => am.uqid === parseInt(value));
         if (foundMed) {
-          updatedMed.medicine = foundMed.name;
+          const campStockItem = campStocks[value];
+          updatedMed.medicine = (campStockItem && campStockItem.alternate_name) ? campStockItem.alternate_name : foundMed.name;
           updatedMed.formulation = foundMed.formulation || ''; // Use formulation from inventory
         }
       }
@@ -307,13 +309,11 @@ const Vitals = () => {
     e.preventDefault();
     if (!patientId) {
       setError('Patient ID is required');
-      setTimeout(() => setError(''), 3000);
       return;
     }
 
     if (!selectedCamp) {
       setError('Please select an active medical camp session');
-      setTimeout(() => setError(''), 3000);
       return;
     }
 
@@ -370,7 +370,6 @@ const Vitals = () => {
       setMedicines([{ msNo: '', medicine: '', formulation: '', strength: '', days: '', quantity: '' }]);
     } catch (err) {
       setError(err.response?.data?.message || 'Error saving vitals. Please try again.');
-      setTimeout(() => setError(''), 4000);
     } finally {
       setLoading(false);
     }
@@ -378,6 +377,26 @@ const Vitals = () => {
 
   return (
     <div className="max-w-7xl mx-auto py-6 space-y-8">
+      {/* Centered Error Modal */}
+      {error && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full text-center border border-slate-100 flex flex-col items-center animate-in zoom-in-95 duration-300">
+            <div className="w-16 h-16 rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-500 mb-5 shadow-inner">
+              <AlertCircle size={32} strokeWidth={2.5} />
+            </div>
+            <h3 className="text-lg font-black text-slate-800 tracking-tight mb-2">Error Encountered</h3>
+            <p className="text-sm font-bold text-slate-500 leading-relaxed mb-6">{error}</p>
+            <button
+              type="button"
+              onClick={() => setError('')}
+              className="w-full py-3.5 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-rose-200 active:scale-[0.98]"
+            >
+              Okay, Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header with Scan Button */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 px-4">
         <div>
@@ -401,12 +420,6 @@ const Vitals = () => {
                 <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 px-5 py-3 rounded-xl border border-emerald-200 shadow-sm animate-bounce">
                 <CheckCircle2 size={18} strokeWidth={3} />
                 <span className="text-xs font-black uppercase tracking-widest">Record Saved</span>
-                </div>
-            )}
-            {error && (
-                <div className="flex items-center gap-2 text-rose-600 bg-rose-50 px-5 py-3 rounded-xl border border-rose-200 shadow-sm">
-                <AlertCircle size={18} strokeWidth={3} />
-                <span className="text-xs font-black uppercase tracking-widest">{error}</span>
                 </div>
             )}
             </div>
