@@ -667,17 +667,19 @@ const PatientProfile = () => {
                           <div className="flex items-center justify-end gap-2">
                             <button 
                               onClick={() => handleEditVisitClick(v.id, 'vitals')}
-                              className="p-2 text-slate-300 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-all"
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-teal-600 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-lg transition-all"
                               title="Edit Visit"
                             >
-                              <Edit size={16} />
+                              <Edit size={14} />
+                              <span className="text-[10px] font-black uppercase tracking-wider">Edit</span>
                             </button>
                             <button 
                               onClick={() => handleDeleteVisit(v.id)}
-                              className="p-2 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-all"
                               title="Delete Visit"
                             >
-                              <Trash size={16} />
+                              <Trash size={14} />
+                              <span className="text-[10px] font-black uppercase tracking-wider">Delete</span>
                             </button>
                           </div>
                         </td>
@@ -715,10 +717,11 @@ const PatientProfile = () => {
                         {info.vitals_id && (
                           <button 
                             onClick={() => handleEditVisitClick(info.vitals_id, 'medicines')}
-                            className="p-1.5 text-slate-300 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-all"
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-teal-600 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-lg transition-all"
                             title="Edit Medications"
                           >
-                            <Edit size={12} />
+                            <Edit size={14} />
+                            <span className="text-[10px] font-black uppercase tracking-wider">Edit</span>
                           </button>
                         )}
                       </div>
@@ -776,10 +779,11 @@ const PatientProfile = () => {
                         {info.vitals_id && (
                           <button 
                             onClick={() => handleEditVisitClick(info.vitals_id, 'tests')}
-                            className="p-1.5 text-slate-300 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all"
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-purple-600 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg transition-all"
                             title="Edit Tests"
                           >
-                            <Edit size={12} />
+                            <Edit size={14} />
+                            <span className="text-[10px] font-black uppercase tracking-wider">Edit</span>
                           </button>
                         )}
                       </div>
@@ -1013,7 +1017,7 @@ const PatientProfile = () => {
                     </div>
                     <button 
                       type="button"
-                      onClick={() => setVisitData({...visitData, medicines: [...visitData.medicines, { msNo: '', medicine: '', formulation: '', strength: '', days: '', morning: '', afternoon: '', night: '', qty: '' }]})}
+                      onClick={() => setVisitData({...visitData, medicines: [...visitData.medicines, { msNo: '', medicine: '', formulation: '', strength: '', qty: '' }]})}
                       className="flex items-center gap-2 text-[10px] font-black text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 transition-all"
                     >
                       <PlusCircle size={12} /> Add Item
@@ -1024,15 +1028,11 @@ const PatientProfile = () => {
                     <table className="w-full text-left">
                       <thead className="bg-slate-50 text-[9px] font-black text-slate-400 uppercase tracking-widest">
                         <tr>
-                          <th className="px-4 py-3 w-20">M.S.No</th>
-                          <th className="px-4 py-3">Medicine</th>
-                          <th className="px-4 py-3 w-24">Form.</th>
+                          <th className="px-4 py-3 w-16">M.S.No</th>
+                          <th className="px-4 py-3 w-44">Medicine</th>
+                          <th className="px-4 py-3 w-36">Form.</th>
                           <th className="px-4 py-3 w-24">Str.</th>
-                          <th className="px-4 py-3 w-16">Days</th>
-                          <th className="px-4 py-3 w-16 text-amber-500">M</th>
-                          <th className="px-4 py-3 w-16 text-blue-500">A</th>
-                          <th className="px-4 py-3 w-16 text-indigo-500">N</th>
-                          <th className="px-4 py-3 w-16 text-emerald-600">Qty</th>
+                          <th className="px-4 py-3 w-20 text-emerald-600">Qty</th>
                           <th className="px-4 py-3 w-10"></th>
                         </tr>
                       </thead>
@@ -1071,24 +1071,11 @@ const PatientProfile = () => {
                             </td>
                             <td className="p-2">
                               <input 
-                                className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold text-center"
-                                value={med.days}
-                                onChange={e => updateVisitMedicine(idx, 'days', e.target.value)}
+                                className="w-full bg-emerald-50/50 border border-emerald-200 rounded-lg px-2 py-1.5 text-xs font-black text-emerald-700 text-center focus:ring-2 focus:ring-emerald-500/30 outline-none"
+                                value={med.qty}
+                                onChange={e => updateVisitMedicine(idx, 'qty', e.target.value)}
+                                placeholder="0"
                               />
-                            </td>
-                            <td className="p-2">
-                              <input className="w-full bg-amber-50/50 border border-amber-100 rounded-lg px-2 py-1.5 text-xs font-bold text-center" value={med.morning} onChange={e => updateVisitMedicine(idx, 'morning', e.target.value)} />
-                            </td>
-                            <td className="p-2">
-                              <input className="w-full bg-blue-50/50 border border-blue-100 rounded-lg px-2 py-1.5 text-xs font-bold text-center" value={med.afternoon} onChange={e => updateVisitMedicine(idx, 'afternoon', e.target.value)} />
-                            </td>
-                            <td className="p-2">
-                              <input className="w-full bg-indigo-50/50 border border-indigo-100 rounded-lg px-2 py-1.5 text-xs font-bold text-center" value={med.night} onChange={e => updateVisitMedicine(idx, 'night', e.target.value)} />
-                            </td>
-                            <td className="p-2">
-                              <div className="w-full bg-emerald-50 text-emerald-700 font-black text-xs text-center py-1.5 rounded-lg border border-emerald-100">
-                                {med.qty}
-                              </div>
                             </td>
                             <td className="p-2">
                               <button 
