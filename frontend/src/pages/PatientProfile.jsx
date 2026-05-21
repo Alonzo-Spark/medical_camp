@@ -108,10 +108,12 @@ const PatientProfile = () => {
   // Master lists for editing
   const [allMedicines, setAllMedicines] = useState([]);
   const [allTests, setAllTests] = useState([]);
+  const [allDoctors, setAllDoctors] = useState([]);
 
   React.useEffect(() => {
     axios.get(`${API_BASE}/medicines`).then(res => setAllMedicines(res.data));
     axios.get(`${API_BASE}/tests`).then(res => setAllTests(res.data));
+    axios.get(`${API_BASE}/doctors`).then(res => setAllDoctors(res.data));
   }, []);
 
   const handleSearch = async (e = null) => {
@@ -982,7 +984,12 @@ const PatientProfile = () => {
                     <VitalInput label="RBS" value={visitData.rbs} onChange={v => setVisitData({...visitData, rbs: v})} icon={ActivityIcon} iconColor="text-orange-500" />
                     <VitalInput label="Hemoglobin" value={visitData.haemoglobin} onChange={v => setVisitData({...visitData, haemoglobin: v})} icon={ActivityIcon} iconColor="text-rose-600" />
                     <VitalInput label="Date (DD/MM/YYYY)" value={visitData.date} onChange={handleVisitDateChange} icon={Calendar} iconColor="text-teal-600" />
-                    <VitalInput label="Dr. ID" value={visitData.dr_id} onChange={v => setVisitData({...visitData, dr_id: v})} icon={Hash} iconColor="text-indigo-500" />
+                    <VitalInput label="Dr. ID" value={visitData.dr_id} onChange={v => {
+                      setVisitData(prev => {
+                        const docObj = allDoctors.find(d => d.dr_id?.toString() === v.toString() || d.id?.toString() === v.toString());
+                        return { ...prev, dr_id: v, dr_name: docObj ? docObj.dr_name : prev.dr_name };
+                      });
+                    }} icon={Hash} iconColor="text-indigo-500" />
                     <VitalInput label="Attending Dr." value={visitData.dr_name} onChange={v => setVisitData({...visitData, dr_name: v})} icon={Stethoscope} iconColor="text-blue-600" />
                   </div>
                   <div className="space-y-1.5">

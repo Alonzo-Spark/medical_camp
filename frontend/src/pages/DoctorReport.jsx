@@ -11,7 +11,8 @@ const DoctorReport = () => {
 
   // Manual records state for UI
   const [manualRecords, setManualRecords] = useState([]);
-  const [formData, setFormData] = useState({ doctorId: '', doctorName: '', patientId: '', patientName: '' });
+  const initialFormState = { doctorId: '', doctorName: '', patients: [{ patientId: '', patientName: '' }] };
+  const [formData, setFormData] = useState(initialFormState);
   const [editingId, setEditingId] = useState(null);
   const [allDoctors, setAllDoctors] = useState([]);
 
@@ -79,42 +80,74 @@ const DoctorReport = () => {
     fetchCampDetails(campId);
     fetchManualRecords(campId);
     setEditingId(null);
-    setFormData({ doctorName: '', patientId: '', patientName: '' });
+    setFormData(initialFormState);
   };
 
   const filteredManualRecords = manualRecords.filter(record => record.campId == selectedCamp);
 
   const handleSaveManual = async (e) => {
     e.preventDefault();
-    if (!formData.doctorName || !formData.patientId || !formData.patientName) return;
+    if (!formData.doctorName || formData.patients.some(p => !p.patientId || !p.patientName)) return;
 
     try {
-      const payload = {
-        id: editingId,
-        campId: selectedCamp,
-        doctorId: formData.doctorId,
-        doctorName: formData.doctorName,
-        patientId: formData.patientId,
-        patientName: formData.patientName
-      };
-      
-      const res = await fetch(`${API_BASE}/save_doctor_report`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const result = await res.json();
-      
-      if (result.status === 'success') {
-        if (editingId) {
+      if (editingId) {
+        const p = formData.patients[0];
+        const payload = {
+          id: editingId,
+          campId: selectedCamp,
+          doctorId: formData.doctorId,
+          doctorName: formData.doctorName,
+          patientId: p.patientId,
+          patientName: p.patientName
+        };
+        
+        const res = await fetch(`${API_BASE}/save_doctor_report`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const result = await res.json();
+        
+        if (result.status === 'success') {
           setManualRecords(manualRecords.map(rec => rec.id === editingId ? result.record : rec));
+          setEditingId(null);
+          setFormData(initialFormState);
         } else {
-          setManualRecords([...manualRecords, result.record]);
+          alert("Error saving record: " + result.message);
         }
-        setEditingId(null);
-        setFormData({ doctorId: '', doctorName: '', patientId: '', patientName: '' });
       } else {
-        alert("Error saving record: " + result.message);
+        const promises = formData.patients.map(p => {
+          const payload = {
+            id: null,
+            campId: selectedCamp,
+            doctorId: formData.doctorId,
+            doctorName: formData.doctorName,
+            patientId: p.patientId,
+            patientName: p.patientName
+          };
+          return fetch(`${API_BASE}/save_doctor_report`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          }).then(res => res.json());
+        });
+
+        const results = await Promise.all(promises);
+        const newRecords = [];
+        let hasError = false;
+        for (const result of results) {
+          if (result.status === 'success') {
+            newRecords.push(result.record);
+          } else {
+            hasError = true;
+            alert("Error saving record: " + result.message);
+          }
+        }
+        
+        setManualRecords([...manualRecords, ...newRecords]);
+        if (!hasError) {
+          setFormData({ doctorId: formData.doctorId, doctorName: formData.doctorName, patients: [{ patientId: '', patientName: '' }] });
+        }
       }
     } catch (err) {
       console.error(err);
@@ -133,17 +166,19 @@ const DoctorReport = () => {
     });
   };
 
-  const handlePatientIdBlur = async () => {
-    if (!formData.patientId) return;
-    const currentPatientId = formData.patientId;
+  const handlePatientIdBlur = async (index) => {
+    const pId = formData.patients[index].patientId;
+    if (!pId) return;
     try {
-      const res = await fetch(`${API_BASE}/check_patient_id/${currentPatientId}`);
+      const res = await fetch(`${API_BASE}/check_patient_id/${pId}`);
       const data = await res.json();
+      const newPatients = [...formData.patients];
       if (data.exists) {
-        setFormData(prev => ({ ...prev, patientName: data.patient_name }));
+        newPatients[index].patientName = data.patient_name;
       } else {
-        setFormData(prev => ({ ...prev, patientName: 'Patient Not Found' }));
+        newPatients[index].patientName = 'Patient Not Found';
       }
+      setFormData(prev => ({ ...prev, patients: newPatients }));
     } catch (err) {
       console.error(err);
     }
@@ -154,8 +189,7 @@ const DoctorReport = () => {
     setFormData({
       doctorId: record.doctorId || '',
       doctorName: record.doctorName,
-      patientId: record.patientId,
-      patientName: record.patientName
+      patients: [{ patientId: record.patientId, patientName: record.patientName }]
     });
   };
 
@@ -172,7 +206,7 @@ const DoctorReport = () => {
 
   const handleCancel = () => {
     setEditingId(null);
-    setFormData({ doctorName: '', patientId: '', patientName: '' });
+    setFormData(initialFormState);
   };
 
   return (
@@ -259,38 +293,72 @@ const DoctorReport = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Patient ID</label>
-                <input
-                  type="number"
-                  required
-                  placeholder="e.g. 1001"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
-                  value={formData.patientId}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setFormData(prev => ({ ...prev, patientId: val }));
-                  }}
-                  onBlur={handlePatientIdBlur}
-                />
+            {formData.patients.map((patient, index) => (
+              <div key={index} className="relative bg-slate-50 p-4 rounded-xl border border-slate-100">
+                {formData.patients.length > 1 && !editingId && (
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      const newPatients = [...formData.patients];
+                      newPatients.splice(index, 1);
+                      setFormData(prev => ({ ...prev, patients: newPatients }));
+                    }}
+                    className="absolute -top-2 -right-2 bg-rose-100 text-rose-600 rounded-full p-1 hover:bg-rose-200 transition-colors shadow-sm"
+                  >
+                    <X size={14} strokeWidth={3} />
+                  </button>
+                )}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Patient ID</label>
+                    <input
+                      type="number"
+                      required
+                      placeholder="e.g. 1001"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
+                      value={patient.patientId}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const newPatients = [...formData.patients];
+                        newPatients[index].patientId = val;
+                        setFormData(prev => ({ ...prev, patients: newPatients }));
+                      }}
+                      onBlur={() => handlePatientIdBlur(index)}
+                    />
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Patient Name</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Auto-filled or type manually"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
+                      value={patient.patientName}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const newPatients = [...formData.patients];
+                        newPatients[index].patientName = val;
+                        setFormData(prev => ({ ...prev, patients: newPatients }));
+                      }}
+                    />
+                  </div>
+                </div>
               </div>
-              
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Patient Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Auto-filled or type manually"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
-                  value={formData.patientName}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setFormData(prev => ({ ...prev, patientName: val }));
-                  }}
-                />
-              </div>
-            </div>
+            ))}
+
+            {!editingId && (
+              <button
+                type="button"
+                onClick={() => {
+                  setFormData(prev => ({ ...prev, patients: [...prev.patients, { patientId: '', patientName: '' }] }));
+                }}
+                className="w-full py-2.5 border-2 border-dashed border-teal-200 text-teal-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-teal-50 transition-colors flex items-center justify-center gap-2"
+              >
+                <Plus size={16} strokeWidth={3} />
+                Add Another Patient
+              </button>
+            )}
 
             <div className="pt-2 flex gap-3">
               <button
