@@ -192,202 +192,174 @@ function PatientRegistration() {
                 </button>
             </div>
 
-            <div className="glass-panel-light p-10 relative overflow-hidden">
+            <div className="glass-panel-light p-6 pb-5 relative overflow-hidden">
                 <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-teal-500 via-teal-400 to-emerald-400" />
 
-                <div className="mb-10">
-                    <div className="flex items-center gap-2 mb-1">
-                        <Heart size={14} className="text-teal-500" />
-                        <p className="text-teal-600 text-[10px] font-extrabold uppercase tracking-[0.25em]">Admissions Center</p>
+                <div className="mb-5 flex items-center gap-3">
+                    <div className="p-2 bg-teal-50 rounded-xl border border-teal-200">
+                        <UserPlus size={20} className="text-teal-600" strokeWidth={2.5} />
                     </div>
-                    <h3 className="text-3xl font-black text-slate-800 tracking-tight flex items-center gap-3">
-                        <div className="p-2.5 bg-teal-50 rounded-xl border border-teal-200">
-                            <UserPlus size={24} className="text-teal-600" strokeWidth={2.5} />
-                        </div>
-                        Patient Registration
-                    </h3>
-                    <p className="text-slate-400 text-sm font-bold mt-2 ml-[52px]">Register new patients for medical camp services</p>
+                    <div>
+                        <h3 className="text-2xl font-black text-slate-800 tracking-tight">Patient Registration</h3>
+                        <p className="text-slate-400 text-xs font-bold">Register new patients for medical camp services</p>
+                    </div>
                 </div>
 
-                <form id="patient-registration-form" onSubmit={handleSubmit} className="space-y-8">
-                    <div className="p-6 bg-slate-50 rounded-xl border border-slate-100">
-                        <h4 className="text-[11px] font-extrabold text-teal-600 uppercase tracking-[0.2em] mb-5 flex items-center gap-2">
-                            <div className="w-1.5 h-4 bg-teal-500 rounded-full" />
-                            Patient Identity
-                        </h4>
-                        <div className="grid md:grid-cols-2 gap-6">
-                            <div>
-                                <label className="block text-[12px] font-extrabold text-slate-600 uppercase tracking-wide mb-2.5">
-                                    Patient ID <span className="text-red-400">*</span>
-                                </label>
-                                <div className="relative">
-                                    <input
-                                        type="text"
-                                        placeholder="e.g. 1001"
-                                        value={form.pid}
-                                        onChange={(e) => handleChange("pid", e.target.value)}
-                                        onBlur={handlePidBlur}
-                                        className={`${errors.pid ? inputError : inputNormal} text-slate-800`}
-                                    />
-                                    {pidChecking && (
-                                        <span className="absolute right-3.5 top-1/2 -translate-y-1/2">
-                                            <div className="w-4 h-4 border-2 border-teal-300 border-t-teal-600 rounded-full animate-spin" />
-                                        </span>
-                                    )}
-                                </div>
-                                {errors.pid && (
-                                    <p className="text-red-500 text-[11px] mt-2 font-bold flex items-center gap-1.5">
-                                        <AlertTriangle size={12} /> {errors.pid}
-                                    </p>
+                <form id="patient-registration-form" onSubmit={handleSubmit} className="space-y-4">
+                    {/* Row 1: Patient ID, Patient Name, Age */}
+                    <div className="grid md:grid-cols-3 gap-4">
+                        <div>
+                            <label className="block text-[11px] font-extrabold text-slate-500 uppercase tracking-wide mb-1.5">
+                                Patient ID <span className="text-red-400">*</span>
+                            </label>
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    placeholder="e.g. 1001"
+                                    value={form.pid}
+                                    onChange={(e) => handleChange("pid", e.target.value)}
+                                    onBlur={handlePidBlur}
+                                    className={`${errors.pid ? inputError : inputNormal} text-slate-800`}
+                                />
+                                {pidChecking && (
+                                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2">
+                                        <div className="w-4 h-4 border-2 border-teal-300 border-t-teal-600 rounded-full animate-spin" />
+                                    </span>
                                 )}
                             </div>
-                            <div>
-                                <label className="block text-[12px] font-extrabold text-slate-600 uppercase tracking-wide mb-2.5">
-                                    Patient Name <span className="text-red-400">*</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    placeholder="Patient's full name"
-                                    value={form.name}
-                                    onChange={(e) => handleChange("name", e.target.value)}
-                                    className={`${errors.name ? inputError : inputNormal} text-slate-800`}
-                                />
-                                {errors.name && <p className="text-red-500 text-[11px] mt-2 font-bold">{errors.name}</p>}
-                            </div>
+                            {errors.pid && (
+                                <p className="text-red-500 text-[10px] mt-1 font-bold flex items-center gap-1">
+                                    <AlertTriangle size={10} /> {errors.pid}
+                                </p>
+                            )}
+                        </div>
+                        <div>
+                            <label className="block text-[11px] font-extrabold text-slate-500 uppercase tracking-wide mb-1.5">
+                                Patient Name <span className="text-red-400">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                placeholder="Patient's full name"
+                                value={form.name}
+                                onChange={(e) => handleChange("name", e.target.value)}
+                                className={`${errors.name ? inputError : inputNormal} text-slate-800`}
+                            />
+                            {errors.name && <p className="text-red-500 text-[10px] mt-1 font-bold">{errors.name}</p>}
+                        </div>
+                        <div>
+                            <label className="block text-[11px] font-extrabold text-slate-500 uppercase tracking-wide mb-1.5">
+                                Age <span className="text-red-400">*</span>
+                            </label>
+                            <input
+                                type="number"
+                                placeholder="Age"
+                                value={form.age}
+                                onChange={(e) => handleChange("age", e.target.value)}
+                                className={`${errors.age ? inputError : inputNormal} text-slate-800`}
+                            />
+                            {errors.age && <p className="text-red-500 text-[10px] mt-1 font-bold">{errors.age}</p>}
                         </div>
                     </div>
 
-                    <div className="p-6 bg-slate-50 rounded-xl border border-slate-100">
-                        <h4 className="text-[11px] font-extrabold text-teal-600 uppercase tracking-[0.2em] mb-5 flex items-center gap-2">
-                            <div className="w-1.5 h-4 bg-teal-500 rounded-full" />
-                            Demographics
-                        </h4>
-                        <div className="grid md:grid-cols-2 gap-6">
-                            <div>
-                                <label className="block text-[12px] font-extrabold text-slate-600 uppercase tracking-wide mb-2.5">
-                                    Age <span className="text-red-400">*</span>
-                                </label>
+                    {/* Row 2: Gender, Date of Registration, Camp Session */}
+                    <div className="grid md:grid-cols-3 gap-4">
+                        <div>
+                            <label className="block text-[11px] font-extrabold text-slate-500 uppercase tracking-wide mb-1.5">
+                                Gender
+                            </label>
+                            <select
+                                value={form.gender}
+                                onChange={(e) => handleChange("gender", e.target.value)}
+                                className={`${inputNormal} appearance-none ${!form.gender ? 'text-slate-400' : 'text-slate-800'}`}
+                            >
+                                <option value="">Select gender</option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-[11px] font-extrabold text-slate-500 uppercase tracking-wide mb-1.5">
+                                Date of Registration <span className="text-red-400">*</span>
+                            </label>
+                            <div className="relative">
                                 <input
-                                    type="number"
-                                    placeholder="Age"
-                                    value={form.age}
-                                    onChange={(e) => handleChange("age", e.target.value)}
-                                    className={`${errors.age ? inputError : inputNormal} text-slate-800`}
+                                    type="text"
+                                    placeholder="DD/MM/YYYY"
+                                    value={form.regdate}
+                                    onChange={(e) => handleChange("regdate", e.target.value)}
+                                    className={`${errors.regdate ? inputError : inputNormal} ${!form.regdate ? 'text-slate-400' : 'text-slate-800'} pr-12`}
                                 />
-                                {errors.age && <p className="text-red-500 text-[11px] mt-2 font-bold">{errors.age}</p>}
-                            </div>
-                            <div>
-                                <label className="block text-[12px] font-extrabold text-slate-600 uppercase tracking-wide mb-2.5">
-                                    Gender
-                                </label>
-                                <select
-                                    value={form.gender}
-                                    onChange={(e) => handleChange("gender", e.target.value)}
-                                    className={`${inputNormal} appearance-none ${!form.gender ? 'text-slate-400' : 'text-slate-800'}`}
+                                <button
+                                    type="button"
+                                    onClick={() => dateInputRef.current.showPicker()}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-teal-500 hover:text-teal-600 transition-colors"
                                 >
-                                    <option value="">Select gender</option>
-                                    <option value="Male">Male</option>
-                                    <option value="Female">Female</option>
-                                    <option value="Other">Other</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="p-6 bg-slate-50 rounded-xl border border-slate-100">
-                        <h4 className="text-[11px] font-extrabold text-teal-600 uppercase tracking-[0.2em] mb-5 flex items-center gap-2">
-                            <div className="w-1.5 h-4 bg-teal-500 rounded-full" />
-                            Camp & Registration
-                        </h4>
-                        <div className="grid md:grid-cols-2 gap-6">
-                            <div>
-                                <label className="block text-[12px] font-extrabold text-slate-600 uppercase tracking-wide mb-2.5">
-                                    Date of Registration <span className="text-red-400">*</span>
-                                </label>
-                                <div className="relative">
-                                    <input
-                                        type="text"
-                                        placeholder="DD/MM/YYYY"
-                                        value={form.regdate}
-                                        onChange={(e) => handleChange("regdate", e.target.value)}
-                                        className={`${errors.regdate ? inputError : inputNormal} ${!form.regdate ? 'text-slate-400' : 'text-slate-800'} pr-12`}
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => dateInputRef.current.showPicker()}
-                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-teal-500 hover:text-teal-600 transition-colors"
-                                    >
-                                        <Calendar size={20} strokeWidth={2.5} />
-                                    </button>
-                                    {/* Hidden native date input for calendar picker */}
-                                    <input
-                                        type="date"
-                                        ref={dateInputRef}
-                                        onChange={handleNativeDateChange}
-                                        className="absolute opacity-0 pointer-events-none right-10 top-1/2 -translate-y-1/2"
-                                    />
-                                </div>
-                                {errors.regdate && <p className="text-red-500 text-[11px] mt-2 font-bold">{errors.regdate}</p>}
-                            </div>
-                            <div>
-                                <label className="block text-[12px] font-extrabold text-slate-600 uppercase tracking-wide mb-2.5">
-                                    Camp Session <span className="text-red-400">*</span>
-                                </label>
-                                <select
-                                    value={form.camp_session}
-                                    onChange={(e) => handleChange("camp_session", e.target.value)}
-                                    className={`${errors.camp_session ? inputError : inputNormal} appearance-none ${!form.camp_session ? 'text-slate-400' : 'text-slate-800'}`}
-                                >
-                                    <option value="">Select camp session</option>
-                                    {camps.map(camp => (
-                                        <option key={camp.id} value={camp.number}>{camp.venue} • Camp {camp.number}</option>
-                                    ))}
-                                </select>
-                                {errors.camp_session && <p className="text-red-500 text-[11px] mt-2 font-bold">{errors.camp_session}</p>}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="p-6 bg-slate-50 rounded-xl border border-slate-100">
-                        <h4 className="text-[11px] font-extrabold text-teal-600 uppercase tracking-[0.2em] mb-5 flex items-center gap-2">
-                            <div className="w-1.5 h-4 bg-teal-500 rounded-full" />
-                            Contact Information
-                        </h4>
-                        <div className="grid md:grid-cols-2 gap-6">
-                            <div>
-                                <label className="block text-[12px] font-extrabold text-slate-600 uppercase tracking-wide mb-2.5">
-                                    Contact No <span className="text-red-400">*</span>
-                                </label>
+                                    <Calendar size={18} strokeWidth={2.5} />
+                                </button>
+                                {/* Hidden native date input for calendar picker */}
                                 <input
-                                    type="text"
-                                    placeholder="+91 XXXXXXXXXX"
-                                    value={form.contact}
-                                    onChange={(e) => handleChange("contact", e.target.value)}
-                                    className={`${errors.contact ? inputError : inputNormal} text-slate-800`}
+                                    type="date"
+                                    ref={dateInputRef}
+                                    onChange={handleNativeDateChange}
+                                    className="absolute opacity-0 pointer-events-none right-10 top-1/2 -translate-y-1/2"
                                 />
-                                {errors.contact && <p className="text-red-500 text-[11px] mt-2 font-bold">{errors.contact}</p>}
                             </div>
-                            <div>
-                                <label className="block text-[12px] font-extrabold text-slate-600 uppercase tracking-wide mb-2.5">
-                                    Address <span className="text-red-400">*</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    placeholder="Full address"
-                                    value={form.address}
-                                    onChange={(e) => handleChange("address", e.target.value)}
-                                    className={`${errors.address ? inputError : inputNormal} text-slate-800`}
-                                />
-                                {errors.address && <p className="text-red-500 text-[11px] mt-2 font-bold">{errors.address}</p>}
-                            </div>
+                            {errors.regdate && <p className="text-red-500 text-[10px] mt-1 font-bold">{errors.regdate}</p>}
+                        </div>
+                        <div>
+                            <label className="block text-[11px] font-extrabold text-slate-500 uppercase tracking-wide mb-1.5">
+                                Camp Session <span className="text-red-400">*</span>
+                            </label>
+                            <select
+                                value={form.camp_session}
+                                onChange={(e) => handleChange("camp_session", e.target.value)}
+                                className={`${errors.camp_session ? inputError : inputNormal} appearance-none ${!form.camp_session ? 'text-slate-400' : 'text-slate-800'}`}
+                            >
+                                <option value="">Select camp session</option>
+                                {camps.map(camp => (
+                                    <option key={camp.id} value={camp.number}>{camp.venue} • Camp {camp.number}</option>
+                                ))}
+                            </select>
+                            {errors.camp_session && <p className="text-red-500 text-[10px] mt-1 font-bold">{errors.camp_session}</p>}
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-4 pt-2">
+                    {/* Row 3: Contact No, Address (spans 2 cols) */}
+                    <div className="grid md:grid-cols-3 gap-4">
+                        <div>
+                            <label className="block text-[11px] font-extrabold text-slate-500 uppercase tracking-wide mb-1.5">
+                                Contact No <span className="text-red-400">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                placeholder="+91 XXXXXXXXXX"
+                                value={form.contact}
+                                onChange={(e) => handleChange("contact", e.target.value)}
+                                className={`${errors.contact ? inputError : inputNormal} text-slate-800`}
+                            />
+                            {errors.contact && <p className="text-red-500 text-[10px] mt-1 font-bold">{errors.contact}</p>}
+                        </div>
+                        <div className="md:col-span-2">
+                            <label className="block text-[11px] font-extrabold text-slate-500 uppercase tracking-wide mb-1.5">
+                                Address <span className="text-red-400">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                placeholder="Full address"
+                                value={form.address}
+                                onChange={(e) => handleChange("address", e.target.value)}
+                                className={`${errors.address ? inputError : inputNormal} text-slate-800`}
+                            />
+                            {errors.address && <p className="text-red-500 text-[10px] mt-1 font-bold">{errors.address}</p>}
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-4 pt-1">
                         <button
                             type="submit"
                             disabled={loading || pidChecking || !!errors.pid}
-                            className="flex-1 relative overflow-hidden bg-teal-600 hover:bg-teal-700 text-white h-14 rounded-xl transition-all shadow-lg shadow-teal-100 group disabled:opacity-50 active:scale-[0.98]"
+                            className="flex-1 relative overflow-hidden bg-teal-600 hover:bg-teal-700 text-white h-12 rounded-xl transition-all shadow-lg shadow-teal-100 group disabled:opacity-50 active:scale-[0.98]"
                         >
                             <div className="relative flex items-center justify-center gap-3">
                                 {loading ? (
@@ -404,14 +376,14 @@ function PatientRegistration() {
                         <button
                             type="button"
                             onClick={handleClear}
-                            className="flex items-center justify-center gap-2 px-8 h-14 bg-white border border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all font-black text-xs uppercase tracking-widest"
+                            className="flex items-center justify-center gap-2 px-8 h-12 bg-white border border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all font-black text-xs uppercase tracking-widest"
                         >
                             <RotateCcw size={16} strokeWidth={2.5} />
                             Reset
                         </button>
 
                         {success && (
-                            <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 px-5 py-3 rounded-xl border border-emerald-200 shadow-sm animate-bounce">
+                            <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 px-5 py-2.5 rounded-xl border border-emerald-200 shadow-sm animate-bounce">
                                 <CheckCircle2 size={18} strokeWidth={3} />
                                 <span className="text-xs font-black uppercase tracking-widest">Enrolled Successfully</span>
                             </div>
