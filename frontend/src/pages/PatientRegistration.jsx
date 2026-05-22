@@ -49,22 +49,32 @@ function PatientRegistration() {
     }, []);
 
     const handleChange = (field, value) => {
+        let finalValue = value;
         if (field === "regdate") {
             // Auto-format DD/MM/YYYY for text entry
             let val = value.replace(/\D/g, '');
             if (val.length > 2) val = val.slice(0, 2) + '/' + val.slice(2);
             if (val.length > 5) val = val.slice(0, 5) + '/' + val.slice(5, 9);
-            setForm({ ...form, [field]: val });
+            finalValue = val;
         } else if (field === "contact") {
             let val = value.replace(/\D/g, '');
             if (val.length > 10) {
                 alert("Phone number cannot exceed 10 digits");
                 val = val.slice(0, 10);
             }
-            setForm({ ...form, [field]: val });
-        } else {
-            setForm({ ...form, [field]: value });
+            finalValue = val;
+        } else if (field === "pid") {
+            if (/\D/.test(value)) {
+                alert("Patient ID must contain numbers only.");
+                finalValue = value.replace(/\D/g, '');
+            }
+        } else if (field === "name") {
+            if (/\d/.test(value)) {
+                alert("Patient Name cannot contain numbers.");
+                finalValue = value.replace(/\d/g, '');
+            }
         }
+        setForm({ ...form, [field]: finalValue });
         setErrors({ ...errors, [field]: "" });
     };
 
