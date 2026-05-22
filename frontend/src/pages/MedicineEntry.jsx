@@ -154,8 +154,47 @@ const MedicineEntry = () => {
     }
   };
 
-  const handleReturn = async (uqid) => {
+  const handleReturnAll = async () => {
     if (!selectedCamp) return;
+    
+    const stocksToReturn = campStocks.filter(s => s.remaining_stock > 0);
+    if (stocksToReturn.length === 0) {
+      alert("No available balance to update for this camp.");
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to update the total stock by adding the available balance for ALL ${stocksToReturn.length} medications in this camp?`)) {
+      return;
+    }
+
+    setSuccessMsg('Updating all balances...');
+    
+    try {
+      for (const stock of stocksToReturn) {
+        await axios.post(`${API_BASE}/return_to_warehouse`, {
+          med_id: stock.uqid,
+          camp_id: selectedCamp
+        });
+      }
+
+      setSuccessMsg(`Successfully updated all balances!`);
+      setTimeout(() => setSuccessMsg(''), 3000);
+      fetchMedicines();
+      fetchCampStocks();
+    } catch (err) {
+      alert('Error updating some stocks: ' + (err.response?.data?.message || err.message));
+      fetchMedicines();
+      fetchCampStocks();
+    }
+  };
+
+  const handleReturn = async (uqid, medName, remainingStock) => {
+    if (!selectedCamp) return;
+    
+    if (!window.confirm(`Are you sure you want to update the total stock by adding the available balance of ${remainingStock} units for ${medName}?`)) {
+      return;
+    }
+
     try {
       const res = await axios.post(`${API_BASE}/return_to_warehouse`, {
         med_id: uqid,
@@ -407,13 +446,22 @@ const MedicineEntry = () => {
             </select>
 
             {selectedCamp && (
-              <button
-                onClick={handleExportCampStock}
-                className="flex items-center gap-2 bg-white hover:bg-slate-50 text-teal-600 px-6 py-4 rounded-2xl border border-teal-100 hover:border-teal-300 transition-all shadow-sm font-black text-[10px] uppercase tracking-widest animate-in fade-in zoom-in"
-              >
-                <Download size={16} strokeWidth={3} />
-                Export CSV
-              </button>
+              <div className="flex gap-4 animate-in fade-in zoom-in">
+                <button
+                  onClick={handleReturnAll}
+                  className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-6 py-4 rounded-2xl shadow-sm shadow-teal-100 font-black text-[10px] uppercase tracking-widest transition-all"
+                >
+                  <RefreshCcw size={16} strokeWidth={3} />
+                  Update All Balances
+                </button>
+                <button
+                  onClick={handleExportCampStock}
+                  className="flex items-center gap-2 bg-white hover:bg-slate-50 text-teal-600 px-6 py-4 rounded-2xl border border-teal-100 hover:border-teal-300 transition-all shadow-sm font-black text-[10px] uppercase tracking-widest"
+                >
+                  <Download size={16} strokeWidth={3} />
+                  Export CSV
+                </button>
+              </div>
             )}
           </div>
         )}
@@ -531,13 +579,13 @@ const MedicineEntry = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-100 text-xs font-black uppercase tracking-[0.2em] text-slate-400">
-                  <th className="px-4 py-4">System Identity (UQID)</th>
+                <tr className="bg-slate-50 border-b border-slate-100 text-[12px] font-black uppercase tracking-wide text-slate-600">
+                  <th className="px-4 py-4 max-w-[130px] leading-snug">System Identity (UQID)</th>
                   <th className="px-4 py-4">Medication Description</th>
                   <th className="px-4 py-4">Unit Cost (₹)</th>
                   <th className="px-4 py-4">Total Cost (₹)</th>
-                  <th className="px-4 py-4">Global Inventory Status</th>
-                  <th className="px-4 py-4 text-right">Add to Global Stock</th>
+                  <th className="px-4 py-4 max-w-[130px] leading-snug">Global Inventory Status</th>
+                  <th className="px-4 py-4 text-right max-w-[130px] leading-snug">Add to Global Stock</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -701,18 +749,18 @@ const MedicineEntry = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[1300px]">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-100 text-xs font-black uppercase tracking-[0.2em] text-slate-400">
-                  <th className="px-4 py-4">UQID</th>
-                  <th className="px-4 py-4">Medication Name</th>
-                  <th className="px-4 py-4">Formulation</th>
-                  <th className="px-4 py-4">Warehouse</th>
-                  <th className="px-4 py-4">Allocated</th>
-                  <th className="px-4 py-4">Used</th>
-                  <th className="px-4 py-4">Unit Cost</th>
-                  <th className="px-4 py-4">Total Cost</th>
-                  <th className="px-4 py-4">Available</th>
-                  <th className="px-4 py-4">Returned</th>
-                  <th className="px-4 py-4 text-right">Actions</th>
+                <tr className="bg-slate-50 border-b border-slate-100 text-[12px] font-black uppercase tracking-wide text-slate-600">
+                  <th className="px-3 py-4">UQID</th>
+                  <th className="px-3 py-4">Medication Name</th>
+                  <th className="px-3 py-4">Formulation</th>
+                  <th className="px-3 py-4">Total Stock</th>
+                  <th className="px-3 py-4 max-w-[130px] leading-snug">Current Month Stock</th>
+                  <th className="px-3 py-4 max-w-[130px] leading-snug">Medicines Issued</th>
+                  <th className="px-3 py-4">Unit Cost</th>
+                  <th className="px-3 py-4">Total Cost</th>
+                  <th className="px-3 py-4">Stock Balance</th>
+                  <th className="px-3 py-4">Returned</th>
+                  <th className="px-3 py-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -858,12 +906,12 @@ const MedicineEntry = () => {
                           </div>
 
                           <button
-                            onClick={() => handleReturn(stock.uqid)}
+                            onClick={() => handleReturn(stock.uqid, stock.medication, stock.remaining_stock)}
                             disabled={!selectedCamp || stock.remaining_stock <= 0}
-                            className="p-2.5 bg-white border border-slate-200 text-slate-400 hover:text-teal-600 hover:border-teal-200 hover:bg-teal-50 rounded-xl transition-all shadow-sm disabled:opacity-30 disabled:hover:bg-white disabled:hover:border-slate-200"
-                            title="Return Leftover to Warehouse"
+                            className="p-2.5 bg-white border border-slate-200 text-slate-400 hover:text-teal-600 hover:border-teal-200 hover:bg-teal-50 rounded-xl transition-all shadow-sm disabled:opacity-30 disabled:hover:bg-white disabled:hover:border-slate-200 flex items-center justify-center"
+                            title="Update single medication (Add Available Balance to Total Stock)"
                           >
-                            <RefreshCcw size={18} strokeWidth={2.5} />
+                            <RefreshCcw size={16} strokeWidth={2.5} />
                           </button>
                         </div>
                       </td>

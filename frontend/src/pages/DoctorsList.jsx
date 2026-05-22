@@ -33,7 +33,14 @@ const DoctorsList = () => {
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/doctors`);
-      const data = await res.json();
+      let data = await res.json();
+      
+      // Frontend override to correct spelling without breaking backend analytics
+      data = data.map(doc => ({
+        ...doc,
+        dr_name: doc.dr_name ? doc.dr_name.replace(/Muqueeth/i, 'Muqeedh') : doc.dr_name
+      }));
+
       setDoctors(data);
     } catch (err) {
       console.error("Error fetching doctors:", err);
@@ -64,7 +71,16 @@ const DoctorsList = () => {
     setAnalyticsLoading(true);
     try {
       const res = await fetch(`${API_BASE}/camp_details/${campId}`);
-      const data = await res.json();
+      let data = await res.json();
+      
+      // Frontend override to correct spelling without breaking backend analytics
+      if (data && data.doctors) {
+        data.doctors = data.doctors.map(doc => ({
+          ...doc,
+          dr_name: doc.dr_name ? doc.dr_name.replace(/Muqueeth/i, 'Muqeedh') : doc.dr_name
+        }));
+      }
+
       setDetailedData(data);
     } catch (err) {
       console.error("Error fetching camp details:", err);
