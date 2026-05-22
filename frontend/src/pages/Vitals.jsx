@@ -37,6 +37,7 @@ const Vitals = () => {
   const [patientId, setPatientId] = useState('');
   const [patientName, setPatientName] = useState('');
   const [patientAge, setPatientAge] = useState('');
+  const [lastFetchedId, setLastFetchedId] = useState('');
   const [date, setDate] = useState(() => {
     const d = new Date();
     const day = String(d.getDate()).padStart(2, '0');
@@ -132,6 +133,39 @@ const Vitals = () => {
     
     return () => clearTimeout(timer);
   }, [drId]);
+
+  // Effect to auto-fill Patient Name & Age from Patient ID
+  useEffect(() => {
+    if (!patientId) {
+      setPatientName('');
+      setPatientAge('');
+      setLastFetchedId('');
+      return;
+    }
+
+    // Clear fields if we are switching away from a previously fetched patient ID
+    if (lastFetchedId && patientId !== lastFetchedId) {
+      setPatientName('');
+      setPatientAge('');
+      setLastFetchedId('');
+    }
+
+    const timer = setTimeout(() => {
+      axios.get(`${API_BASE}/check_patient_id/${patientId}`)
+        .then(res => {
+          if (res.data.exists) {
+            setPatientName(res.data.patient_name || '');
+            setPatientAge(res.data.patient_age || '');
+            setLastFetchedId(patientId);
+          }
+        })
+        .catch(err => {
+          console.log("Patient not found for auto-fill");
+        });
+    }, 400); // 400ms debounce to avoid spamming requests while typing
+
+    return () => clearTimeout(timer);
+  }, [patientId, lastFetchedId]);
 
   // Mobile Scan Handlers
   const handleCreateScanSession = async () => {
@@ -361,6 +395,7 @@ const Vitals = () => {
       setPatientId('');
       setPatientName('');
       setPatientAge('');
+      setLastFetchedId('');
       setENo('');
       setWeight('');
       setHeight('');
@@ -521,16 +556,6 @@ const Vitals = () => {
                 placeholder="Enter ID"
                 value={patientId}
                 onChange={e => setPatientId(e.target.value)}
-                onBlur={async () => {
-                  if (!patientId) return;
-                  try {
-                    const res = await axios.get(`${API_BASE}/check_patient_id/${patientId}`);
-                    if (res.data.exists) {
-                      setPatientName(res.data.patient_name || '');
-                      setPatientAge(res.data.patient_age || '');
-                    }
-                  } catch(e) {}
-                }}
               />
             </div>
 

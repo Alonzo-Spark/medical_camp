@@ -198,11 +198,11 @@ class CampWiseStock(models.Model):
         unique_together = ('camp', 'medicine')
 
     def remaining_stock(self):
-        return self.available_stock
+        return max(0, self.available_stock)
 
     def save(self, *args, **kwargs):
         # pyrefly: ignore [unsupported-operation]
-        self.available_stock = self.allocated_stock - self.used_stock - self.returned_stock
+        self.available_stock = max(0, self.allocated_stock - self.used_stock - self.returned_stock)
         super().save(*args, **kwargs)
 
     def __str__(self):

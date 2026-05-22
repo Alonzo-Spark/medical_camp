@@ -69,7 +69,7 @@ const MedicineEntry = () => {
           camp_stock: campData.allocated,
           used_stock: campData.used,
           returned_stock: campData.returned || 0,
-          remaining_stock: campData.remaining,
+          remaining_stock: Math.max(0, campData.remaining || 0),
           unit_cost: campData.unit_cost !== undefined && campData.unit_cost !== null ? campData.unit_cost : (med.cost || 0),
           alternate_name: campData.alternate_name || ''
         };
@@ -209,7 +209,7 @@ const MedicineEntry = () => {
   };
 
   const handleSaveEdit = async (oldUqid) => {
-    const { uqid, name, cost } = editMedData;
+    const { uqid, name, cost, formulation } = editMedData;
     if (!name || !name.trim()) {
       alert('Medicine name is required');
       return;
@@ -220,7 +220,8 @@ const MedicineEntry = () => {
         old_uqid: oldUqid,
         new_uqid: parseInt(uqid),
         name: name,
-        cost: cost !== '' && cost !== null ? parseFloat(cost) : null
+        cost: cost !== '' && cost !== null ? parseFloat(cost) : null,
+        formulation: formulation !== '' && formulation !== null ? formulation : null
       });
 
       setSuccessMsg(res.data.message);
@@ -575,7 +576,13 @@ const MedicineEntry = () => {
                               value={editMedData.name}
                               onChange={(e) => setEditMedData({ ...editMedData, name: e.target.value })}
                             />
-                            <span className="text-xs text-slate-500 font-black uppercase tracking-wider mt-0.5 truncate">{med.formulation || 'Generic Formulation'}</span>
+                            <input
+                              type="text"
+                              className="w-full bg-white border border-teal-300 rounded-lg px-2 py-1 text-xs font-extrabold outline-none focus:ring-2 focus:ring-teal-500/20 shadow-sm mt-1 uppercase"
+                              placeholder="Formulation (e.g. TABLET)"
+                              value={editMedData.formulation || ''}
+                              onChange={(e) => setEditMedData({ ...editMedData, formulation: e.target.value })}
+                            />
                           </div>
                         ) : (
                           <div className="flex items-center gap-2 max-w-md">
@@ -644,7 +651,7 @@ const MedicineEntry = () => {
                               <button
                                 onClick={() => {
                                   setEditingMedId(med.uqid);
-                                  setEditMedData({ uqid: med.uqid, name: med.name, cost: med.cost || '' });
+                                  setEditMedData({ uqid: med.uqid, name: med.name, cost: med.cost || '', formulation: med.formulation || '' });
                                 }}
                                 className="px-3 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
                                 title="Edit Medicine"
@@ -715,7 +722,58 @@ const MedicineEntry = () => {
                       <td className="px-4 py-4">
                         <span className="font-data text-sm font-bold text-slate-400 group-hover:text-emerald-600 transition-colors">#{stock.uqid}</span>
                       </td>
-                      <td className="px-4 py-4 text-base font-black text-slate-800">{stock.medication}</td>
+                      <td className="px-4 py-4 text-base font-black text-slate-800">
+                        {editingUqid === stock.uqid ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={tempAltName}
+                              onChange={(e) => setTempAltName(e.target.value)}
+                              placeholder="Alternative Name"
+                              className="bg-white border border-teal-300 rounded-lg px-2.5 py-1.5 text-sm font-bold outline-none focus:ring-2 focus:ring-teal-500/20 shadow-sm w-48"
+                            />
+                            <button
+                              onClick={() => handleSaveAlternateName(stock.uqid)}
+                              className="p-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors shadow-sm"
+                              title="Save Alternate Name"
+                            >
+                              <Check size={16} strokeWidth={2.5} />
+                            </button>
+                            <button
+                              onClick={() => setEditingUqid(null)}
+                              className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors border border-slate-200"
+                              title="Cancel"
+                            >
+                              <X size={16} strokeWidth={2.5} />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 group/alt">
+                            <div className="flex flex-col">
+                              {stock.alternate_name ? (
+                                <>
+                                  <span className="text-base font-black text-slate-800">{stock.alternate_name}</span>
+                                  <span className="text-xs text-slate-400 font-bold mt-0.5">
+                                    Original: {stock.medication}
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="text-base font-black text-slate-800">{stock.medication}</span>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => {
+                                setEditingUqid(stock.uqid);
+                                setTempAltName(stock.alternate_name || '');
+                              }}
+                              className="p-1.5 bg-slate-50 hover:bg-teal-50 text-slate-400 hover:text-teal-600 rounded-lg border border-slate-200 hover:border-teal-200 transition-all ml-2 flex items-center justify-center shadow-sm"
+                              title="Edit Alternative Name"
+                            >
+                              <Edit3 size={14} strokeWidth={2.5} />
+                            </button>
+                          </div>
+                        )}
+                      </td>
                       <td className="px-4 py-4">
                         <span className="text-sm font-bold text-slate-600">
                           {stock.formulation || 'Generic Formulation'}

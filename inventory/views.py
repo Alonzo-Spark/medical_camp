@@ -465,6 +465,7 @@ def api_update_medicine_profile(request):
         new_uqid = data.get('new_uqid')
         name = data.get('name')
         cost = data.get('cost')
+        formulation = data.get('formulation')
         
         if not old_uqid or not new_uqid or not name:
             return Response({'status': 'error', 'message': 'Required fields are missing.'}, status=400)
@@ -495,8 +496,9 @@ def api_update_medicine_profile(request):
         else:
             medicine = get_object_or_404(Medicine, uqid=old_uqid)
         
-        # Update name and cost
+        # Update name, formulation and cost
         medicine.name = name
+        medicine.formulation = formulation
         cost_val = None
         if cost is not None and str(cost).strip() != '':
             cost_val = float(cost)
@@ -2146,7 +2148,7 @@ def api_get_camp_report(request,camp_id):
 
         total_used=sum(s.used_stock for s in stock_data)
 
-        remaining_stock=total_allocated-total_used
+        remaining_stock=max(0, total_allocated-total_used)
 
         total_cost = sum(s.used_stock * float(s.unit_cost if s.unit_cost is not None else (s.medicine.cost or 0)) for s in stock_data)
 
