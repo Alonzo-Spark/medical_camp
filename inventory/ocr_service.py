@@ -44,7 +44,7 @@ class MedicalOCRService:
                    MAPPING (Test Name -> ID):
                    CBP: 1, ESR: 2, LFT: 3, LIPID PROFILE: 4, ECG: 5, CHEST X RAY DIGITAL: 6, URINE EXAMINATION: 7, HBA 1C: 8, THYROID PROFILE: 9, URIC ACID: 10, VIDAL: 11, MALARIA: 12, CALCIUM: 13, CRP: 14, RA FACTOR: 15, KFT: 16, VITAMIN D: 17, B 12: 18, SCAN: 19, 2D ECHO: 20, IRON PROFILE: 21, X RAY 2 VIEW: 22
                    
-                5. **Medicines**: Extract as a list of objects {ms_no, medicine_name, strength, days, morning, afternoon, night, quantity}.
+                5. **Medicines**: Extract as a list of objects {ms_no, medicine_name, strength, days, quantity}. Extract the exact quantity listed in the report directly instead of calculating it from daily dosages.
                 
                 Return ONLY raw JSON. If a value is missing, use "". Do not use markdown formatting.
                 """

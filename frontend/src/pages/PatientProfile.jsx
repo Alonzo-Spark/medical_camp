@@ -324,12 +324,16 @@ const PatientProfile = () => {
       }
     }
 
-    // Auto-calc Qty
-    const d = parseInt(newMeds[index].days) || 0;
-    const m = parseInt(newMeds[index].morning) || 0;
-    const a = parseInt(newMeds[index].afternoon) || 0;
-    const n = parseInt(newMeds[index].night) || 0;
-    if (d > 0) newMeds[index].qty = d * (m + a + n);
+    // Auto-calc Qty only if we are not explicitly editing the qty field itself
+    if (field !== 'qty') {
+      const d = parseInt(newMeds[index].days) || 0;
+      const m = parseInt(newMeds[index].morning) || 0;
+      const a = parseInt(newMeds[index].afternoon) || 0;
+      const n = parseInt(newMeds[index].night) || 0;
+      if (d > 0 && (m > 0 || a > 0 || n > 0)) {
+        newMeds[index].qty = d * (m + a + n);
+      }
+    }
 
     setVisitData({ ...visitData, medicines: newMeds });
   };

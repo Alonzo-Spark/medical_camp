@@ -300,7 +300,12 @@ def export(request):
 
 
 def export_camp_stock(request, camp_id):
-    camp = get_object_or_404(MedicalCamp, id=camp_id)
+    camp = MedicalCamp.objects.filter(number=camp_id).first()
+    if not camp:
+        camp = MedicalCamp.objects.filter(id=camp_id).first()
+    if not camp:
+        from django.http import Http404
+        raise Http404("No MedicalCamp matches the given query.")
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = (
         f'attachment; filename="camp_{camp.number}_stock_allocation.csv"'
@@ -345,9 +350,13 @@ def export_camp_stock(request, camp_id):
     
     return response
 
-@api_view(['GET'])
 def export_camp_report(request, camp_id):
-    camp = get_object_or_404(MedicalCamp, id=camp_id)
+    camp = MedicalCamp.objects.filter(number=camp_id).first()
+    if not camp:
+        camp = MedicalCamp.objects.filter(id=camp_id).first()
+    if not camp:
+        from django.http import Http404
+        raise Http404("No MedicalCamp matches the given query.")
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = f'attachment; filename="Camp_{camp.number}_Clinical_Report_{camp.date}.csv"'
 

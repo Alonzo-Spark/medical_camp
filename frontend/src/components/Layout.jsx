@@ -36,6 +36,12 @@ const Layout = () => {
   const initials = adminUsername.slice(0, 2).toUpperCase();
   const userRole = localStorage.getItem('userRole') || 'main_admin';
 
+  React.useEffect(() => {
+    if (location.pathname === '/camp-registration' && userRole !== 'main_admin') {
+      navigate('/dashboard');
+    }
+  }, [location.pathname, userRole, navigate]);
+
   const formatRole = (role) => {
     switch (role) {
       case 'registration_staff': return 'Registration Staff';
@@ -98,11 +104,11 @@ const Layout = () => {
             Clinical Menu
           </p>
           <nav className="flex flex-col gap-1">
+            {userRole === 'main_admin' && (
+              <SidebarLink to="/camp-registration" icon={Stethoscope} label="Camp Registration" active={location.pathname === '/camp-registration'} />
+            )}
             {(userRole === 'main_admin' || userRole === 'registration_staff') && (
-              <>
-                <SidebarLink to="/camp-registration" icon={Stethoscope} label="Camp Registration" active={location.pathname === '/camp-registration'} />
-                <SidebarLink to="/dashboard" icon={LayoutDashboard} label="Dashboard" active={location.pathname === '/dashboard'} />
-              </>
+              <SidebarLink to="/dashboard" icon={LayoutDashboard} label="Dashboard" active={location.pathname === '/dashboard'} />
             )}
 
             {(userRole === 'main_admin' || userRole === 'registration_staff' || userRole === 'log_vitals_staff') && (

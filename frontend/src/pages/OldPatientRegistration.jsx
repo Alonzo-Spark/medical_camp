@@ -105,17 +105,6 @@ function OldPatientRegistration() {
                 const patient = patientRes.data.info;
                 setOriginalPatient(patient);
                 setForm(prev => {
-                    let formattedDate = prev.regdate;
-                    if (patient.registered_date) {
-                        if (patient.registered_date.includes('/')) {
-                            formattedDate = patient.registered_date;
-                        } else if (patient.registered_date.includes('-')) {
-                            const [y, m, d] = patient.registered_date.split('-');
-                            formattedDate = `${d}/${m}/${y}`;
-                        } else {
-                            formattedDate = patient.registered_date;
-                        }
-                    }
                     return {
                         ...prev,
                         name: patient.name || "",
@@ -123,8 +112,8 @@ function OldPatientRegistration() {
                         gender: patient.gender || "",
                         contact: patient.contact || "",
                         address: patient.address || "",
-                        regdate: formattedDate,
-                        camp_session: patient.camp_session || prev.camp_session
+                        regdate: prev.regdate,
+                        camp_session: prev.camp_session
                     };
                 });
                 setPatientFound(true);
