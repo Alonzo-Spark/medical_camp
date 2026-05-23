@@ -25,8 +25,11 @@ const DoctorsList = () => {
   const API_BASE = `http://${window.location.hostname}:8000/api`;
 
   useEffect(() => {
+    fetchCamps();
+  }, []);
+
+  useEffect(() => {
     if (activeTab === 'doctorsList') fetchDoctors();
-    if (activeTab === 'analytics') fetchCamps();
   }, [activeTab]);
 
   const fetchDoctors = async () => {
@@ -55,10 +58,11 @@ const DoctorsList = () => {
       const res = await fetch(`${API_BASE}/camps`);
       const data = await res.json();
       setCamps(data);
-      if (data.length > 0 && !selectedCamp) {
-        setSelectedCamp(data[0].id);
-        fetchCampDetails(data[0].id);
-      }
+      // Optional: don't auto-select the first camp to show "Select Camp..." placeholder
+      // if (data.length > 0 && !selectedCamp) {
+      //   setSelectedCamp(data[0].id);
+      //   fetchCampDetails(data[0].id);
+      // }
     } catch (err) {
       console.error("Error fetching camps:", err);
     } finally {
@@ -207,15 +211,33 @@ const DoctorsList = () => {
           </div>
         </div>
 
-        <div className="relative group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-teal-500 transition-colors" size={18} strokeWidth={2.5} />
-          <input
-            type="text"
-            placeholder="Search by name or ID..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="bg-slate-50 border border-slate-200 rounded-xl py-3 pl-11 pr-4 text-sm font-semibold focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none w-full md:w-72 transition-all placeholder:text-slate-400"
-          />
+        <div className="flex flex-col md:flex-row items-center gap-4">
+          <select
+            className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all cursor-pointer min-w-[200px]"
+            value={selectedCamp}
+            onChange={(e) => {
+              setSelectedCamp(e.target.value);
+              fetchCampDetails(e.target.value);
+            }}
+          >
+            <option value="" disabled>Select Camp...</option>
+            {camps.map((c) => (
+              <option key={c.id} value={c.id}>
+                Camp #{c.number} — {c.venue}
+              </option>
+            ))}
+          </select>
+
+          <div className="relative group w-full md:w-auto">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-teal-500 transition-colors" size={18} strokeWidth={2.5} />
+            <input
+              type="text"
+              placeholder="Search by name or ID..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="bg-slate-50 border border-slate-200 rounded-xl py-3 pl-11 pr-4 text-sm font-semibold focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none w-full md:w-72 transition-all placeholder:text-slate-400"
+            />
+          </div>
         </div>
       </div>
 
@@ -395,33 +417,8 @@ const DoctorsList = () => {
 
       {activeTab === 'analytics' && (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          {/* Camp Selector */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center gap-4">
-            <div className="flex items-center gap-3">
-               <div className="p-2 bg-amber-50 rounded-lg">
-                 <Activity className="text-amber-600" size={20} />
-               </div>
-               <div>
-                  <h3 className="text-sm font-black text-slate-800">Select Medical Camp</h3>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">View detailed performance reports</p>
-               </div>
-            </div>
-            
-            <select
-              className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all cursor-pointer"
-              value={selectedCamp}
-              onChange={(e) => {
-                setSelectedCamp(e.target.value);
-                fetchCampDetails(e.target.value);
-              }}
-            >
-              {camps.map((c) => (
-                <option key={c.id} value={c.id}>
-                  Camp #{c.number} — {c.venue} ({c.date})
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Camp Selector removed from here as it's now in the header */}
+
 
           {analyticsLoading ? (
             <div className="flex items-center justify-center h-64">

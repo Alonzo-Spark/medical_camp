@@ -408,14 +408,14 @@ const MedicineEntry = () => {
           Medicine Details
         </button>
 
-        {viewMode === 'camp' && (
+        {(viewMode === 'camp' || viewMode === 'details') && (
           <div className="flex flex-1 items-center gap-4 animate-in fade-in slide-in-from-left-4">
             <select
               className="flex-1 bg-white border border-slate-200 rounded-2xl px-5 py-4 text-xs font-black text-slate-600 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 outline-none transition-all appearance-none cursor-pointer"
               value={selectedCamp}
               onChange={e => setSelectedCamp(e.target.value)}
             >
-              <option value="">Select Target Camp...</option>
+              <option value="">Select Camp</option>
               {camps.map(camp => (
                 <option key={camp.id} value={camp.id}>
                   {camp.venue} • Camp {camp.number}
@@ -423,7 +423,7 @@ const MedicineEntry = () => {
               ))}
             </select>
 
-            {selectedCamp && (
+            {selectedCamp && viewMode === 'camp' && (
               <div className="flex gap-4 animate-in fade-in zoom-in">
                 <button
                   onClick={handleReturnAll}

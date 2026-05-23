@@ -14,6 +14,7 @@ const CampPatients = lazy(() => import('./pages/CampPatients'));
 const OldPatientRegistration = lazy(() => import('./pages/OldPatientRegistration'));
 const DoctorsList = lazy(() => import('./pages/DoctorsList'));
 const DoctorReport = lazy(() => import('./pages/DoctorReport'));
+const DoctorPatientList = lazy(() => import('./pages/DoctorPatientList'));
 const MobileUpload = lazy(() => import('./pages/MobileUpload'));
 const CampReport = lazy(() => import('./pages/CampReport'));
 
@@ -49,6 +50,7 @@ function App() {
             <Route path="/camp-patients" element={<CampPatients />} />
             <Route path="/doctors" element={<DoctorsList />} />
             <Route path="/doctor-consultation-log" element={<DoctorReport />} />
+            <Route path="/doctor-patient-list" element={<DoctorPatientList />} />
             <Route path="/camp-report" element={<CampReport />} />
 
           </Route>
