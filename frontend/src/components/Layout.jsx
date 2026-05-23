@@ -12,7 +12,8 @@ import {
   PlusSquare,
   LayoutDashboard,
   Users,
-  FileText
+  FileText,
+  FlaskConical
 } from 'lucide-react';
 
 const SidebarLink = ({ to, icon: Icon, label, active }) => (
@@ -120,6 +121,7 @@ const Layout = () => {
                 <SidebarLink to="/vitals" icon={Activity} label="Log Vitals" active={location.pathname === '/vitals'} />
                 <SidebarLink to="/doctors" icon={UserCircle} label="Doctors List" active={location.pathname === '/doctors'} />
                 <SidebarLink to="/doctor-consultation-log" icon={FileText} label="Doctor Consultation Log" active={location.pathname === '/doctor-consultation-log'} />
+                <SidebarLink to="/issued-tests" icon={FlaskConical} label="Issued Tests Tracker" active={location.pathname === '/issued-tests'} />
               </>
             )}
 

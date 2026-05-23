@@ -2265,3 +2265,55 @@ def api_delete_doctor_report(request, record_id):
         return Response({'status': 'success'})
     except Exception as e:
         return Response({'status': 'error', 'message': str(e)}, status=400)
+
+
+
+
+@api_view(['GET'])
+def api_get_patients_with_tests(request):
+    try:
+        # pyrefly: ignore [missing-attribute]
+        issues = TestIssue.objects.all().select_related('test', 'camp', 'camp__venue').order_by('-id')
+
+        patient_ids = list(issues.values_list('patient_id', flat=True).distinct())
+
+        patients = Patient.objects.filter(patient_id__in=patient_ids)
+
+        patient_map = {p.patient_id: p for p in patients}
+
+        groups = {}
+
+        for issue in issues:
+            key = (issue.patient_id, issue.camp_id)
+
+            if key not in groups:
+                patient = patient_map.get(issue.patient_id)
+                groups[key] = {
+                    'patient_id': issue.patient_id,
+                    'patient_name': patient.patient_name if patient else "Unknown Patient",
+                    'contact_no': patient.contact_no if patient else "N/A",
+                    'camp_session': issue.camp_id,
+                    'camp_venue': issue.camp.venue.name if issue.camp and issue.camp.venue else "Unknown Venue",
+                    'tests': [],
+                    'all_reports_issued': True
+                }
+
+            groups[key]['tests'].append({
+                'test_issue_id': issue.id,
+                'test_id': issue.test.test_id if issue.test else "N/A",
+                'test_name': issue.test.name if issue.test else "N/A",
+                'reports_issued': issue.reports_issued,
+            })
+
+            if not issue.reports_issued:
+                groups[key]['all_reports_issued'] = False
+                
+        return Response(list(groups.values()))
+        
+    except Exception as e:
+        return Response({'status': 'error', 'message': str(e)}, status=400)
+        
+
+
+        
+

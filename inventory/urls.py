@@ -62,6 +62,7 @@ urlpatterns = [
     path('api/doctor_analytics', api_doctor_analytics),
     path('api/camps', api_get_all_camps),
     path('api/camp_details/<int:camp_id>', api_get_camp_details),
+    path('api/issued_tests_list', api_get_patients_with_tests),
 
 
 

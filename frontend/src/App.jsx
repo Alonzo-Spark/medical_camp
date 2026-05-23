@@ -16,6 +16,8 @@ const DoctorsList = lazy(() => import('./pages/DoctorsList'));
 const DoctorReport = lazy(() => import('./pages/DoctorReport'));
 const MobileUpload = lazy(() => import('./pages/MobileUpload'));
 const CampReport = lazy(() => import('./pages/CampReport'));
+const IssuedTestList = lazy(() => import('./pages/IssuedTestList'));
+
 
 
 // Loading component
@@ -50,7 +52,7 @@ function App() {
             <Route path="/doctors" element={<DoctorsList />} />
             <Route path="/doctor-consultation-log" element={<DoctorReport />} />
             <Route path="/camp-report" element={<CampReport />} />
-
+            <Route path="/issued-tests" element={<IssuedTestList />} />
           </Route>
 
           {/* Mobile scan upload - no layout */}
