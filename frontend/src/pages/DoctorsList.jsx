@@ -30,12 +30,13 @@ const DoctorsList = () => {
 
   useEffect(() => {
     if (activeTab === 'doctorsList') fetchDoctors();
-  }, [activeTab]);
+  }, [activeTab, selectedCamp]);
 
   const fetchDoctors = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/doctors`);
+      const endpoint = selectedCamp ? `${API_BASE}/camp_doctors/${selectedCamp}` : `${API_BASE}/doctors`;
+      const res = await fetch(endpoint);
       let data = await res.json();
       
       // Frontend override to correct spelling without breaking backend analytics
@@ -138,9 +139,18 @@ const DoctorsList = () => {
   };
   const handleToggleStatus = async (id) => {
     try {
-      const res = await fetch(`${API_BASE}/toggle_doctor_status/${id}`, {
-        method: 'POST'
-      });
+      let res;
+      if (selectedCamp) {
+        res = await fetch(`${API_BASE}/toggle_camp_doctor_status`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ camp_id: selectedCamp, doctor_id: id })
+        });
+      } else {
+        res = await fetch(`${API_BASE}/toggle_doctor_status/${id}`, {
+          method: 'POST'
+        });
+      }
       const data = await res.json();
       if (data.status === 'success') {
         fetchDoctors();
@@ -220,7 +230,7 @@ const DoctorsList = () => {
               fetchCampDetails(e.target.value);
             }}
           >
-            <option value="" disabled>Select Camp...</option>
+            <option value="">Global / Select Camp...</option>
             {camps.map((c) => (
               <option key={c.id} value={c.id}>
                 Camp #{c.number} — {c.venue}

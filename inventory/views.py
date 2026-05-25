@@ -41,7 +41,8 @@ from .models import (
     CampWiseStock,
     Doctor,
     ScanSession,
-
+    CampWiseDoctor,
+    PatientCampVisit
 )
 
 def charts_data(vitals):
@@ -319,6 +320,8 @@ def export_camp_stock(request, camp_id):
         'Medicine UQID',
         'Medicine Name',
         'Formulation',
+        'Company Name',
+        'Expiry Date',
         'Warehouse Stock',
         'Allocated Stock',
         'Used Stock',
@@ -340,6 +343,8 @@ def export_camp_stock(request, camp_id):
             s.medicine.uqid,
             s.medicine.name,
             s.medicine.formulation or '',
+            s.company_name or '',
+            s.expiry_date.strftime('%Y-%m-%d') if s.expiry_date else '',
             s.medicine.stock,
             s.allocated_stock,
             s.used_stock,
@@ -458,6 +463,43 @@ def api_update_medicine_details(request):
         return Response({
             'status': 'success',
             'message': 'Medicine details updated successfully'
+        })
+    except Exception as e:
+        return Response({
+            'status': 'error',
+            'message': str(e)
+        }, status=400)
+
+@api_view(['POST'])
+def api_update_camp_medicine_details(request):
+    try:
+        data = request.data
+        camp_id = data.get('camp_id')
+        uqid = data.get('uqid')
+        company_name = data.get('company_name')
+        expiry = data.get('expiry_date')
+        
+        camp = get_object_or_404(MedicalCamp, id=camp_id)
+        medicine = get_object_or_404(Medicine, uqid=uqid)
+        
+        camp_stock, created = CampWiseStock.objects.get_or_create(
+            camp=camp,
+            medicine=medicine,
+            defaults={'allocated_stock': 0, 'used_stock': 0}
+        )
+        
+        camp_stock.company_name = company_name if company_name else None
+        
+        if expiry and expiry.strip():
+            camp_stock.expiry_date = expiry
+        else:
+            camp_stock.expiry_date = None
+            
+        camp_stock.save()
+        
+        return Response({
+            'status': 'success',
+            'message': 'Camp-wise medicine details updated successfully'
         })
     except Exception as e:
         return Response({
@@ -776,17 +818,21 @@ def api_issue_medicine(request):
         med_issues = data.get('issues', [])
         camp = get_object_or_404(MedicalCamp, id=camp_id)
         
-        # Check if patient is registered
+        # Check if patient is registered; if not, auto-create a skeleton patient record
         try:
             p_id_int = int(patient_id)
         except:
             p_id_int = 0
         # pyrefly: ignore [missing-attribute]
         if not Patient.objects.filter(patient_id=p_id_int).exists():
-            return Response({
-                'status': 'error',
-                'message': f'Patient ID {p_id_int} is not registered. Please register the patient first.'
-            }, status=400)
+            # pyrefly: ignore [missing-attribute]
+            Patient.objects.create(
+                patient_id=p_id_int,
+                patient_name=data.get('patient_name') or f"Patient {p_id_int}",
+                patient_age=int(data.get('patient_age')) if data.get('patient_age') else None,
+                registered_date=camp.date,
+                camp_session=camp.number
+            )
             
         aggregated_issues = {}
         for item in med_issues:
@@ -872,14 +918,18 @@ def api_save_vitals(request):
             except:
                 return default
 
-        # Check if patient is registered
+        # Check if patient is registered; if not, auto-create a skeleton patient record
         p_id_int = safe_int(patient_id)
         # pyrefly: ignore [missing-attribute]
         if not Patient.objects.filter(patient_id=p_id_int).exists():
-            return Response({
-                'status': 'error',
-                'message': f'Patient ID {p_id_int} is not registered. Please register the patient first.'
-            }, status=400)
+            # pyrefly: ignore [missing-attribute]
+            Patient.objects.create(
+                patient_id=p_id_int,
+                patient_name=data.get('patient_name') or f"Patient {p_id_int}",
+                patient_age=safe_int(data.get('patient_age')) or None,
+                registered_date=camp.date,
+                camp_session=camp.number
+            )
 
         # Create the vitals record
         # pyrefly: ignore [missing-attribute]
@@ -1343,11 +1393,13 @@ def api_login(request):
 
 @api_view(['GET'])
 def api_check_patient_id(request, pid):
-    # pyrefly: ignore [missing-attribute]
     patient = Patient.objects.filter(patient_id=pid).first()
     if patient:
+        # A patient is a skeleton record if they lack a contact number (which is required during registration)
+        is_skeleton = not bool(patient.contact_no)
         return Response({
             'exists': True, 
+            'is_skeleton': is_skeleton,
             'patient_name': patient.patient_name,
             'patient_gender': patient.patient_gender,
             'patient_age': patient.patient_age
@@ -1425,7 +1477,9 @@ def api_get_specific_camp_stock(request, camp_id):
                 'returned': s['returned'],
                 'remaining': s['remaining'],
                 'unit_cost': s.get('unit_cost'),
-                'alternate_name': s.get('alternate_name')
+                'alternate_name': s.get('alternate_name'),
+                'company_name': s.get('company_name'),
+                'expiry_date': s.get('expiry_date')
             }
         return Response(data)
     except Exception as e:
@@ -1459,6 +1513,9 @@ def api_allocate_to_camp(request):
                 'message': f'Insufficient stock in warehouse. Available: {medicine.stock}'
             }, status=400)
         
+        company_name = data.get('company_name')
+        expiry_date = data.get('expiry_date')
+
         # pyrefly: ignore [missing-attribute]
         camp_stock, created = CampWiseStock.objects.get_or_create(
             camp=camp,
@@ -1469,6 +1526,10 @@ def api_allocate_to_camp(request):
         medicine.stock -= qty
         medicine.save()
         camp_stock.allocated_stock += qty
+        if company_name:
+            camp_stock.company_name = company_name
+        if expiry_date:
+            camp_stock.expiry_date = expiry_date
         camp_stock.save()
         
         return Response({
@@ -1608,6 +1669,12 @@ def api_register_camp(request):
             date=camp_date
         )
         camp.refresh_from_db()
+        
+        # Populate CampWiseDoctor with all doctors set to active=True
+        doctors = Doctor.objects.all()
+        for doc in doctors:
+            CampWiseDoctor.objects.get_or_create(camp=camp, doctor=doc, defaults={'is_active': True})
+            
         serializer = MedicalCampSerializer(camp)
         return Response({
             'status': 'success',
@@ -1907,6 +1974,11 @@ def api_add_doctor(request):
             specialization=specialization
         )
         
+        # Add the new doctor to all existing camps as active
+        camps = MedicalCamp.objects.all()
+        for camp in camps:
+            CampWiseDoctor.objects.get_or_create(camp=camp, doctor=doctor, defaults={'is_active': True})
+            
         return Response({
             'status': 'success',
             'doctor_id': doctor.id,
@@ -1967,6 +2039,63 @@ def api_toggle_doctor_status(request, doctor_id):
         return Response({'status': 'error', 'message': str(e)}, status=400)
 
 @api_view(['GET'])
+def api_get_camp_doctors(request, camp_id):
+    camp = MedicalCamp.objects.filter(number=camp_id).first()
+    if not camp:
+        camp = MedicalCamp.objects.filter(id=camp_id).first()
+    if not camp:
+        return Response({'status': 'error', 'message': 'Camp not found'}, status=404)
+    
+    doctors = Doctor.objects.all().order_by('id')
+    camp_wise_docs = CampWiseDoctor.objects.filter(camp=camp)
+    camp_wise_map = {cwd.doctor_id: cwd.is_active for cwd in camp_wise_docs}
+    
+    data = []
+    for dr in doctors:
+        is_active = camp_wise_map.get(dr.id, False)
+        data.append({
+            'id': dr.id,
+            'dr_id': str(dr.id),
+            'dr_name': dr.name,
+            'specialization': dr.specialization or '',
+            'is_active': is_active
+        })
+    return Response(data)
+
+@api_view(['POST'])
+def api_toggle_camp_doctor_status(request):
+    camp_id = request.data.get('camp_id')
+    doctor_id = request.data.get('doctor_id')
+    if not camp_id or not doctor_id:
+        return Response({'status': 'error', 'message': 'camp_id and doctor_id are required'}, status=400)
+    
+    camp = MedicalCamp.objects.filter(number=camp_id).first()
+    if not camp:
+        camp = MedicalCamp.objects.filter(id=camp_id).first()
+    if not camp:
+        return Response({'status': 'error', 'message': 'Camp not found'}, status=404)
+        
+    doctor = get_object_or_404(Doctor, id=doctor_id)
+    
+    cwd_qs = CampWiseDoctor.objects.filter(camp=camp, doctor=doctor)
+    if cwd_qs.exists():
+        # If record exists, the doctor is currently active.
+        # Toggling makes them inactive, so we delete/remove the record from the table.
+        cwd_qs.delete()
+        is_active = False
+    else:
+        # If record does not exist, the doctor is currently inactive (default).
+        # Toggling makes them active, so we create/keep the record in the table.
+        CampWiseDoctor.objects.create(camp=camp, doctor=doctor, is_active=True)
+        is_active = True
+    
+    return Response({
+        'status': 'success',
+        'message': f'Doctor marked as {"Active" if is_active else "Inactive"} for this camp',
+        'is_active': is_active
+    })
+
+@api_view(['GET'])
 def api_doctor_analytics(request):
     # pyrefly: ignore [untyped-import]
     from django.db.models import Count
@@ -2007,7 +2136,10 @@ def api_get_camp_details(request, camp_id):
     for v in vitals:
         dr_key = v.dr_name or "Unknown Doctor"
         if dr_key not in doctors_map:
-            doctors_map[dr_key] = []
+            doctors_map[dr_key] = {
+                'dr_id': v.dr_id,
+                'patients': []
+            }
             seen_patients[dr_key] = set()
             
         # pyrefly: ignore [missing-attribute]
@@ -2020,7 +2152,8 @@ def api_get_camp_details(request, camp_id):
 
         if p_name not in seen_patients[dr_key]:
             seen_patients[dr_key].add(p_name)
-            doctors_map[dr_key].append({
+            doctors_map[dr_key]['patients'].append({
+                'id': v.id,
                 'patient_id': v.patient_id,
                 'patient_name': p_name,
                 'source': 'Logged Vitals',
@@ -2033,7 +2166,10 @@ def api_get_camp_details(request, camp_id):
     for mr in manual_records:
         dr_key = mr.doctor_name or (mr.doctor.name if mr.doctor else "Unknown Doctor")
         if dr_key not in doctors_map:
-            doctors_map[dr_key] = []
+            doctors_map[dr_key] = {
+                'dr_id': str(mr.doctor.id) if mr.doctor else None,
+                'patients': []
+            }
             seen_patients[dr_key] = set()
             
         p_name = mr.patient_name
@@ -2049,7 +2185,7 @@ def api_get_camp_details(request, camp_id):
                 meds = []
                 tests = []
                 
-            doctors_map[dr_key].append({
+            doctors_map[dr_key]['patients'].append({
                 'patient_id': mr.patient_id_string,
                 'patient_name': p_name,
                 'source': 'Manually Added',
@@ -2063,10 +2199,11 @@ def api_get_camp_details(request, camp_id):
         'doctors': []
     }
     
-    for dr_name, patients in doctors_map.items():
+    for dr_name, info in doctors_map.items():
         data['doctors'].append({
+            'dr_id': info['dr_id'],
             'dr_name': dr_name,
-            'patients': patients
+            'patients': info['patients']
         })
         
     return Response(data)
@@ -2266,6 +2403,43 @@ def api_delete_doctor_report(request, record_id):
     except Exception as e:
         return Response({'status': 'error', 'message': str(e)}, status=400)
 
+@api_view(['POST'])
+@transaction.atomic
+def api_edit_doctor_patient_assignment(request):
+    try:
+        from .models import ManualPatientRecord, PatientVitals, Patient, Doctor
+        data = request.data
+        is_manual = data.get('is_manual')
+        record_id = data.get('record_id')
+        patient_id = data.get('patient_id')
+        patient_name = data.get('patient_name')
+        doctor_id = data.get('doctor_id')
+        doctor_name = data.get('doctor_name')
+        
+        if is_manual:
+            record = get_object_or_404(ManualPatientRecord, id=record_id)
+            if doctor_id:
+                record.doctor = get_object_or_404(Doctor, id=doctor_id)
+            else:
+                record.doctor = None
+            record.doctor_name = doctor_name or (record.doctor.name if record.doctor else '')
+            record.patient_id_string = str(patient_id)
+            record.patient_name = patient_name
+            record.save()
+        else:
+            vitals = get_object_or_404(PatientVitals, id=record_id)
+            vitals.patient_id = int(patient_id)
+            vitals.dr_id = str(doctor_id) if doctor_id else ''
+            vitals.dr_name = doctor_name or ''
+            vitals.save()
+            
+            # Also update the patient's name in the Patient table if they edited it
+            Patient.objects.filter(patient_id=vitals.patient_id).update(patient_name=patient_name)
+            
+        return Response({'status': 'success', 'message': 'Record updated successfully'})
+    except Exception as e:
+        return Response({'status': 'error', 'message': str(e)}, status=400)
+
 
 
 
@@ -2310,6 +2484,203 @@ def api_get_patients_with_tests(request):
                 
         return Response(list(groups.values()))
         
+    except Exception as e:
+        return Response({'status': 'error', 'message': str(e)}, status=400)
+
+
+@api_view(['POST'])
+def api_ocr_patient_list(request):
+    try:
+        session_id = request.data.get('session_id')
+        if not session_id:
+            return Response({'status': 'error', 'message': 'No session_id provided'}, status=400)
+            
+        session = ScanSession.objects.filter(session_id=session_id).first()
+        if not session:
+            return Response({'status': 'error', 'message': 'Invalid session_id'}, status=404)
+            
+        if not session.image:
+            return Response({'status': 'error', 'message': 'No image uploaded in this session'}, status=400)
+            
+        patients, message = ocr_service.process_patient_list(session.image.path)
+        
+        # Enrich list with exists_in_db checks
+        enriched_patients = []
+        if isinstance(patients, list):
+            for p in patients:
+                pid = p.get('patient_id')
+                exists = False
+                existing_pat = None
+                if pid:
+                    try:
+                        existing_pat = Patient.objects.filter(patient_id=int(pid)).first()
+                        exists = bool(existing_pat)
+                    except ValueError:
+                        pass
+                
+                if exists and existing_pat:
+                    db_reg_date = ""
+                    if existing_pat.registered_date:
+                        db_reg_date = str(existing_pat.registered_date)
+                    enriched_patients.append({
+                        'patient_id': existing_pat.patient_id,
+                        'name': existing_pat.patient_name or p.get('name') or '',
+                        'gender': existing_pat.patient_gender or p.get('gender') or '',
+                        'age': existing_pat.patient_age or p.get('age') or '',
+                        'address': existing_pat.patient_addr or p.get('address') or '',
+                        'contact_no': existing_pat.contact_no or p.get('contact_no') or '',
+                        'reg_date': db_reg_date,
+                        'old_or_new': 'Old',
+                        'exists_in_db': True
+                    })
+                else:
+                    ocr_old_new = p.get('old_or_new') or 'New'
+                    # Standardize value to capitalized "Old" or "New"
+                    if isinstance(ocr_old_new, str):
+                        ocr_old_new = 'Old' if 'old' in ocr_old_new.lower() else 'New'
+                    enriched_patients.append({
+                        'patient_id': pid,
+                        'name': p.get('name') or '',
+                        'gender': p.get('gender') or '',
+                        'age': p.get('age') or '',
+                        'address': p.get('address') or '',
+                        'contact_no': p.get('contact_no') or '',
+                        'reg_date': p.get('reg_date') or '',
+                        'old_or_new': ocr_old_new,
+                        'exists_in_db': False
+                    })
+                
+        return Response({
+            'status': 'success',
+            'message': message,
+            'patients': enriched_patients
+        })
+    except Exception as e:
+        return Response({'status': 'error', 'message': str(e)}, status=400)
+
+
+def normalize_date_to_django(date_str):
+    if not date_str:
+        return None
+    
+    date_str = date_str.strip()
+    
+    # 1. Handle DD/MM/YY or DD/MM/YYYY
+    if '/' in date_str:
+        try:
+            parts = date_str.split('/')
+            if len(parts) == 3:
+                day, month, year = parts[0], parts[1], parts[2]
+                if len(year) == 2:
+                    year = "20" + year
+                return f"{year.zfill(4)}-{month.zfill(2)}-{day.zfill(2)}"
+        except:
+            pass
+            
+    # 2. Handle DD-MM-YY or DD-MM-YYYY
+    if '-' in date_str:
+        parts = date_str.split('-')
+        if len(parts) == 3:
+            if len(parts[0]) == 4:
+                return date_str
+            try:
+                day, month, year = parts[0], parts[1], parts[2]
+                if len(year) == 2:
+                    year = "20" + year
+                return f"{year.zfill(4)}-{month.zfill(2)}-{day.zfill(2)}"
+            except:
+                pass
+                
+    return date_str
+
+
+@api_view(['POST'])
+@transaction.atomic
+def api_bulk_add_patients(request):
+    try:
+        data = request.data
+        patients = data.get('patients', [])
+        camp_num = data.get('camp_number')
+        default_camp_num = data.get('default_camp_number', 15)
+        
+        if not camp_num:
+            return Response({'status': 'error', 'message': 'Target camp number is required'}, status=400)
+            
+        target_camp = get_object_or_404(MedicalCamp, number=int(camp_num))
+        default_camp = MedicalCamp.objects.filter(number=int(default_camp_num)).first()
+        
+        created_count = 0
+        updated_count = 0
+        
+        for p in patients:
+            pid_val = p.get('patient_id')
+            if not pid_val:
+                continue
+                
+            pid = int(pid_val)
+            name = p.get('name')
+            gender = p.get('gender')
+            age_val = p.get('age')
+            try:
+                age = int(round(float(age_val))) if age_val else None
+            except (ValueError, TypeError):
+                age = None
+            address = p.get('address')
+            contact_no = p.get('contact_no')
+            reg_date_str = p.get('reg_date')
+            
+            # Parse reg_date if entered, else default based on camp dates
+            reg_date = normalize_date_to_django(reg_date_str)
+            
+            # Determine if they are Old or New
+            old_or_new_val = p.get('old_or_new') or 'New'
+            is_new = 'old' not in old_or_new_val.lower()
+            
+            patient_camp_num = camp_num if is_new else default_camp_num
+            
+            if not reg_date:
+                if is_new:
+                    reg_date = target_camp.date
+                else:
+                    reg_date = default_camp.date if default_camp else target_camp.date
+            
+            # Check if patient exists
+            patient_exists = Patient.objects.filter(patient_id=pid).exists()
+            
+            patient, created = Patient.objects.update_or_create(
+                patient_id=pid,
+                defaults={
+                    'patient_name': name,
+                    'patient_age': age,
+                    'patient_gender': gender,
+                    'contact_no': contact_no,
+                    'patient_addr': address,
+                    'registered_date': reg_date,
+                    'camp_session': int(patient_camp_num)
+                }
+            )
+            
+            if created:
+                created_count += 1
+            else:
+                updated_count += 1
+                
+            # Create a patient visit record for the current camp session
+            PatientCampVisit.objects.update_or_create(
+                patient=patient,
+                camp=target_camp,
+                defaults={
+                    'visit_date': target_camp.date,
+                    'is_new': (patient.registered_date == target_camp.date)
+                }
+            )
+            
+        return Response({
+            'status': 'success',
+            'created_count': created_count,
+            'updated_count': updated_count,
+            'message': f'Successfully processed patients: {created_count} created, {updated_count} updated.'
+        })
     except Exception as e:
         return Response({'status': 'error', 'message': str(e)}, status=400)
         

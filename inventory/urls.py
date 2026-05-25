@@ -16,6 +16,7 @@ urlpatterns = [
     path('api/doctor_camp_reports/<int:camp_id>', api_get_doctor_report),
     path('api/save_doctor_report', api_save_doctor_report),
     path('api/delete_doctor_report/<int:record_id>', api_delete_doctor_report),
+    path('api/edit_doctor_patient_assignment', api_edit_doctor_patient_assignment),
 
 
     # API Endpoints
@@ -23,6 +24,7 @@ urlpatterns = [
     path('api/medicines', api_get_medicines),
     path('api/add_medicine', api_add_medicine),
     path('api/update_medicine_details', api_update_medicine_details),
+    path('api/update_camp_medicine_details', api_update_camp_medicine_details),
     path('api/update_medicine_profile', api_update_medicine_profile),
     path('api/update_camp_unit_cost', api_update_camp_unit_cost),
     path('api/update_camp_alternate_name', api_update_camp_alternate_name),
@@ -53,12 +55,16 @@ urlpatterns = [
     path('api/create_scan_session', api_create_scan_session),
     path('api/upload_scan/<uuid:session_id>', api_upload_scan),
     path('api/check_scan_status/<uuid:session_id>', api_check_scan_status),
+    path('api/ocr_patient_list', api_ocr_patient_list),
+    path('api/bulk_add_patients', api_bulk_add_patients),
     
     path('api/doctors', api_get_doctors),
+    path('api/camp_doctors/<int:camp_id>', api_get_camp_doctors),
     path('api/add_doctor', api_add_doctor),
     path('api/update_doctor', api_update_doctor),
     path('api/delete_doctor/<int:doctor_id>', api_delete_doctor),
     path('api/toggle_doctor_status/<int:doctor_id>', api_toggle_doctor_status),
+    path('api/toggle_camp_doctor_status', api_toggle_camp_doctor_status),
     path('api/doctor_analytics', api_doctor_analytics),
     path('api/camps', api_get_all_camps),
     path('api/camp_details/<int:camp_id>', api_get_camp_details),

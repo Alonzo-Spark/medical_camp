@@ -135,7 +135,7 @@ class CampWiseStockSerializer(serializers.ModelSerializer):
         model = CampWiseStock
         fields = [
             'id', 'camp', 'medicine', 'medicine_name', 'medicine_uqid', 
-            'allocated_stock', 'allocated', 'used_stock', 'used', 'returned_stock', 'returned', 'remaining', 'unit_cost', 'alternate_name', 'created_at'
+            'allocated_stock', 'allocated', 'used_stock', 'used', 'returned_stock', 'returned', 'remaining', 'unit_cost', 'alternate_name', 'company_name', 'expiry_date', 'created_at'
         ]
 
     def get_medicine_name(self, obj):

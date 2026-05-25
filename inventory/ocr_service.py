@@ -76,3 +76,55 @@ class MedicalOCRService:
             except Exception as e:
                 print(f"OCR Error: {e}")
                 return {}, str(e)
+
+    def process_patient_list(self, image_path):
+        with self.lock:
+            if not self.model:
+                return [], "Gemini API key not configured."
+                
+            try:
+                img = PIL.Image.open(image_path)
+                
+                prompt = """
+                You are a Medical Document Digitization expert. Extract the table of patients from this sheet into a clean JSON list.
+                For each patient, extract:
+                1. 'patient_id' (integer, use number if found, or try to extract it from the row)
+                2. 'name' (patient's name)
+                3. 'gender' (Male, Female, or Other)
+                4. 'age' (integer or empty string)
+                5. 'address' (string)
+                6. 'contact_no' (string)
+                7. 'reg_date' (format YYYY-MM-DD or empty string)
+                8. 'old_or_new' (string: 'Old' or 'New', classify based on layout, notes, or date)
+                
+                Return the extracted data as a JSON list of objects:
+                [{"patient_id": 101, "name": "John Doe", "gender": "Male", "age": 45, "address": "...", "contact_no": "...", "reg_date": "...", "old_or_new": "New"}]
+                
+                Return ONLY raw JSON list. Do not include any markdown styling, explanation or wrapper.
+                """
+                
+                response = self.model.generate_content(
+                    [prompt, img],
+                    generation_config=genai.GenerationConfig(
+                        response_mime_type="application/json",
+                        temperature=0.1
+                    )
+                )
+                
+                content = response.text
+                
+                try:
+                    structured_data = json.loads(content)
+                    return structured_data, "Extracted successfully"
+                except json.JSONDecodeError:
+                    json_match = re.search(r'(\[.*\])', content, re.DOTALL)
+                    if json_match:
+                        try:
+                            structured_data = json.loads(json_match.group(1))
+                            return structured_data, "Extracted successfully (Regex Fallback)"
+                        except Exception:
+                            pass
+                    return [], "Failed to parse JSON structure"
+            except Exception as e:
+                print(f"OCR Error in process_patient_list: {e}")
+                return [], str(e)

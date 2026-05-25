@@ -10,7 +10,14 @@ const DoctorPatientList = () => {
   const [selectedCamp, setSelectedCamp] = useState('');
   const [dbData, setDbData] = useState(null);
   const [manualRecords, setManualRecords] = useState([]);
+  const [campDoctors, setCampDoctors] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  // Edit modal state
+  const [editingPatient, setEditingPatient] = useState(null);
+  const [editPatientId, setEditPatientId] = useState('');
+  const [editPatientName, setEditPatientName] = useState('');
+  const [editDoctorId, setEditDoctorId] = useState('');
 
   useEffect(() => {
     fetchCamps();
@@ -23,6 +30,17 @@ const DoctorPatientList = () => {
       setCamps(data);
     } catch (err) {
       console.error("Error fetching camps:", err);
+    }
+  };
+
+  const fetchCampDoctors = async (campId) => {
+    if (!campId) return;
+    try {
+      const res = await fetch(`${API_BASE}/camp_doctors/${campId}`);
+      const data = await res.json();
+      setCampDoctors(data.filter(d => d.is_active));
+    } catch (err) {
+      console.error("Error fetching camp doctors:", err);
     }
   };
 
@@ -58,17 +76,74 @@ const DoctorPatientList = () => {
     setSelectedCamp(campId);
     fetchCampDetails(campId);
     fetchManualRecords(campId);
+    fetchCampDoctors(campId);
   };
 
   const filteredManualRecords = manualRecords.filter(record => record.campId == selectedCamp);
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this manual record?')) {
+  const handleOpenEdit = (p, dr) => {
+    setEditingPatient(p);
+    setEditPatientId(p.patient_id || '');
+    setEditPatientName(p.patient_name || '');
+    setEditDoctorId(dr.dr_id || '');
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editPatientId || !editPatientName || !editDoctorId) {
+      alert("Please fill in all fields.");
+      return;
+    }
+    const selectedDoc = campDoctors.find(d => (d.dr_id || d.id).toString() === editDoctorId.toString());
+    const payload = {
+      is_manual: editingPatient.isManual,
+      record_id: editingPatient.isManual ? editingPatient.recordId : editingPatient.id,
+      patient_id: editPatientId,
+      patient_name: editPatientName,
+      doctor_id: editDoctorId,
+      doctor_name: selectedDoc ? selectedDoc.dr_name : ''
+    };
+    try {
+      const res = await fetch(`${API_BASE}/edit_doctor_patient_assignment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        setEditingPatient(null);
+        fetchCampDetails(selectedCamp);
+        fetchManualRecords(selectedCamp);
+      } else {
+        alert("Error updating assignment: " + data.message);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while updating assignment.");
+    }
+  };
+
+  const handleDeleteRecord = async (p) => {
+    const confirmMsg = p.isManual 
+      ? 'Are you sure you want to delete this manual consultation record?'
+      : 'Are you sure you want to delete this vital log record? This will also remove any linked medicine or test issues.';
+      
+    if (window.confirm(confirmMsg)) {
       try {
-        await fetch(`${API_BASE}/delete_doctor_report/${id}`, { method: 'DELETE' });
-        setManualRecords(manualRecords.filter(rec => rec.id !== id));
+        const url = p.isManual
+          ? `${API_BASE}/delete_doctor_report/${p.recordId}`
+          : `${API_BASE}/delete_visit/${p.id}`;
+        const res = await fetch(url, { method: 'DELETE' });
+        const data = await res.json();
+        
+        if (data.status === 'success' || res.ok) {
+          fetchCampDetails(selectedCamp);
+          fetchManualRecords(selectedCamp);
+        } else {
+          alert("Error deleting record: " + (data.message || 'Unknown error'));
+        }
       } catch (err) {
         console.error(err);
+        alert("Failed to delete record.");
       }
     }
   };
@@ -263,19 +338,22 @@ const DoctorPatientList = () => {
                               )}
                             </td>
                             <td className="p-4 pr-6 align-middle text-right">
-                              {p.isManual ? (
-                                <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <button
-                                    onClick={() => handleDelete(p.recordId)}
-                                    className="p-1.5 bg-slate-100 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-all active:scale-95 shadow-sm"
-                                    title="Delete"
-                                  >
-                                    <Trash2 size={14} strokeWidth={2.5} />
-                                  </button>
-                                </div>
-                              ) : (
-                                <span className="text-[10px] text-slate-300 font-bold uppercase tracking-widest italic">DB Record</span>
-                              )}
+                              <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  onClick={() => handleOpenEdit(p, dr)}
+                                  className="p-1.5 bg-slate-100 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded transition-all active:scale-95 shadow-sm"
+                                  title="Edit"
+                                >
+                                  <Edit2 size={14} strokeWidth={2.5} />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteRecord(p)}
+                                  className="p-1.5 bg-slate-100 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-all active:scale-95 shadow-sm"
+                                  title="Delete"
+                                >
+                                  <Trash2 size={14} strokeWidth={2.5} />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -288,6 +366,69 @@ const DoctorPatientList = () => {
           </>
         )}
       </div>
+
+      {/* Edit Modal */}
+      {editingPatient && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 w-full max-w-md shadow-2xl p-6 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-black text-slate-800 tracking-tight">Edit Patient Assignment</h3>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1 mb-6">
+              Updating assignment for {editingPatient.patient_name} ({editingPatient.source})
+            </p>
+            
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Patient ID</label>
+                <input
+                  type="number"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
+                  value={editPatientId}
+                  onChange={(e) => setEditPatientId(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Patient Name</label>
+                <input
+                  type="text"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
+                  value={editPatientName}
+                  onChange={(e) => setEditPatientName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Assign to Doctor</label>
+                <select
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all cursor-pointer"
+                  value={editDoctorId}
+                  onChange={(e) => setEditDoctorId(e.target.value)}
+                >
+                  <option value="">Select Doctor</option>
+                  {campDoctors.map((doc) => (
+                    <option key={doc.id || doc.dr_id} value={doc.dr_id || doc.id}>
+                      {doc.dr_name} {doc.specialization ? `(${doc.specialization})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 mt-8">
+              <button
+                onClick={() => setEditingPatient(null)}
+                className="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-500 py-3 rounded-xl font-black text-xs uppercase tracking-[0.1em] transition-all border border-slate-200 active:scale-95"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                className="flex-1 bg-teal-600 hover:bg-teal-700 text-white py-3 rounded-xl font-black text-xs uppercase tracking-[0.1em] transition-all shadow-md active:scale-95"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

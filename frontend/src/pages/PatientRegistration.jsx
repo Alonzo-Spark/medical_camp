@@ -95,10 +95,22 @@ function PatientRegistration() {
         try {
             const res = await axios.get(`${API_BASE}/check_patient_id/${pid}`);
             if (res.data.exists) {
-                setErrors(prev => ({
-                    ...prev,
-                    pid: "Patient ID already exists. Please use a different ID.",
-                }));
+                if (res.data.is_skeleton) {
+                    setForm(prev => ({
+                        ...prev,
+                        name: res.data.patient_name || prev.name,
+                        age: res.data.patient_age !== null && res.data.patient_age !== undefined ? res.data.patient_age : prev.age,
+                    }));
+                    setErrors(prev => ({
+                        ...prev,
+                        pid: "",
+                    }));
+                } else {
+                    setErrors(prev => ({
+                        ...prev,
+                        pid: "Patient ID already exists. Please use a different ID.",
+                    }));
+                }
             }
         } catch (err) {
             console.error("Error checking Patient ID:", err);

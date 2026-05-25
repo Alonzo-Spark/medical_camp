@@ -68,6 +68,7 @@ const Layout = () => {
       '/camp-patients': 'Camp Patients List',
       '/doctors': 'Doctors List',
       '/doctor-consultation-log': 'Doctor Consultation Log',
+      '/adding-patients': 'Adding Patients',
     };
     return titles[path] || path.replace('/', '').replace('-', ' ');
   };
@@ -113,7 +114,12 @@ const Layout = () => {
             )}
 
             {(userRole === 'main_admin' || userRole === 'registration_staff' || userRole === 'log_vitals_staff') && (
-              <SidebarLink to="/camp-patients" icon={Users} label="Camp Patient List" active={location.pathname === '/camp-patients'} />
+              <>
+                <SidebarLink to="/camp-patients" icon={Users} label="Camp Patient List" active={location.pathname === '/camp-patients'} />
+                {(userRole === 'main_admin' || userRole === 'registration_staff') && (
+                  <SidebarLink to="/adding-patients" icon={UserPlus} label="Adding Patients" active={location.pathname === '/adding-patients'} />
+                )}
+              </>
             )}
 
             {(userRole === 'main_admin' || userRole === 'log_vitals_staff') && (

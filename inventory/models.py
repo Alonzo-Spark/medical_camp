@@ -191,6 +191,8 @@ class CampWiseStock(models.Model):
     available_stock = models.IntegerField(default=0)
     unit_cost = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     alternate_name = models.CharField(max_length=2000, null=True, blank=True)
+    company_name = models.CharField(max_length=2000, null=True, blank=True)
+    expiry_date = models.DateField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -232,3 +234,14 @@ class ManualPatientRecord(models.Model):
 
     def __str__(self):
         return f"{self.patient_name} seen by {self.doctor_name} at {self.camp}"
+
+class CampWiseDoctor(models.Model):
+    camp = models.ForeignKey(MedicalCamp, on_delete=models.CASCADE, related_name='camp_doctors', to_field='number')
+    doctor = models.ForeignKey(Doctor, on_delete=models.CASCADE, related_name='camp_doctors')
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        unique_together = ('camp', 'doctor')
+
+    def __str__(self):
+        return f"{self.doctor.name} - Camp {self.camp.number} ({'Active' if self.is_active else 'Inactive'})"

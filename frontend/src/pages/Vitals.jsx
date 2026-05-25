@@ -365,6 +365,8 @@ const Vitals = () => {
 
       await axios.post(`${API_BASE}/save_vitals`, {
         patient_id: patientId,
+        patient_name: patientName,
+        patient_age: patientAge,
         medical_camp: selectedCamp,
         date: apiDate,
         time,

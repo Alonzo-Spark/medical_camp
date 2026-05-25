@@ -60,7 +60,7 @@ const MedicineEntry = () => {
     axios.get(`${API_BASE}/camp_stock/${selectedCamp}`).then(res => {
       // Map over all medicines to ensure every medicine appears in the camp-wise view
       const stocksArray = medicines.map(med => {
-        const campData = res.data[med.uqid] || { allocated: 0, used: 0, returned: 0, remaining: 0, unit_cost: null, alternate_name: '' };
+        const campData = res.data[med.uqid] || { allocated: 0, used: 0, returned: 0, remaining: 0, unit_cost: null, alternate_name: '', company_name: '', expiry_date: '' };
         return {
           uqid: med.uqid,
           medication: med.name,
@@ -71,7 +71,9 @@ const MedicineEntry = () => {
           returned_stock: campData.returned || 0,
           remaining_stock: Math.max(0, campData.remaining || 0),
           unit_cost: campData.unit_cost !== undefined && campData.unit_cost !== null ? campData.unit_cost : (med.cost || 0),
-          alternate_name: campData.alternate_name || ''
+          alternate_name: campData.alternate_name || '',
+          company_name: campData.company_name || '',
+          expiry_date: campData.expiry_date || ''
         };
       });
       setCampStocks(stocksArray);
@@ -222,22 +224,41 @@ const MedicineEntry = () => {
 
   const handleSaveDetails = async (uqid) => {
     const medDetails = detailsForm[uqid] || {};
-    // If not edited, fall back to current values
     const med = medicines.find(m => m.uqid === uqid);
+    const campStock = campStocks.find(s => s.uqid === uqid);
 
     const cost = medDetails.cost !== undefined ? medDetails.cost : med.cost;
-    const company = medDetails.company_name !== undefined ? medDetails.company_name : med.company_name;
-    const expiry = medDetails.expiry_date !== undefined ? medDetails.expiry_date : med.expiry_date;
+    const company = medDetails.company_name !== undefined ? medDetails.company_name : (selectedCamp && campStock ? campStock.company_name : (med.company_name || ''));
+    const expiry = medDetails.expiry_date !== undefined ? medDetails.expiry_date : (selectedCamp && campStock ? campStock.expiry_date : (med.expiry_date || ''));
 
     try {
-      const res = await axios.post(`${API_BASE}/update_medicine_details`, {
-        uqid: uqid,
-        cost: cost,
-        company_name: company,
-        expiry_date: expiry
-      });
+      if (selectedCamp) {
+        // Save camp-wise details
+        await axios.post(`${API_BASE}/update_camp_medicine_details`, {
+          camp_id: selectedCamp,
+          uqid: uqid,
+          company_name: company,
+          expiry_date: expiry
+        });
 
-      setSuccessMsg(res.data.message);
+        // Also save cost globally as cost/unit_cost updates
+        await axios.post(`${API_BASE}/update_medicine_details`, {
+          uqid: uqid,
+          cost: cost,
+          company_name: med.company_name, // Keep global intact
+          expiry_date: med.expiry_date    // Keep global intact
+        });
+      } else {
+        // Save globally
+        await axios.post(`${API_BASE}/update_medicine_details`, {
+          uqid: uqid,
+          cost: cost,
+          company_name: company,
+          expiry_date: expiry
+        });
+      }
+
+      setSuccessMsg("Details saved successfully");
       setTimeout(() => setSuccessMsg(''), 3000);
       fetchMedicines().then(updatedMeds => {
         fetchCampStocks(updatedMeds);
@@ -753,6 +774,8 @@ const MedicineEntry = () => {
                   <th className="px-3 py-4">UQID</th>
                   <th className="px-3 py-4">Medication Name</th>
                   <th className="px-3 py-4">Formulation</th>
+                  <th className="px-3 py-4">Company Name</th>
+                  <th className="px-3 py-4">Expiry Date</th>
                   <th className="px-3 py-4">Total Stock</th>
                   <th className="px-3 py-4 max-w-[130px] leading-snug">Current Month Stock</th>
                   <th className="px-3 py-4 max-w-[130px] leading-snug">Medicines Issued</th>
@@ -815,7 +838,7 @@ const MedicineEntry = () => {
                                 setTempAltName(stock.alternate_name || '');
                               }}
                               className="p-1.5 bg-slate-50 hover:bg-teal-50 text-slate-400 hover:text-teal-600 rounded-lg border border-slate-200 hover:border-teal-200 transition-all ml-2 flex items-center justify-center shadow-sm"
-                              title="Edit Alternative Name"
+                               title="Edit Alternative Name"
                             >
                               <Edit3 size={14} strokeWidth={2.5} />
                             </button>
@@ -825,6 +848,16 @@ const MedicineEntry = () => {
                       <td className="px-4 py-4">
                         <span className="text-sm font-bold text-slate-600">
                           {stock.formulation || 'Generic Formulation'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4">
+                        <span className="text-sm font-bold text-slate-600">
+                          {stock.company_name || '—'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4">
+                        <span className="text-sm font-bold text-slate-600 font-data">
+                          {stock.expiry_date || '—'}
                         </span>
                       </td>
                       <td className="px-4 py-4">
@@ -919,7 +952,7 @@ const MedicineEntry = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="11" className="px-8 py-24 text-center text-slate-400 font-bold">No records found for camp allocation</td>
+                    <td colSpan="13" className="px-8 py-24 text-center text-slate-400 font-bold">No records found for camp allocation</td>
                   </tr>
                 )}
               </tbody>
@@ -942,6 +975,13 @@ const MedicineEntry = () => {
                 {filteredMeds.length > 0 ? (
                   filteredMeds.map((med) => {
                     const formState = detailsForm[med.uqid] || {};
+                    const campStock = campStocks.find(s => s.uqid === med.uqid);
+                    const displayCompany = formState.company_name !== undefined 
+                      ? formState.company_name 
+                      : (selectedCamp && campStock ? campStock.company_name : (med.company_name || ''));
+                    const displayExpiry = formState.expiry_date !== undefined 
+                      ? formState.expiry_date 
+                      : (selectedCamp && campStock ? campStock.expiry_date : (med.expiry_date || ''));
                     return (
                       <tr key={`details-${med.uqid}`} className="hover:bg-slate-50/40 transition-all group">
                         <td className="px-4 py-4">
@@ -953,7 +993,7 @@ const MedicineEntry = () => {
                             type="text"
                             placeholder="e.g. Pfizer"
                             className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-500"
-                            value={formState.company_name !== undefined ? formState.company_name : (med.company_name || '')}
+                            value={displayCompany}
                             onChange={(e) => handleDetailsChange(med.uqid, 'company_name', e.target.value)}
                           />
                         </td>
@@ -962,7 +1002,7 @@ const MedicineEntry = () => {
                           <input
                             type="date"
                             className="w-auto bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-500 text-slate-600"
-                            value={formState.expiry_date !== undefined ? formState.expiry_date : (med.expiry_date || '')}
+                            value={displayExpiry}
                             onChange={(e) => handleDetailsChange(med.uqid, 'expiry_date', e.target.value)}
                           />
                         </td>

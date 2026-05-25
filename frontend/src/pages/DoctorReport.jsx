@@ -16,9 +16,10 @@ const DoctorReport = () => {
     fetchDoctors();
   }, []);
 
-  const fetchDoctors = async () => {
+  const fetchDoctors = async (campId = null) => {
     try {
-      const res = await fetch(`${API_BASE}/doctors`);
+      const endpoint = campId ? `${API_BASE}/camp_doctors/${campId}` : `${API_BASE}/doctors`;
+      const res = await fetch(endpoint);
       const data = await res.json();
       setAllDoctors(data);
     } catch (err) {
@@ -37,8 +38,10 @@ const DoctorReport = () => {
   };
 
   const handleCampChange = (e) => {
-    setSelectedCamp(e.target.value);
+    const campId = e.target.value;
+    setSelectedCamp(campId);
     setInputs({});
+    fetchDoctors(campId);
   };
 
   const updateInput = (doctorId, field, value) => {
