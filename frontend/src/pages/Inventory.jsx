@@ -28,6 +28,15 @@ const Inventory = () => {
     return searchTerms.every(term => searchableText.includes(term));
   });
 
+  const groupedMeds = filteredMeds.reduce((acc, med) => {
+    const category = med.category || 'Uncategorized';
+    if (!acc[category]) {
+      acc[category] = [];
+    }
+    acc[category].push(med);
+    return acc;
+  }, {});
+
   const handleExport = () => {
     window.location.href = 'http://localhost:8000/export';
   };
@@ -155,101 +164,107 @@ const Inventory = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-500">
+              <tr className="bg-slate-50 border-b border-slate-200 text-sm font-bold uppercase tracking-[0.2em] text-slate-700">
                 <th className="px-8 py-5">Identity (UQID)</th>
                 <th className="px-8 py-5">Medication Description</th>
-                <th className="px-8 py-5">Classification</th>
+                <th className="px-8 py-5">Formulation</th>
                 <th className="px-8 py-5 text-right">Available Stock</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan="5" className="px-8 py-24 text-center">
+                  <td colSpan="4" className="px-8 py-24 text-center">
                     <div className="flex flex-col items-center gap-4 text-slate-400">
                       <div className="h-8 w-8 border-4 border-teal-200 border-t-teal-600 rounded-full animate-spin" />
                       <span className="font-extrabold uppercase tracking-widest text-xs">Syncing Repository...</span>
                     </div>
                   </td>
                 </tr>
-              ) : filteredMeds.length > 0 ? (
-                filteredMeds.map((med) => (
-                  <tr key={med.uqid} className="hover:bg-teal-50/40 transition-all group">
-                    <td className="px-8 py-6">
-                      <span className="font-data text-sm text-teal-600 bg-teal-50 px-3 py-1.5 rounded-lg border border-teal-200">
-                        #{med.uqid}
-                      </span>
-                    </td>
-                    <td className="px-8 py-6">
-                      <div className="flex flex-col">
-                        <span className="font-bold text-slate-800 group-hover:text-teal-700 transition-colors">{med.name}</span>
-                        <span className="text-xs text-slate-400 font-semibold mt-0.5">{med.formulation || 'No formulation specified'}</span>
-                      </div>
-                    </td>
-                    <td className="px-8 py-6">
-                      <span className="text-[10px] font-extrabold uppercase tracking-wider px-3 py-1.5 rounded-lg bg-slate-100 text-slate-500 border border-slate-200">
-                        {med.category}
-                      </span>
-                    </td>
-                    <td className="px-8 py-6 text-right">
-                      {editingUqid === med.uqid ? (
-                        /* Editing mode */
-                        <div className="flex items-center justify-end gap-2">
-                          <input
-                            type="number"
-                            min="0"
-                            autoFocus
-                            value={editValue}
-                            onChange={e => setEditValue(e.target.value)}
-                            onKeyDown={e => handleKeyDown(e, med.uqid)}
-                            onBlur={() => saveStock(med.uqid)}
-                            className="w-24 text-right text-lg font-black font-data bg-white border-2 border-teal-400 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-teal-500/30"
-                            disabled={saving}
-                          />
-                          <button
-                            onMouseDown={(e) => e.preventDefault()} // Prevent blur from firing before click
-                            onClick={() => saveStock(med.uqid)}
-                            disabled={saving}
-                            className="p-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg transition-all disabled:opacity-50"
-                            title="Save"
-                          >
-                            <Check size={16} strokeWidth={3} />
-                          </button>
-                          <button
-                            onMouseDown={(e) => e.preventDefault()} // Prevent blur from firing before click
-                            onClick={cancelEdit}
-                            disabled={saving}
-                            className="p-2 bg-slate-200 hover:bg-slate-300 text-slate-600 rounded-lg transition-all disabled:opacity-50"
-                            title="Cancel"
-                          >
-                            <X size={16} strokeWidth={3} />
-                          </button>
-                        </div>
-                      ) : (
-                        /* Display mode */
-                        <div className="flex flex-col items-end cursor-pointer" onClick={() => startEdit(med)}>
-                          <div className="flex items-center gap-2">
-                            {med.stock < 50 && (
-                              <AlertTriangle size={18} strokeWidth={2.5} className="text-red-500 animate-pulse" title="Low Stock Alert" />
-                            )}
-                            <span className={`text-xl font-black font-data ${med.stock >= 50 ? 'text-slate-800' : 'text-red-500'}`}>
-                              {med.stock}
-                            </span>
-                          </div>
-                          <div className={`h-1.5 w-14 rounded-full mt-2 ${med.stock >= 50 ? 'bg-emerald-100' : 'bg-red-100'}`}>
-                            <div
-                              className={`h-full rounded-full transition-all ${med.stock >= 50 ? 'bg-emerald-500' : 'bg-red-500'}`}
-                              style={{ width: `${Math.min(med.stock, 100)}%` }}
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
+              ) : Object.keys(groupedMeds).length > 0 ? (
+                Object.entries(groupedMeds).map(([category, meds]) => (
+                  <React.Fragment key={category}>
+                    <tr>
+                      <td colSpan="4" className="bg-slate-200 px-8 py-3 font-black text-slate-800 uppercase tracking-[0.2em] text-xs border-y-2 border-slate-300 shadow-sm text-center">
+                        {category}
+                      </td>
+                    </tr>
+                    {meds.map((med) => (
+                      <tr key={med.uqid} className="hover:bg-teal-50/40 transition-all group">
+                        <td className="px-8 py-6">
+                          <span className="font-data text-sm text-teal-600 bg-teal-50 px-3 py-1.5 rounded-lg border border-teal-200">
+                            #{med.uqid}
+                          </span>
+                        </td>
+                        <td className="px-8 py-6">
+                          <span className="font-bold text-slate-800 group-hover:text-teal-700 transition-colors text-base">{med.name}</span>
+                        </td>
+                        <td className="px-8 py-6">
+                          <span className="text-base font-bold text-slate-700">
+                            {med.formulation || '—'}
+                          </span>
+                        </td>
+                        <td className="px-8 py-6 text-right">
+                          {editingUqid === med.uqid ? (
+                            /* Editing mode */
+                            <div className="flex items-center justify-end gap-2">
+                              <input
+                                type="number"
+                                min="0"
+                                autoFocus
+                                value={editValue}
+                                onChange={e => setEditValue(e.target.value)}
+                                onKeyDown={e => handleKeyDown(e, med.uqid)}
+                                onBlur={() => saveStock(med.uqid)}
+                                className="w-24 text-right text-lg font-black font-data bg-white border-2 border-teal-400 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-teal-500/30"
+                                disabled={saving}
+                              />
+                              <button
+                                onMouseDown={(e) => e.preventDefault()} // Prevent blur from firing before click
+                                onClick={() => saveStock(med.uqid)}
+                                disabled={saving}
+                                className="p-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg transition-all disabled:opacity-50"
+                                title="Save"
+                              >
+                                <Check size={16} strokeWidth={3} />
+                              </button>
+                              <button
+                                onMouseDown={(e) => e.preventDefault()} // Prevent blur from firing before click
+                                onClick={cancelEdit}
+                                disabled={saving}
+                                className="p-2 bg-slate-200 hover:bg-slate-300 text-slate-600 rounded-lg transition-all disabled:opacity-50"
+                                title="Cancel"
+                              >
+                                <X size={16} strokeWidth={3} />
+                              </button>
+                            </div>
+                          ) : (
+                            /* Display mode */
+                            <div className="flex flex-col items-end cursor-pointer" onClick={() => startEdit(med)}>
+                              <div className="flex items-center gap-2">
+                                {med.stock < 50 && (
+                                  <AlertTriangle size={18} strokeWidth={2.5} className="text-red-500 animate-pulse" title="Low Stock Alert" />
+                                )}
+                                <span className={`text-xl font-black font-data ${med.stock >= 50 ? 'text-slate-800' : 'text-red-500'}`}>
+                                  {med.stock}
+                                </span>
+                              </div>
+                              <div className={`h-1.5 w-14 rounded-full mt-2 ${med.stock >= 50 ? 'bg-emerald-100' : 'bg-red-100'}`}>
+                                <div
+                                  className={`h-full rounded-full transition-all ${med.stock >= 50 ? 'bg-emerald-500' : 'bg-red-500'}`}
+                                  style={{ width: `${Math.min(med.stock, 100)}%` }}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </React.Fragment>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="5" className="px-8 py-32 text-center">
+                  <td colSpan="4" className="px-8 py-32 text-center">
                     <div className="flex flex-col items-center gap-4 animate-fade-in">
                       <div className="p-6 bg-slate-50 rounded-2xl border border-slate-200 mb-2">
                         <PackageOpen size={60} strokeWidth={1} className="text-slate-300" />

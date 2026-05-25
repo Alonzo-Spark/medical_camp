@@ -65,6 +65,7 @@ const MedicineEntry = () => {
           uqid: med.uqid,
           medication: med.name,
           formulation: med.formulation || '',
+          category_name: med.category_name || med.category || 'Uncategorized',
           total_stock: med.stock,
           camp_stock: campData.allocated,
           used_stock: campData.used,
@@ -384,6 +385,18 @@ const MedicineEntry = () => {
     s.uqid.toString().includes(searchTerm)
   );
 
+  const groupByCategory = (items) => {
+    return items.reduce((acc, item) => {
+      const cat = item.category_name || 'Uncategorized';
+      if (!acc[cat]) acc[cat] = [];
+      acc[cat].push(item);
+      return acc;
+    }, {});
+  };
+
+  const groupedMeds = groupByCategory(filteredMeds);
+  const groupedCampStocks = groupByCategory(filteredCampStocks);
+
   return (
     <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 space-y-8 pb-10">
       {/* Header Section */}
@@ -603,6 +616,7 @@ const MedicineEntry = () => {
                 <tr className="bg-slate-50 border-b border-slate-100 text-[12px] font-black uppercase tracking-wide text-slate-600">
                   <th className="px-4 py-4 max-w-[130px] leading-snug">System Identity (UQID)</th>
                   <th className="px-4 py-4">Medication Description</th>
+                  <th className="px-4 py-4">Formulation</th>
                   <th className="px-4 py-4">Unit Cost (₹)</th>
                   <th className="px-4 py-4">Total Cost (₹)</th>
                   <th className="px-4 py-4 max-w-[130px] leading-snug">Global Inventory Status</th>
@@ -619,135 +633,147 @@ const MedicineEntry = () => {
                       </div>
                     </td>
                   </tr>
-                ) : filteredMeds.length > 0 ? (
-                  filteredMeds.map((med) => (
-                    <tr key={med.uqid} className="hover:bg-teal-50/40 transition-all group">
-                      <td className="px-4 py-4">
-                        {editingMedId === med.uqid ? (
-                          <input
-                            type="text"
-                            className="w-full max-w-[100px] bg-white border border-teal-300 rounded-lg px-2 py-1.5 text-sm font-data outline-none focus:ring-2 focus:ring-teal-500/20 shadow-sm"
-                            value={editMedData.uqid}
-                            onChange={(e) => setEditMedData({ ...editMedData, uqid: e.target.value })}
-                          />
-                        ) : (
-                          <span className="font-data text-sm font-bold text-teal-600 bg-teal-50 px-3 py-1.5 rounded-lg border border-teal-100">
-                            #{med.uqid}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-4">
-                        {editingMedId === med.uqid ? (
-                          <div className="flex flex-col gap-1 max-w-md">
-                            <input
-                              type="text"
-                              className="w-full bg-white border border-teal-300 rounded-lg px-2 py-1.5 text-sm font-black outline-none focus:ring-2 focus:ring-teal-500/20 shadow-sm"
-                              value={editMedData.name}
-                              onChange={(e) => setEditMedData({ ...editMedData, name: e.target.value })}
-                            />
-                            <input
-                              type="text"
-                              className="w-full bg-white border border-teal-300 rounded-lg px-2 py-1 text-xs font-extrabold outline-none focus:ring-2 focus:ring-teal-500/20 shadow-sm mt-1 uppercase"
-                              placeholder="Formulation (e.g. TABLET)"
-                              value={editMedData.formulation || ''}
-                              onChange={(e) => setEditMedData({ ...editMedData, formulation: e.target.value })}
-                            />
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2 max-w-md">
-                            <span className="text-base font-black text-slate-800 group-hover:text-teal-700 transition-colors truncate">{med.name}</span>
-                            <span className="text-xs text-slate-600 font-extrabold uppercase tracking-wider px-2 py-0.5 bg-slate-50 rounded-md border border-slate-100 truncate">
-                              {med.formulation || 'Generic Formulation'}
-                            </span>
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-4">
-                        {editingMedId === med.uqid ? (
-                          <input
-                            type="number"
-                            step="0.01"
-                            className="w-full max-w-[100px] bg-white border border-teal-300 rounded-lg px-2 py-1.5 text-sm font-data outline-none focus:ring-2 focus:ring-teal-500/20 shadow-sm"
-                            value={editMedData.cost !== undefined ? editMedData.cost : ''}
-                            onChange={(e) => setEditMedData({ ...editMedData, cost: e.target.value })}
-                          />
-                        ) : (
-                          <span className="font-data text-sm font-bold text-slate-600">
-                            {med.cost ? `₹ ${parseFloat(med.cost).toFixed(2)}` : '₹ 0.00'}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-4">
-                        <span className="font-data text-sm font-black text-slate-800">
-                          {editingMedId === med.uqid ? (
-                            editMedData.cost && !isNaN(parseFloat(editMedData.cost))
-                              ? `₹ ${(parseFloat(editMedData.cost) * med.stock).toFixed(2)}`
-                              : '₹ 0.00'
-                          ) : (
-                            med.cost ? `₹ ${(parseFloat(med.cost) * med.stock).toFixed(2)}` : '₹ 0.00'
-                          )}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex flex-col">
-                          <span className={`text-xl font-black font-data ${med.stock > 10 ? 'text-slate-800' : 'text-rose-600'}`}>
-                            {med.stock}
-                          </span>
-                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Available Units</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 text-right">
-                        <div className="flex items-center justify-end gap-3">
-                          <div className="relative">
-                            <input
-                              type="number"
-                              placeholder="0"
-                              className="w-24 bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 font-black text-center focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10 outline-none transition-all placeholder:text-slate-200 shadow-sm"
-                              value={updateQtys[med.uqid] !== undefined ? updateQtys[med.uqid] : ''}
-                              onChange={e => handleQtyChange(med.uqid, e.target.value)}
-                            />
-                          </div>
-                          <div className="flex flex-col gap-1 min-w-[50px]">
+                ) : Object.keys(groupedMeds).length > 0 ? (
+                  Object.entries(groupedMeds).map(([category, meds]) => (
+                    <React.Fragment key={category}>
+                      <tr>
+                        <td colSpan="7" className="bg-slate-200 px-5 py-3 font-black text-slate-800 uppercase tracking-[0.2em] text-xs border-y-2 border-slate-300 shadow-sm text-center">
+                          {category}
+                        </td>
+                      </tr>
+                      {meds.map((med) => (
+                        <tr key={med.uqid} className="hover:bg-teal-50/40 transition-all group">
+                          <td className="px-4 py-4">
                             {editingMedId === med.uqid ? (
-                              <button
-                                onClick={() => handleSaveEdit(med.uqid)}
-                                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
-                                title="Save Edit"
-                              >
-                                Save
-                              </button>
+                              <input
+                                type="text"
+                                className="w-full max-w-[100px] bg-white border border-teal-300 rounded-lg px-2 py-1.5 text-sm font-data outline-none focus:ring-2 focus:ring-teal-500/20 shadow-sm"
+                                value={editMedData.uqid}
+                                onChange={(e) => setEditMedData({ ...editMedData, uqid: e.target.value })}
+                              />
                             ) : (
-                              <button
-                                onClick={() => {
-                                  setEditingMedId(med.uqid);
-                                  setEditMedData({ uqid: med.uqid, name: med.name, cost: med.cost || '', formulation: med.formulation || '' });
-                                }}
-                                className="px-3 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
-                                title="Edit Medicine"
-                              >
-                                Edit
-                              </button>
+                              <span className="font-data text-sm font-bold text-teal-600 bg-teal-50 px-3 py-1.5 rounded-lg border border-teal-100">
+                                #{med.uqid}
+                              </span>
                             )}
-                            <button
-                              onClick={() => handleUpdate(med.uqid)}
-                              disabled={!updateQtys[med.uqid] || updateQtys[med.uqid] <= 0}
-                              className="px-3 py-1 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-100 disabled:text-slate-300 text-white rounded-lg transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
-                              title="Add to existing stock"
-                            >
-                              Add
-                            </button>
-                            <button
-                              onClick={() => handleSetStock(med.uqid)}
-                              disabled={updateQtys[med.uqid] === undefined || updateQtys[med.uqid] === '' || updateQtys[med.uqid] < 0}
-                              className="px-3 py-1 bg-slate-700 hover:bg-slate-800 disabled:bg-slate-100 disabled:text-slate-300 text-white rounded-lg transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
-                              title="Set absolute stock value"
-                            >
-                              Set
-                            </button>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
+                          </td>
+                          <td className="px-4 py-4">
+                            {editingMedId === med.uqid ? (
+                              <div className="flex flex-col gap-1 max-w-md">
+                                <input
+                                  type="text"
+                                  className="w-full bg-white border border-teal-300 rounded-lg px-2 py-1.5 text-sm font-black outline-none focus:ring-2 focus:ring-teal-500/20 shadow-sm"
+                                  value={editMedData.name}
+                                  onChange={(e) => setEditMedData({ ...editMedData, name: e.target.value })}
+                                />
+                              </div>
+                            ) : (
+                              <span className="text-base font-black text-slate-800 group-hover:text-teal-700 transition-colors truncate">{med.name}</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-4">
+                            {editingMedId === med.uqid ? (
+                                <input
+                                  type="text"
+                                  className="w-full bg-white border border-teal-300 rounded-lg px-2 py-1 text-xs font-extrabold outline-none focus:ring-2 focus:ring-teal-500/20 shadow-sm uppercase"
+                                  placeholder="Formulation (e.g. TABLET)"
+                                  value={editMedData.formulation || ''}
+                                  onChange={(e) => setEditMedData({ ...editMedData, formulation: e.target.value })}
+                                />
+                            ) : (
+                                <span className="text-base font-bold text-slate-700">
+                                  {med.formulation || '—'}
+                                </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-4">
+                            {editingMedId === med.uqid ? (
+                              <input
+                                type="number"
+                                step="0.01"
+                                className="w-full max-w-[100px] bg-white border border-teal-300 rounded-lg px-2 py-1.5 text-sm font-data outline-none focus:ring-2 focus:ring-teal-500/20 shadow-sm"
+                                value={editMedData.cost !== undefined ? editMedData.cost : ''}
+                                onChange={(e) => setEditMedData({ ...editMedData, cost: e.target.value })}
+                              />
+                            ) : (
+                              <span className="font-data text-sm font-bold text-slate-600">
+                                {med.cost ? `₹ ${parseFloat(med.cost).toFixed(2)}` : '₹ 0.00'}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-4">
+                            <span className="font-data text-sm font-black text-slate-800">
+                              {editingMedId === med.uqid ? (
+                                editMedData.cost && !isNaN(parseFloat(editMedData.cost))
+                                  ? `₹ ${(parseFloat(editMedData.cost) * med.stock).toFixed(2)}`
+                                  : '₹ 0.00'
+                              ) : (
+                                med.cost ? `₹ ${(parseFloat(med.cost) * med.stock).toFixed(2)}` : '₹ 0.00'
+                              )}
+                            </span>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex flex-col">
+                              <span className={`text-xl font-black font-data ${med.stock > 10 ? 'text-slate-800' : 'text-rose-600'}`}>
+                                {med.stock}
+                              </span>
+                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Available Units</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4 text-right">
+                            <div className="flex items-center justify-end gap-3">
+                              <div className="relative">
+                                <input
+                                  type="number"
+                                  placeholder="0"
+                                  className="w-24 bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 font-black text-center focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10 outline-none transition-all placeholder:text-slate-200 shadow-sm"
+                                  value={updateQtys[med.uqid] !== undefined ? updateQtys[med.uqid] : ''}
+                                  onChange={e => handleQtyChange(med.uqid, e.target.value)}
+                                />
+                              </div>
+                              <div className="flex flex-col gap-1 min-w-[50px]">
+                                {editingMedId === med.uqid ? (
+                                  <button
+                                    onClick={() => handleSaveEdit(med.uqid)}
+                                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
+                                    title="Save Edit"
+                                  >
+                                    Save
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      setEditingMedId(med.uqid);
+                                      setEditMedData({ uqid: med.uqid, name: med.name, cost: med.cost || '', formulation: med.formulation || '' });
+                                    }}
+                                    className="px-3 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
+                                    title="Edit Medicine"
+                                  >
+                                    Edit
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => handleUpdate(med.uqid)}
+                                  disabled={!updateQtys[med.uqid] || updateQtys[med.uqid] <= 0}
+                                  className="px-3 py-1 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-100 disabled:text-slate-300 text-white rounded-lg transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
+                                  title="Add to existing stock"
+                                >
+                                  Add
+                                </button>
+                                <button
+                                  onClick={() => handleSetStock(med.uqid)}
+                                  disabled={updateQtys[med.uqid] === undefined || updateQtys[med.uqid] === '' || updateQtys[med.uqid] < 0}
+                                  className="px-3 py-1 bg-slate-700 hover:bg-slate-800 disabled:bg-slate-100 disabled:text-slate-300 text-white rounded-lg transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
+                                  title="Set absolute stock value"
+                                >
+                                  Set
+                                </button>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
                   ))
                 ) : (
                   <tr>
@@ -774,8 +800,6 @@ const MedicineEntry = () => {
                   <th className="px-3 py-4">UQID</th>
                   <th className="px-3 py-4">Medication Name</th>
                   <th className="px-3 py-4">Formulation</th>
-                  <th className="px-3 py-4">Company Name</th>
-                  <th className="px-3 py-4">Expiry Date</th>
                   <th className="px-3 py-4">Total Stock</th>
                   <th className="px-3 py-4 max-w-[130px] leading-snug">Current Month Stock</th>
                   <th className="px-3 py-4 max-w-[130px] leading-snug">Medicines Issued</th>
@@ -787,172 +811,171 @@ const MedicineEntry = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {filteredCampStocks.length > 0 ? (
-                  filteredCampStocks.map((stock) => (
-                    <tr key={stock.uqid} className="hover:bg-emerald-50/40 transition-all group">
-                      <td className="px-4 py-4">
-                        <span className="font-data text-sm font-bold text-slate-400 group-hover:text-emerald-600 transition-colors">#{stock.uqid}</span>
-                      </td>
-                      <td className="px-4 py-4 text-base font-black text-slate-800">
-                        {editingUqid === stock.uqid ? (
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="text"
-                              value={tempAltName}
-                              onChange={(e) => setTempAltName(e.target.value)}
-                              placeholder="Alternative Name"
-                              className="bg-white border border-teal-300 rounded-lg px-2.5 py-1.5 text-sm font-bold outline-none focus:ring-2 focus:ring-teal-500/20 shadow-sm w-48"
-                            />
-                            <button
-                              onClick={() => handleSaveAlternateName(stock.uqid)}
-                              className="p-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors shadow-sm"
-                              title="Save Alternate Name"
-                            >
-                              <Check size={16} strokeWidth={2.5} />
-                            </button>
-                            <button
-                              onClick={() => setEditingUqid(null)}
-                              className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors border border-slate-200"
-                              title="Cancel"
-                            >
-                              <X size={16} strokeWidth={2.5} />
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2 group/alt">
-                            <div className="flex flex-col">
-                              {stock.alternate_name ? (
-                                <>
-                                  <span className="text-base font-black text-slate-800">{stock.alternate_name}</span>
-                                  <span className="text-xs text-slate-400 font-bold mt-0.5">
-                                    Original: {stock.medication}
-                                  </span>
-                                </>
-                              ) : (
-                                <span className="text-base font-black text-slate-800">{stock.medication}</span>
-                              )}
-                            </div>
-                            <button
-                              onClick={() => {
-                                setEditingUqid(stock.uqid);
-                                setTempAltName(stock.alternate_name || '');
-                              }}
-                              className="p-1.5 bg-slate-50 hover:bg-teal-50 text-slate-400 hover:text-teal-600 rounded-lg border border-slate-200 hover:border-teal-200 transition-all ml-2 flex items-center justify-center shadow-sm"
-                               title="Edit Alternative Name"
-                            >
-                              <Edit3 size={14} strokeWidth={2.5} />
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-4">
-                        <span className="text-sm font-bold text-slate-600">
-                          {stock.formulation || 'Generic Formulation'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <span className="text-sm font-bold text-slate-600">
-                          {stock.company_name || '—'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <span className="text-sm font-bold text-slate-600 font-data">
-                          {stock.expiry_date || '—'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex flex-col">
-                          {allocateQtys[stock.uqid] > 0 && (
-                            <span className="text-sm font-black text-slate-400 line-through decoration-slate-300 animate-in fade-in slide-in-from-bottom-1">
-                              {stock.total_stock}
+                {Object.keys(groupedCampStocks).length > 0 ? (
+                  Object.entries(groupedCampStocks).map(([category, stocks]) => (
+                    <React.Fragment key={category}>
+                      <tr>
+                        <td colSpan="11" className="bg-slate-200 px-5 py-3 font-black text-slate-800 uppercase tracking-[0.2em] text-xs border-y-2 border-slate-300 shadow-sm text-center">
+                          {category}
+                        </td>
+                      </tr>
+                      {stocks.map((stock) => (
+                        <tr key={stock.uqid} className="hover:bg-emerald-50/40 transition-all group">
+                          <td className="px-4 py-4">
+                            <span className="font-data text-sm font-bold text-slate-400 group-hover:text-emerald-600 transition-colors">#{stock.uqid}</span>
+                          </td>
+                          <td className="px-4 py-4 text-base font-black text-slate-800">
+                            {editingUqid === stock.uqid ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={tempAltName}
+                                  onChange={(e) => setTempAltName(e.target.value)}
+                                  placeholder="Alternative Name"
+                                  className="bg-white border border-teal-300 rounded-lg px-2.5 py-1.5 text-sm font-bold outline-none focus:ring-2 focus:ring-teal-500/20 shadow-sm w-48"
+                                />
+                                <button
+                                  onClick={() => handleSaveAlternateName(stock.uqid)}
+                                  className="p-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors shadow-sm"
+                                  title="Save Alternate Name"
+                                >
+                                  <Check size={16} strokeWidth={2.5} />
+                                </button>
+                                <button
+                                  onClick={() => setEditingUqid(null)}
+                                  className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors border border-slate-200"
+                                  title="Cancel"
+                                >
+                                  <X size={16} strokeWidth={2.5} />
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 group/alt">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  {stock.alternate_name ? (
+                                    <>
+                                      <span className="text-base font-black text-slate-800">{stock.alternate_name}</span>
+                                      <span className="text-xs text-slate-400 font-bold ml-1">
+                                        (Original: {stock.medication})
+                                      </span>
+                                    </>
+                                  ) : (
+                                      <span className="text-base font-black text-slate-800">{stock.medication}</span>
+                                  )}
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    setEditingUqid(stock.uqid);
+                                    setTempAltName(stock.alternate_name || '');
+                                  }}
+                                  className="p-1.5 bg-slate-50 hover:bg-teal-50 text-slate-400 hover:text-teal-600 rounded-lg border border-slate-200 hover:border-teal-200 transition-all ml-2 flex items-center justify-center shadow-sm"
+                                   title="Edit Alternative Name"
+                                >
+                                  <Edit3 size={14} strokeWidth={2.5} />
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-4">
+                            <span className="text-base font-bold text-slate-700">
+                              {stock.formulation || '—'}
                             </span>
-                          )}
-                          <span className="text-xl font-black text-slate-800 font-data">
-                            {allocateQtys[stock.uqid] > 0
-                              ? stock.total_stock - parseInt(allocateQtys[stock.uqid])
-                              : stock.total_stock}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-3">
-                          <span className="w-10 h-10 flex items-center justify-center bg-blue-50 text-blue-600 rounded-xl font-black font-data border border-blue-100 text-sm">
-                            {stock.camp_stock}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-3">
-                          <span className="w-10 h-10 flex items-center justify-center bg-rose-50 text-rose-600 rounded-xl font-black font-data border border-rose-100 text-sm">
-                            {stock.used_stock}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-3">
-                          <span className="font-data font-bold text-slate-700 text-sm">
-                            {stock.unit_cost ? `₹ ${parseFloat(stock.unit_cost).toFixed(2)}` : '₹ 0.00'}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-3">
-                          <span className="font-data font-black text-base text-slate-900">
-                            {stock.used_stock && stock.unit_cost
-                              ? `₹ ${(stock.used_stock * stock.unit_cost).toFixed(2)}`
-                              : '₹ 0.00'}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-3">
-                          <span className="w-10 h-10 flex items-center justify-center bg-emerald-50 text-emerald-600 rounded-xl font-black font-data border border-emerald-100 text-sm">
-                            {stock.remaining_stock}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-3">
-                          <span className="w-10 h-10 flex items-center justify-center bg-teal-50 text-teal-600 rounded-xl font-black font-data border border-teal-100 text-sm">
-                            {stock.returned_stock}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <div className="flex items-center bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
-                            <input
-                              type="number"
-                              placeholder="Qty"
-                              className="w-16 bg-transparent px-2 py-1 text-slate-800 font-black text-center focus:outline-none placeholder:text-slate-200 text-xs"
-                              value={allocateQtys[stock.uqid] || ''}
-                              onChange={e => handleAllocateQtyChange(stock.uqid, e.target.value)}
-                            />
-                            <button
-                              onClick={() => handleAllocate(stock.uqid)}
-                              disabled={!selectedCamp || !allocateQtys[stock.uqid] || allocateQtys[stock.uqid] <= 0 || allocateQtys[stock.uqid] > stock.total_stock}
-                              className="p-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-50 disabled:text-slate-200 text-white rounded-lg transition-all shadow-sm"
-                              title="Allocate to Camp"
-                            >
-                              <PlusCircle size={16} strokeWidth={2.5} />
-                            </button>
-                          </div>
-
-                          <button
-                            onClick={() => handleReturn(stock.uqid, stock.medication, stock.remaining_stock)}
-                            disabled={!selectedCamp || stock.remaining_stock <= 0}
-                            className="p-2.5 bg-white border border-slate-200 text-slate-400 hover:text-teal-600 hover:border-teal-200 hover:bg-teal-50 rounded-xl transition-all shadow-sm disabled:opacity-30 disabled:hover:bg-white disabled:hover:border-slate-200 flex items-center justify-center"
-                            title="Update single medication (Add Available Balance to Total Stock)"
-                          >
-                            <RefreshCcw size={16} strokeWidth={2.5} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex flex-col">
+                              {allocateQtys[stock.uqid] > 0 && (
+                                <span className="text-sm font-black text-slate-400 line-through decoration-slate-300 animate-in fade-in slide-in-from-bottom-1">
+                                  {stock.total_stock}
+                                </span>
+                              )}
+                              <span className="text-xl font-black text-slate-800 font-data">
+                                {allocateQtys[stock.uqid] > 0
+                                  ? stock.total_stock - parseInt(allocateQtys[stock.uqid])
+                                  : stock.total_stock}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-3">
+                              <span className="w-10 h-10 flex items-center justify-center bg-blue-50 text-blue-600 rounded-xl font-black font-data border border-blue-100 text-sm">
+                                {stock.camp_stock}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-3">
+                              <span className="w-10 h-10 flex items-center justify-center bg-rose-50 text-rose-600 rounded-xl font-black font-data border border-rose-100 text-sm">
+                                {stock.used_stock}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-3">
+                              <span className="font-data font-bold text-slate-700 text-sm">
+                                {stock.unit_cost ? `₹ ${parseFloat(stock.unit_cost).toFixed(2)}` : '₹ 0.00'}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-3">
+                              <span className="font-data font-black text-base text-slate-900">
+                                {stock.used_stock && stock.unit_cost
+                                  ? `₹ ${(stock.used_stock * stock.unit_cost).toFixed(2)}`
+                                  : '₹ 0.00'}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-3">
+                              <span className="w-10 h-10 flex items-center justify-center bg-emerald-50 text-emerald-600 rounded-xl font-black font-data border border-emerald-100 text-sm">
+                                {stock.remaining_stock}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-3">
+                              <span className="w-10 h-10 flex items-center justify-center bg-teal-50 text-teal-600 rounded-xl font-black font-data border border-teal-100 text-sm">
+                                {stock.returned_stock}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <div className="flex items-center bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
+                                <input
+                                  type="number"
+                                  placeholder="Qty"
+                                  className="w-16 bg-transparent px-2 py-1 text-slate-800 font-black text-center focus:outline-none placeholder:text-slate-200 text-xs"
+                                  value={allocateQtys[stock.uqid] || ''}
+                                  onChange={e => handleAllocateQtyChange(stock.uqid, e.target.value)}
+                                />
+                                <button
+                                  onClick={() => handleAllocate(stock.uqid)}
+                                  disabled={!selectedCamp || !allocateQtys[stock.uqid] || allocateQtys[stock.uqid] <= 0 || allocateQtys[stock.uqid] > stock.total_stock}
+                                  className="p-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-50 disabled:text-slate-200 text-white rounded-lg transition-all shadow-sm"
+                                  title="Allocate to Camp"
+                                >
+                                  <PlusCircle size={16} strokeWidth={2.5} />
+                                </button>
+                              </div>
+    
+                              <button
+                                onClick={() => handleReturn(stock.uqid, stock.medication, stock.remaining_stock)}
+                                disabled={!selectedCamp || stock.remaining_stock <= 0}
+                                className="p-2.5 bg-white border border-slate-200 text-slate-400 hover:text-teal-600 hover:border-teal-200 hover:bg-teal-50 rounded-xl transition-all shadow-sm disabled:opacity-30 disabled:hover:bg-white disabled:hover:border-slate-200 flex items-center justify-center"
+                                title="Update single medication (Add Available Balance to Total Stock)"
+                              >
+                                <RefreshCcw size={16} strokeWidth={2.5} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="13" className="px-8 py-24 text-center text-slate-400 font-bold">No records found for camp allocation</td>
+                    <td colSpan="11" className="px-8 py-24 text-center text-slate-400 font-bold">No records found for camp allocation</td>
                   </tr>
                 )}
               </tbody>
@@ -966,15 +989,23 @@ const MedicineEntry = () => {
                 <tr className="bg-slate-50 border-b border-slate-100 text-xs font-black uppercase tracking-[0.2em] text-slate-400">
                   <th className="px-4 py-4">UQID</th>
                   <th className="px-4 py-4">Medication Name</th>
+                  <th className="px-4 py-4">Formulation</th>
                   <th className="px-4 py-4">Company Name</th>
                   <th className="px-4 py-4">Expiry Date</th>
                   <th className="px-4 py-4 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {filteredMeds.length > 0 ? (
-                  filteredMeds.map((med) => {
-                    const formState = detailsForm[med.uqid] || {};
+                {Object.keys(groupedMeds).length > 0 ? (
+                  Object.entries(groupedMeds).map(([category, meds]) => (
+                    <React.Fragment key={`group-${category}`}>
+                      <tr>
+                        <td colSpan="6" className="bg-slate-200 px-5 py-3 font-black text-slate-800 uppercase tracking-[0.2em] text-xs border-y-2 border-slate-300 shadow-sm text-center">
+                          {category}
+                        </td>
+                      </tr>
+                      {meds.map((med) => {
+                        const formState = detailsForm[med.uqid] || {};
                     const campStock = campStocks.find(s => s.uqid === med.uqid);
                     const displayCompany = formState.company_name !== undefined 
                       ? formState.company_name 
@@ -988,6 +1019,11 @@ const MedicineEntry = () => {
                           <span className="font-data text-sm font-bold text-slate-400">#{med.uqid}</span>
                         </td>
                         <td className="px-4 py-4 text-base font-black text-slate-800">{med.name}</td>
+                        <td className="px-4 py-4">
+                          <span className="text-base font-bold text-slate-700">
+                            {med.formulation || '—'}
+                          </span>
+                        </td>
                         <td className="px-4 py-4">
                           <input
                             type="text"
@@ -1016,8 +1052,10 @@ const MedicineEntry = () => {
                         </td>
                       </tr>
                     );
-                  })
-                ) : (
+                  })}
+                </React.Fragment>
+              ))
+            ) : (
                   <tr>
                     <td colSpan="6" className="px-8 py-24 text-center text-slate-400 font-bold">No records found</td>
                   </tr>

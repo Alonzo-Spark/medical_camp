@@ -339,9 +339,27 @@ const Vitals = () => {
         }
       }
 
+      // Auto-fill logic when Medicine Name is selected from dropdown
+      if (field === 'medicine' && value !== '') {
+        // find by name or alternate_name
+        const foundMed = allMedicines.find(am => am.name === value || (campStocks[am.uqid] && campStocks[am.uqid].alternate_name === value));
+        if (foundMed) {
+          updatedMed.msNo = String(foundMed.uqid);
+          updatedMed.formulation = foundMed.formulation || '';
+        }
+      }
+
       return updatedMed;
     }));
   };
+
+  // Group medicines by category for the dropdown
+  const groupedMedicines = allMedicines.reduce((acc, med) => {
+    const category = med.category || 'Uncategorized';
+    if (!acc[category]) acc[category] = [];
+    acc[category].push(med);
+    return acc;
+  }, {});
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -728,15 +746,28 @@ const Vitals = () => {
                         />
                       </td>
 
-                      {/* Medicine Name */}
+                      {/* Medicine Name Dropdown */}
                       <td className="px-3 py-3">
-                        <input
-                          type="text"
-                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-bold text-slate-800 placeholder:text-slate-300 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
-                          placeholder="Medicine name"
+                        <select
+                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all cursor-pointer"
                           value={med.medicine}
                           onChange={e => updateMedicine(index, 'medicine', e.target.value)}
-                        />
+                        >
+                          <option value="">Select Medicine</option>
+                          {Object.entries(groupedMedicines).map(([category, meds]) => (
+                            <optgroup key={category} label={category}>
+                              {meds.map(am => {
+                                const campStockItem = campStocks[am.uqid];
+                                const displayName = (campStockItem && campStockItem.alternate_name) ? campStockItem.alternate_name : am.name;
+                                return (
+                                  <option key={am.uqid} value={displayName}>
+                                    {displayName} {am.formulation ? `(${am.formulation})` : ''}
+                                  </option>
+                                );
+                              })}
+                            </optgroup>
+                          ))}
+                        </select>
                       </td>
 
                       {/* Formulation */}
