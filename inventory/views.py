@@ -2622,7 +2622,7 @@ def api_bulk_add_patients(request):
             gender = p.get('gender')
             age_val = p.get('age')
             try:
-                age = int(round(float(age_val))) if age_val else None
+                age = float(age_val) if age_val else None
             except (ValueError, TypeError):
                 age = None
             address = p.get('address')
@@ -2671,7 +2671,7 @@ def api_bulk_add_patients(request):
                 camp=target_camp,
                 defaults={
                     'visit_date': target_camp.date,
-                    'is_new': (patient.registered_date == target_camp.date)
+                    'is_new': is_new
                 }
             )
             

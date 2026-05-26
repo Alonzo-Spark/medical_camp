@@ -282,6 +282,7 @@ function PatientRegistration() {
                             </label>
                             <input
                                 type="number"
+                                step="any"
                                 placeholder="Age"
                                 value={form.age}
                                 onChange={(e) => handleChange("age", e.target.value)}

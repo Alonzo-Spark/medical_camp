@@ -146,7 +146,7 @@ class Patient(models.Model):
     patient_name = models.CharField(max_length=2000, null=True, blank=True)
     patient_gender = models.CharField(max_length=10, null=True, blank=True)
     patient_addr = models.CharField(max_length=4000, null=True, blank=True)
-    patient_age = models.IntegerField(null=True, blank=True)
+    patient_age = models.FloatField(null=True, blank=True)
     contact_no = models.CharField(max_length=20, null=True, blank=True)
     registered_date = models.DateField(null=True, blank=True)
     camp_session = models.IntegerField(null=True, blank=True)

@@ -461,6 +461,7 @@ function AddingPatients() {
                     <td className="px-4 py-2">
                       <input
                         type="number"
+                        step="any"
                         value={p.age}
                         onChange={(e) => handleCellChange(idx, 'age', e.target.value)}
                         className={inputClass}
