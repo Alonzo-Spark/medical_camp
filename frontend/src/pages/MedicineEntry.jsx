@@ -377,12 +377,12 @@ const MedicineEntry = () => {
   const filteredMeds = medicines.filter(m =>
     m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     m.uqid.toString().includes(searchTerm)
-  );
+  ).sort((a, b) => Number(a.uqid) - Number(b.uqid));
 
   const filteredCampStocks = campStocks.filter(s =>
     s.medication.toLowerCase().includes(searchTerm.toLowerCase()) ||
     s.uqid.toString().includes(searchTerm)
-  );
+  ).sort((a, b) => Number(a.uqid) - Number(b.uqid));
 
   return (
     <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 space-y-8 pb-10">
@@ -768,14 +768,12 @@ const MedicineEntry = () => {
         ) : viewMode === 'camp' ? (
           /* Camp Wise View */
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[1300px]">
+            <table className="w-full text-left border-collapse min-w-[1100px]">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-100 text-[12px] font-black uppercase tracking-wide text-slate-600">
                   <th className="px-3 py-4">UQID</th>
                   <th className="px-3 py-4">Medication Name</th>
                   <th className="px-3 py-4">Formulation</th>
-                  <th className="px-3 py-4">Company Name</th>
-                  <th className="px-3 py-4">Expiry Date</th>
                   <th className="px-3 py-4">Total Stock</th>
                   <th className="px-3 py-4 max-w-[130px] leading-snug">Current Month Stock</th>
                   <th className="px-3 py-4 max-w-[130px] leading-snug">Medicines Issued</th>
@@ -851,16 +849,6 @@ const MedicineEntry = () => {
                         </span>
                       </td>
                       <td className="px-4 py-4">
-                        <span className="text-sm font-bold text-slate-600">
-                          {stock.company_name || '—'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <span className="text-sm font-bold text-slate-600 font-data">
-                          {stock.expiry_date || '—'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4">
                         <div className="flex flex-col">
                           {allocateQtys[stock.uqid] > 0 && (
                             <span className="text-sm font-black text-slate-400 line-through decoration-slate-300 animate-in fade-in slide-in-from-bottom-1">
@@ -889,10 +877,27 @@ const MedicineEntry = () => {
                         </div>
                       </td>
                       <td className="px-4 py-4">
-                        <div className="flex items-center gap-3">
-                          <span className="font-data font-bold text-slate-700 text-sm">
-                            {stock.unit_cost ? `₹ ${parseFloat(stock.unit_cost).toFixed(2)}` : '₹ 0.00'}
-                          </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-slate-400 font-extrabold text-sm">₹</span>
+                          <input
+                            type="number"
+                            step="any"
+                            min="0"
+                            placeholder="0.00"
+                            className="w-24 bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-sm font-black font-data text-slate-700 outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 shadow-sm"
+                            value={
+                              campUnitCosts[stock.uqid] !== undefined
+                                ? campUnitCosts[stock.uqid]
+                                : (stock.unit_cost !== null ? stock.unit_cost : '')
+                            }
+                            onChange={(e) => handleCampUnitCostChange(stock.uqid, e.target.value)}
+                            onBlur={() => handleSaveCampUnitCost(stock.uqid)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.target.blur();
+                              }
+                            }}
+                          />
                         </div>
                       </td>
                       <td className="px-4 py-4">

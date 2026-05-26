@@ -45,6 +45,7 @@ class Medicine(models.Model):
     expiry_date = models.DateField(null=True, blank=True)
     company_name = models.CharField(max_length=2000, null=True, blank=True)
     cost = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    is_active = models.BooleanField(default=True)
 
     def __str__(self):
         return f"{self.uqid} - {self.name} ({self.category}) - Available {self.stock}"

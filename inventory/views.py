@@ -427,7 +427,7 @@ def api_get_camps(request):
 @api_view(['GET'])
 def api_get_medicines(request):
     # pyrefly: ignore [missing-attribute]
-    medicines = Medicine.objects.all().order_by('uqid')
+    medicines = Medicine.objects.filter(is_active=True).order_by('uqid')
     serializer = MedicineSerializer(medicines, many=True)
     return Response(serializer.data)
 
