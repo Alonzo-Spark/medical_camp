@@ -119,8 +119,8 @@ function AddingPatients() {
       if (res.data.status === 'success') {
         const parsedPatients = res.data.patients.map(p => {
           // Format Date to YYYY-MM-DD or DD/MM/YYYY for user editing
-          let formattedDate = p.reg_date || '';
-          if (formattedDate && formattedDate.includes('-')) {
+          let formattedDate = p.reg_date ? String(p.reg_date) : '';
+          if (formattedDate && typeof formattedDate === 'string' && formattedDate.includes('-')) {
             const [y, m, d] = formattedDate.split('-');
             formattedDate = `${d}/${m}/${y}`;
           }

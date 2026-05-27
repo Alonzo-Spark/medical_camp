@@ -11,6 +11,27 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 dotenv_path = os.path.join(current_dir, '..', '.env')
 load_dotenv(dotenv_path)
 
+def clean_and_parse_json(content, is_list=False):
+    content = content.strip()
+    if content.startswith("```"):
+        lines = content.splitlines()
+        if lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        content = "\n".join(lines).strip()
+
+    pattern = r'(\[.*\])' if is_list else r'(\{.*\})'
+    match = re.search(pattern, content, re.DOTALL)
+    if match:
+        json_str = match.group(1)
+    else:
+        json_str = content
+
+    json_str = re.sub(r':\s*0+(\d+)', r': \1', json_str)
+    json_str = re.sub(r',\s*([\]}])', r'\1', json_str)
+    return json.loads(json_str)
+
 class MedicalOCRService:
     def __init__(self):
         self.lock = threading.Lock()
@@ -60,17 +81,10 @@ class MedicalOCRService:
                 content = response.text
                 
                 try:
-                    structured_data = json.loads(content)
+                    structured_data = clean_and_parse_json(content, is_list=False)
                     return structured_data, "Extracted via Gemini Vision"
-                except json.JSONDecodeError:
-                    # Fallback to regex extraction if JSON parsing fails
-                    json_match = re.search(r'(\{.*\})', content, re.DOTALL)
-                    if json_match:
-                        try:
-                            structured_data = json.loads(json_match.group(1))
-                            return structured_data, "Extracted via Gemini Vision (Regex Fallback)"
-                        except Exception:
-                            pass
+                except Exception as e:
+                    print(f"JSON Parse Error in process_report: {e}")
                     return {}, "Failed to parse JSON structure"
                     
             except Exception as e:
@@ -114,16 +128,10 @@ class MedicalOCRService:
                 content = response.text
                 
                 try:
-                    structured_data = json.loads(content)
+                    structured_data = clean_and_parse_json(content, is_list=True)
                     return structured_data, "Extracted successfully"
-                except json.JSONDecodeError:
-                    json_match = re.search(r'(\[.*\])', content, re.DOTALL)
-                    if json_match:
-                        try:
-                            structured_data = json.loads(json_match.group(1))
-                            return structured_data, "Extracted successfully (Regex Fallback)"
-                        except Exception:
-                            pass
+                except Exception as e:
+                    print(f"JSON Parse Error in process_patient_list: {e}")
                     return [], "Failed to parse JSON structure"
             except Exception as e:
                 print(f"OCR Error in process_patient_list: {e}")

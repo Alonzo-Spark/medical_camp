@@ -2525,49 +2525,61 @@ def api_ocr_patient_list(request):
         
         # Enrich list with exists_in_db checks
         enriched_patients = []
+        patient_list = []
         if isinstance(patients, list):
-            for p in patients:
-                pid = p.get('patient_id')
-                exists = False
-                existing_pat = None
-                if pid:
-                    try:
-                        existing_pat = Patient.objects.filter(patient_id=int(pid)).first()
-                        exists = bool(existing_pat)
-                    except ValueError:
-                        pass
-                
-                if exists and existing_pat:
-                    db_reg_date = ""
-                    if existing_pat.registered_date:
-                        db_reg_date = str(existing_pat.registered_date)
-                    enriched_patients.append({
-                        'patient_id': existing_pat.patient_id,
-                        'name': existing_pat.patient_name or p.get('name') or '',
-                        'gender': existing_pat.patient_gender or p.get('gender') or '',
-                        'age': existing_pat.patient_age or p.get('age') or '',
-                        'address': existing_pat.patient_addr or p.get('address') or '',
-                        'contact_no': existing_pat.contact_no or p.get('contact_no') or '',
-                        'reg_date': db_reg_date,
-                        'old_or_new': 'Old',
-                        'exists_in_db': True
-                    })
-                else:
-                    ocr_old_new = p.get('old_or_new') or 'New'
-                    # Standardize value to capitalized "Old" or "New"
-                    if isinstance(ocr_old_new, str):
-                        ocr_old_new = 'Old' if 'old' in ocr_old_new.lower() else 'New'
-                    enriched_patients.append({
-                        'patient_id': pid,
-                        'name': p.get('name') or '',
-                        'gender': p.get('gender') or '',
-                        'age': p.get('age') or '',
-                        'address': p.get('address') or '',
-                        'contact_no': p.get('contact_no') or '',
-                        'reg_date': p.get('reg_date') or '',
-                        'old_or_new': ocr_old_new,
-                        'exists_in_db': False
-                    })
+            patient_list = patients
+        elif isinstance(patients, dict):
+            for val in patients.values():
+                if isinstance(val, list):
+                    patient_list = val
+                    break
+            if not patient_list and ('name' in patients or 'patient_id' in patients):
+                patient_list = [patients]
+
+        for p in patient_list:
+            if not isinstance(p, dict):
+                continue
+            pid = p.get('patient_id')
+            exists = False
+            existing_pat = None
+            if pid:
+                try:
+                    existing_pat = Patient.objects.filter(patient_id=int(pid)).first()
+                    exists = bool(existing_pat)
+                except ValueError:
+                    pass
+            
+            if exists and existing_pat:
+                db_reg_date = ""
+                if existing_pat.registered_date:
+                    db_reg_date = str(existing_pat.registered_date)
+                enriched_patients.append({
+                    'patient_id': existing_pat.patient_id,
+                    'name': existing_pat.patient_name or p.get('name') or '',
+                    'gender': existing_pat.patient_gender or p.get('gender') or '',
+                    'age': existing_pat.patient_age or p.get('age') or '',
+                    'address': existing_pat.patient_addr or p.get('address') or '',
+                    'contact_no': existing_pat.contact_no or p.get('contact_no') or '',
+                    'reg_date': db_reg_date,
+                    'old_or_new': 'Old',
+                    'exists_in_db': True
+                })
+            else:
+                ocr_old_new = p.get('old_or_new') or 'New'
+                # Standardize value to capitalized "Old" or "New"
+                if isinstance(ocr_old_new, str):
+                    ocr_old_new = 'Old' if 'old' in ocr_old_new.lower() else 'New'
+                enriched_patients.append({
+                    'patient_id': pid,
+                    'name': p.get('name') or '',
+                    'gender': p.get('gender') or '',
+                    'age': p.get('age') or '',
+                    'address': p.get('address') or '',
+                    'contact_no': p.get('contact_no') or '',
+                    'reg_date': p.get('reg_date') or '',
+                    'old_or_new': ocr_old_new,
+                    'exists_in_db': False
+                })
                 
         return Response({
             'status': 'success',
