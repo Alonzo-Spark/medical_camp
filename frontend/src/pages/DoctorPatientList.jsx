@@ -338,7 +338,7 @@ const DoctorPatientList = () => {
                               )}
                             </td>
                             <td className="p-4 pr-6 align-middle text-right">
-                              <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div className="flex items-center justify-end gap-2">
                                 <button
                                   onClick={() => handleOpenEdit(p, dr)}
                                   className="p-1.5 bg-slate-100 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded transition-all active:scale-95 shadow-sm"

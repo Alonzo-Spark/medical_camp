@@ -26,6 +26,7 @@ function AddingPatients() {
   const [scanStatus, setScanStatus] = useState({ is_completed: false, ocr_status: 'pending' });
   const [localFile, setLocalFile] = useState(null);
   const [ocrLoading, setOcrLoading] = useState(false);
+  const [serverIp, setServerIp] = useState('192.168.0.32');
 
   const pollIntervalRef = useRef(null);
 
@@ -45,6 +46,14 @@ function AddingPatients() {
         }
       })
       .catch(err => console.error("Error loading camps:", err));
+
+    axios.get(`${API_BASE}/get_server_ip`)
+      .then(res => {
+        if (res.data && res.data.ip) {
+          setServerIp(res.data.ip);
+        }
+      })
+      .catch(err => console.error("Error loading server IP:", err));
   }, []);
 
   // Stop polling on unmount
@@ -568,7 +577,7 @@ function AddingPatients() {
               <div className="bg-slate-50 p-6 rounded-3xl border-2 border-slate-100 mb-6 shadow-inner">
                 {scanSessionId && (
                   <QRCodeSVG
-                    value={`http://${window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? '192.168.0.32' : window.location.hostname}:5173/mobile-upload/${scanSessionId}`}
+                    value={`http://${window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? serverIp : window.location.hostname}:5173/mobile-upload/${scanSessionId}`}
                     size={180}
                     level="H"
                     includeMargin={true}

@@ -248,7 +248,14 @@ const CampPatients = () => {
                                           {med.medicine_id}
                                         </span>
                                       </td>
-                                      <td className="px-3 py-2 text-xs font-bold text-slate-700">{med.medicine_name}</td>
+                                      <td className="px-3 py-2 text-xs font-bold text-slate-700">
+                                        {med.medicine_name}
+                                        {(med.formulation || med.strength) && (
+                                          <span className="ml-2 text-[10px] font-bold text-slate-600 uppercase">
+                                            ({med.formulation} {med.strength})
+                                          </span>
+                                        )}
+                                      </td>
                                       <td className="px-3 py-2 text-center">
                                         <span className="inline-flex items-center justify-center px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 text-[11px] font-black border border-emerald-100">
                                           {med.quantity}

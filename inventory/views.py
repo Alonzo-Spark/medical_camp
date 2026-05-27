@@ -718,20 +718,13 @@ def api_get_patient_details(request, patient_id):
                 'items': []
             }
         
-        # Aggregate duplicate medicine entries under the same camp session
-        existing_item = None
-        for item in history[camp_key]['items']:
-            if item['medicine'] == issue['medicine_name']:
-                existing_item = item
-                break
-        
-        if existing_item:
-            existing_item['qty'] += issue['qty']
-        else:
-            history[camp_key]['items'].append({
-                'medicine': issue['medicine_name'],
-                'qty': issue['qty']
-            })
+        # Keep separate duplicate medicine entries under the same camp session as requested
+        history[camp_key]['items'].append({
+            'medicine': issue['medicine_name'],
+            'qty': issue['qty'],
+            'formulation': issue.get('formulation'),
+            'strength': issue.get('strength')
+        })
 
     # Fetch vitals from both old and new tables for backward compatibility
     # pyrefly: ignore [missing-attribute]
@@ -931,30 +924,57 @@ def api_save_vitals(request):
                 camp_session=camp.number
             )
 
-        # Create the vitals record
+        # Try to find an existing vitals record for this patient at this camp today
         # pyrefly: ignore [missing-attribute]
-        v = PatientVitals.objects.create(
-            patient_id=safe_int(patient_id),
-            camp=camp,
-            date=data.get('date'),
-            time=data.get('time'),
-            e_no=data.get('e_no'),
-            weight=data.get('weight'),
-            height=data.get('height'),
-            blood_pressure=data.get('blood_pressure'),
-            pulse=data.get('pulse'),
-            rbs=data.get('rbs'),
-            haemoglobin=data.get('haemoglobin'),
-            last_food_time=data.get('last_food_time'),
-            dr_name=data.get('dr_name'),
-            dr_id=data.get('dr_id'),
-            diagnosis=data.get('diagnosis')
-        )
+        v = PatientVitals.objects.filter(patient_id=p_id_int, camp=camp).first()
+        
+        if v:
+            # Update existing vitals record (Safe Merging - Option A)
+            # Only update fields if the new data is not empty
+            def merge_field(obj, attr, incoming_val):
+                if incoming_val is not None and str(incoming_val).strip() != '':
+                    setattr(obj, attr, incoming_val)
+
+            merge_field(v, 'date', data.get('date'))
+            merge_field(v, 'time', data.get('time'))
+            merge_field(v, 'e_no', data.get('e_no'))
+            merge_field(v, 'weight', data.get('weight'))
+            merge_field(v, 'height', data.get('height'))
+            merge_field(v, 'blood_pressure', data.get('blood_pressure'))
+            merge_field(v, 'pulse', data.get('pulse'))
+            merge_field(v, 'rbs', data.get('rbs'))
+            merge_field(v, 'haemoglobin', data.get('haemoglobin'))
+            merge_field(v, 'last_food_time', data.get('last_food_time'))
+            merge_field(v, 'dr_name', data.get('dr_name'))
+            merge_field(v, 'dr_id', data.get('dr_id'))
+            merge_field(v, 'diagnosis', data.get('diagnosis'))
+            v.save()
+        else:
+            # Create a new vitals record
+            # pyrefly: ignore [missing-attribute]
+            v = PatientVitals.objects.create(
+                patient_id=p_id_int,
+                camp=camp,
+                date=data.get('date'),
+                time=data.get('time'),
+                e_no=data.get('e_no'),
+                weight=data.get('weight'),
+                height=data.get('height'),
+                blood_pressure=data.get('blood_pressure'),
+                pulse=data.get('pulse'),
+                rbs=data.get('rbs'),
+                haemoglobin=data.get('haemoglobin'),
+                last_food_time=data.get('last_food_time'),
+                dr_name=data.get('dr_name'),
+                dr_id=data.get('dr_id'),
+                diagnosis=data.get('diagnosis')
+            )
 
         # Handle medicines
         med_issues = data.get('medicines', [])
-        aggregated_med_issues = {}
         
+        # Calculate total requested quantity per medicine for stock verification
+        total_requested = {}
         for item in med_issues:
             med_id = item.get('msNo')
             qty = safe_int(item.get('quantity'))
@@ -965,25 +985,11 @@ def api_save_vitals(request):
                 med_key = int(med_id)
             except ValueError:
                 med_key = med_id
-                
-            if med_key in aggregated_med_issues:
-                aggregated_med_issues[med_key]['quantity'] += qty
-            else:
-                aggregated_med_issues[med_key] = {
-                    'msNo': med_id,
-                    'quantity': qty,
-                    'formulation': item.get('formulation'),
-                    'strength': item.get('strength'),
-                    'days': safe_int(item.get('days')),
-                    'morning': safe_int(item.get('morning')),
-                    'afternoon': safe_int(item.get('afternoon')),
-                    'night': safe_int(item.get('night')),
-                }
-        
-        for med_key, item in aggregated_med_issues.items():
-            med_id = item['msNo']
-            qty = item['quantity']
             
+            total_requested[med_key] = total_requested.get(med_key, 0) + qty
+
+        # Validate stock availability for all requested medicines
+        for med_id, qty in total_requested.items():
             # pyrefly: ignore [missing-attribute]
             medicine = Medicine.objects.filter(uqid=med_id).first()
             if medicine:
@@ -1006,7 +1012,17 @@ def api_save_vitals(request):
                         'status': 'error', 
                         'message': f'Insufficient stock for {medicine.name}. Available: {camp_stock.remaining_stock()}'
                     }, status=400)
-                
+
+        # Create separate PatientMedicineIssue records for each item
+        for item in med_issues:
+            med_id = item.get('msNo')
+            qty = safe_int(item.get('quantity'))
+            if not med_id or qty <= 0:
+                continue
+            
+            # pyrefly: ignore [missing-attribute]
+            medicine = Medicine.objects.filter(uqid=med_id).first()
+            if medicine:
                 # pyrefly: ignore [missing-attribute]
                 PatientMedicineIssue.objects.create(
                     patient_id=safe_int(patient_id),
@@ -1016,10 +1032,10 @@ def api_save_vitals(request):
                     vitals_record=v,
                     formulation=item.get('formulation'),
                     strength=item.get('strength'),
-                    days=item.get('days'),
-                    morning=item.get('morning'),
-                    afternoon=item.get('afternoon'),
-                    night=item.get('night')
+                    days=safe_int(item.get('days')),
+                    morning=safe_int(item.get('morning')),
+                    afternoon=safe_int(item.get('afternoon')),
+                    night=safe_int(item.get('night'))
                 )
 
         # Handle tests
@@ -1029,12 +1045,14 @@ def api_save_vitals(request):
             test = MedicalTest.objects.filter(test_id=test_id).first()
             if test:
                 # pyrefly: ignore [missing-attribute]
-                TestIssue.objects.create(
-                    patient_id=safe_int(patient_id),
-                    camp=camp,
-                    test=test,
-                    vitals_record=v
-                )
+                if not TestIssue.objects.filter(patient_id=p_id_int, camp=camp, test=test).exists():
+                    # pyrefly: ignore [missing-attribute]
+                    TestIssue.objects.create(
+                        patient_id=p_id_int,
+                        camp=camp,
+                        test=test,
+                        vitals_record=v
+                    )
 
         return Response({'status': 'success', 'message': 'Vitals and medicines saved successfully'})
 
@@ -1158,44 +1176,16 @@ def api_update_visit_details(request, vitals_id):
         v.diagnosis = data.get('diagnosis', v.diagnosis)
         v.save()
 
-        # 2. Update Medicines (Smarter Reconciliation)
+        # 2. Update Medicines
         new_med_data = data.get('medicines', [])
         
-        # Aggregate duplicates in new_med_data payload
-        aggregated_new_meds = {}
+        # Calculate total requested quantity per medicine
+        total_requested = {}
         for item in new_med_data:
             med_id_val = item.get('msNo') or item.get('medicine')
             qty = safe_int(item.get('qty') or item.get('quantity'))
             if not med_id_val or qty <= 0:
                 continue
-                
-            try:
-                med_key = int(med_id_val)
-            except ValueError:
-                med_key = med_id_val
-                
-            if med_key in aggregated_new_meds:
-                aggregated_new_meds[med_key]['qty'] += qty
-            else:
-                aggregated_new_meds[med_key] = {
-                    'msNo': item.get('msNo'),
-                    'medicine': item.get('medicine'),
-                    'qty': qty,
-                    'formulation': item.get('formulation'),
-                    'strength': item.get('strength'),
-                    'days': safe_int(item.get('days')),
-                    'morning': safe_int(item.get('morning')),
-                    'afternoon': safe_int(item.get('afternoon')),
-                    'night': safe_int(item.get('night')),
-                }
-        
-        # pyrefly: ignore [missing-attribute]
-        existing_issues = {issue.id: issue for issue in PatientMedicineIssue.objects.filter(vitals_record=v)}
-        kept_ids = []
-        
-        for med_key, item in aggregated_new_meds.items():
-            med_id_val = item.get('msNo') or item.get('medicine')
-            qty = item.get('qty')
             
             # Find medicine
             medicine = None
@@ -1207,46 +1197,59 @@ def api_update_visit_details(request, vitals_id):
                 medicine = Medicine.objects.filter(name=med_id_val).first()
             if not medicine:
                 continue
-            
-            # Match with existing
-            match = None
-            for eid, eissue in existing_issues.items():
-                if eid not in kept_ids and eissue.medicine == medicine:
-                    match = eissue
-                    break
-            
-            if match:
-                # Update existing
-                match.qty = qty
-                match.days = item.get('days')
-                match.morning = item.get('morning')
-                match.afternoon = item.get('afternoon')
-                match.night = item.get('night')
-                match.formulation = item.get('formulation')
-                match.strength = item.get('strength')
-                match.save()
-                kept_ids.append(match.id)
-            else:
-                # New record
+                
+            total_requested[medicine.uqid] = total_requested.get(medicine.uqid, 0) + qty
+
+        # Delete existing issues first to temporarily restore stock
+        # pyrefly: ignore [missing-attribute]
+        existing_issues = list(PatientMedicineIssue.objects.filter(vitals_record=v))
+        for issue in existing_issues:
+            issue.delete()
+
+        # Now validate stock availability for the new requested quantities
+        for uqid_val, qty in total_requested.items():
+            # pyrefly: ignore [missing-attribute]
+            medicine = Medicine.objects.filter(uqid=uqid_val).first()
+            if medicine:
                 # pyrefly: ignore [missing-attribute]
-                PatientMedicineIssue.objects.create(
-                    patient_id=v.patient_id,
-                    camp=camp,
-                    medicine=medicine,
-                    qty=qty,
-                    vitals_record=v,
-                    formulation=item.get('formulation'),
-                    strength=item.get('strength'),
-                    days=item.get('days'),
-                    morning=item.get('morning'),
-                    afternoon=item.get('afternoon'),
-                    night=item.get('night')
-                )
-        
-        # Cleanup
-        for eid, eissue in existing_issues.items():
-            if eid not in kept_ids:
-                eissue.delete()
+                camp_stock = CampWiseStock.objects.filter(camp=camp, medicine=medicine).first()
+                if not camp_stock:
+                    raise ValueError(f'Stock not allocated for {medicine.name} at this camp.')
+                
+                if camp_stock.remaining_stock() < qty:
+                    raise ValueError(f'Insufficient stock for {medicine.name}. Available: {camp_stock.remaining_stock()}')
+
+        # If validation passed, create the new issues (keeping separate duplicate entries as requested)
+        for item in new_med_data:
+            med_id_val = item.get('msNo') or item.get('medicine')
+            qty = safe_int(item.get('qty') or item.get('quantity'))
+            if not med_id_val or qty <= 0:
+                continue
+                
+            medicine = None
+            if str(med_id_val).isdigit():
+                # pyrefly: ignore [missing-attribute]
+                medicine = Medicine.objects.filter(uqid=int(med_id_val)).first()
+            if not medicine:
+                # pyrefly: ignore [missing-attribute]
+                medicine = Medicine.objects.filter(name=med_id_val).first()
+            if not medicine:
+                continue
+
+            # pyrefly: ignore [missing-attribute]
+            PatientMedicineIssue.objects.create(
+                patient_id=v.patient_id,
+                camp=camp,
+                medicine=medicine,
+                qty=qty,
+                vitals_record=v,
+                formulation=item.get('formulation'),
+                strength=item.get('strength'),
+                days=safe_int(item.get('days')),
+                morning=safe_int(item.get('morning')),
+                afternoon=safe_int(item.get('afternoon')),
+                night=safe_int(item.get('night'))
+            )
 
         # 3. Update Tests
         TestIssue.objects.filter(vitals_record=v).delete()
@@ -1405,6 +1408,29 @@ def api_check_patient_id(request, pid):
             'patient_age': patient.patient_age
         })
     return Response({'exists': False})
+
+@api_view(['GET'])
+def api_patient_camp_medicines(request, pid, camp_id):
+    try:
+        camp = get_object_or_404(MedicalCamp, id=camp_id)
+        # pyrefly: ignore [missing-attribute]
+        issues = PatientMedicineIssue.objects.filter(patient_id=pid, camp=camp)
+        # pyrefly: ignore [missing-attribute]
+        test_issues = TestIssue.objects.filter(patient_id=pid, camp=camp)
+        
+        meds_data = [{
+            'medicine_id': issue.medicine.uqid,
+            'qty': issue.qty
+        } for issue in issues]
+        
+        tests_data = [t.test.id for t in test_issues]
+        
+        return Response({
+            'medicines': meds_data,
+            'tests': tests_data
+        })
+    except Exception as e:
+        return Response({'status': 'error', 'message': str(e)}, status=400)
 
 @api_view(['POST'])
 @transaction.atomic
@@ -1753,28 +1779,21 @@ def api_camp_patients(request, camp_id):
     for pid in sorted(all_pids):
         # pyrefly: ignore [missing-attribute]
         issues = PatientMedicineIssue.objects.filter(patient_id=pid, camp=camp)
-        
-        # Group and sum medicine quantities to prevent duplicate rows in UI
-        grouped_issues = {}
+        # Return medicine issues as separate entries instead of combining them by medicine ID
+        med_data = []
         for issue in issues:
-            med_id = issue.medicine.uqid
-            if med_id in grouped_issues:
-                grouped_issues[med_id]['qty'] += issue.qty
-                grouped_issues[med_id]['quantity'] += issue.qty
-            else:
-                grouped_issues[med_id] = {
-                    'id': issue.id,
-                    'patient_id': pid,
-                    'camp': camp.id,
-                    'medicine_id': med_id,
-                    'medicine_name': issue.medicine.name,
-                    'qty': issue.qty,
-                    'quantity': issue.qty,
-                    'formulation': issue.formulation,
-                    'strength': issue.strength,
-                    'days': issue.days
-                }
-        med_data = list(grouped_issues.values())
+            med_data.append({
+                'id': issue.id,
+                'patient_id': pid,
+                'camp': camp.id,
+                'medicine_id': issue.medicine.uqid,
+                'medicine_name': issue.medicine.name,
+                'qty': issue.qty,
+                'quantity': issue.qty,
+                'formulation': issue.formulation,
+                'strength': issue.strength,
+                'days': issue.days
+            })
         
         # pyrefly: ignore [missing-attribute]
         test_issues = TestIssue.objects.filter(patient_id=pid, camp=camp)
@@ -2683,6 +2702,19 @@ def api_bulk_add_patients(request):
         })
     except Exception as e:
         return Response({'status': 'error', 'message': str(e)}, status=400)
+
+@api_view(['GET'])
+def api_get_server_ip(request):
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(('8.8.8.8', 80))
+        ip = s.getsockname()[0]
+    except Exception:
+        ip = 'localhost'
+    finally:
+        s.close()
+    return Response({'ip': ip})
         
 
 

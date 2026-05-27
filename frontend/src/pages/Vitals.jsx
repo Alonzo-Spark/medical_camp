@@ -84,11 +84,26 @@ const Vitals = () => {
   const [scanSessionId, setScanSessionId] = useState(null);
   const [showScanModal, setShowScanModal] = useState(false);
   const [scanStatus, setScanStatus] = useState(null); // { is_completed: bool, image_url: string }
+  const [serverIp, setServerIp] = useState('192.168.0.32');
+
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [verifyData, setVerifyData] = useState({
+    patientId: '',
+    patientName: '',
+    newMeds: [],
+    oldMeds: [],
+    vitals: {}
+  });
 
   useEffect(() => {
     axios.get(`${API_BASE}/camps`).then(res => setCamps(res.data));
     axios.get(`${API_BASE}/medicines`).then(res => setAllMedicines(res.data));
     axios.get(`${API_BASE}/tests`).then(res => setLabTests(res.data));
+    axios.get(`${API_BASE}/get_server_ip`).then(res => {
+      if (res.data && res.data.ip) {
+        setServerIp(res.data.ip);
+      }
+    }).catch(err => console.log("Failed to fetch server IP:", err));
   }, []);
 
   useEffect(() => {
@@ -251,7 +266,41 @@ const Vitals = () => {
     }
   };
 
-  const handleAutoFill = () => {
+  const applyAutofill = (vitals, medsList) => {
+    const merge = (current, incoming) => {
+      if (incoming !== undefined && incoming !== null && incoming.toString().trim() !== '') {
+        return incoming;
+      }
+      return current;
+    };
+
+    setPatientId(prev => merge(prev, vitals.patientId));
+    setPatientName(prev => merge(prev, vitals.patientName));
+    setPatientAge(prev => merge(prev, vitals.patientAge));
+    setENo(prev => merge(prev, vitals.eNo));
+    setWeight(prev => merge(prev, vitals.weight));
+    setHeight(prev => merge(prev, vitals.height));
+    setBloodPressure(prev => merge(prev, vitals.bloodPressure));
+    setPulse(prev => merge(prev, vitals.pulse));
+    setRbs(prev => merge(prev, vitals.rbs));
+    setHaemoglobin(prev => merge(prev, vitals.haemoglobin));
+    setDrId(prev => merge(prev, vitals.drId));
+    setDrName(prev => merge(prev, vitals.drName));
+    setDiagnosis(prev => merge(prev, vitals.diagnosis));
+    
+    setSelectedTests(prev => {
+      const combined = [...prev, ...(vitals.selectedTests || [])];
+      return Array.from(new Set(combined));
+    });
+    
+    if (medsList && medsList.length > 0) {
+        setMedicines(medsList);
+    } else {
+        setMedicines([{ msNo: '', medicine: '', formulation: '', strength: '', days: '', quantity: '' }]);
+    }
+  };
+
+  const handleAutoFill = async () => {
     if (!scanStatus.ocr_data) return;
     const d = scanStatus.ocr_data;
     
@@ -262,30 +311,29 @@ const Vitals = () => {
         return '';
     };
 
-    setPatientId(getV('patient_id', 'demographics'));
-    setPatientName(getV('patient_name', 'demographics') || getV('name', 'demographics'));
-    setPatientAge(getV('age', 'demographics'));
-    setENo(getV('entry_no', 'demographics'));
-    setWeight(getV('weight', 'vitals'));
-    setHeight(getV('height', 'vitals'));
-    setBloodPressure(getV('bp', 'vitals'));
-    setPulse(getV('pulse', 'vitals'));
-    setRbs(getV('rbs', 'vitals'));
-    setHaemoglobin(getV('hemo', 'vitals'));
-    setDrId(getV('doctor_id', 'clinical'));
-    setDrName(getV('doctor_name', 'clinical'));
-    setDiagnosis(getV('diagnosis', 'clinical'));
+    const targetPatientId = getV('patient_id', 'demographics');
+    const pName = getV('patient_name', 'demographics') || getV('name', 'demographics');
+    const pAge = getV('age', 'demographics');
+    const entryNo = getV('entry_no', 'demographics');
+    const w = getV('weight', 'vitals');
+    const h = getV('height', 'vitals');
+    const bp = getV('bp', 'vitals');
+    const pul = getV('pulse', 'vitals');
+    const rb = getV('rbs', 'vitals');
+    const hemo = getV('hemo', 'vitals');
+    const doctorId = getV('doctor_id', 'clinical');
+    const doctorName = getV('doctor_name', 'clinical');
+    const diag = getV('diagnosis', 'clinical');
     
     // Lab Tests (ensure IDs are numbers for the checkboxes to work)
     const tests = d.lab_tests || (d.clinical && d.clinical.lab_tests) || [];
-    if (tests.length > 0) {
-        setSelectedTests(tests.map(id => parseInt(id)).filter(id => !isNaN(id)));
-    }
+    const parsedTests = tests.map(id => parseInt(id)).filter(id => !isNaN(id));
     
     // Medicines with Inventory Lookup
     const meds = d.medicines || (d.clinical && d.clinical.medicines) || [];
+    let mappedMeds = [];
     if (meds.length > 0) {
-        setMedicines(meds.map(m => {
+        mappedMeds = meds.map(m => {
             let medData = {
                 msNo: m.ms_no || '', 
                 medicine: m.medicine_name || '', 
@@ -295,20 +343,112 @@ const Vitals = () => {
                 quantity: m.quantity || '' 
             };
 
-            // If we have an ID but no name, look it up in inventory
-            if (medData.msNo && !medData.medicine) {
-                const found = allMedicines.find(am => am.uqid === parseInt(medData.msNo));
+            // Always validate and override using UQID if it is present to prevent human reporting errors
+            const uqidVal = parseInt(medData.msNo);
+            if (!isNaN(uqidVal)) {
+                const found = allMedicines.find(am => am.uqid === uqidVal);
                 if (found) {
-                    const campStockItem = campStocks[medData.msNo];
+                    const campStockItem = campStocks[uqidVal];
                     medData.medicine = (campStockItem && campStockItem.alternate_name) ? campStockItem.alternate_name : found.name;
                     medData.formulation = found.formulation || '';
                 }
             }
             return medData;
-        }));
+        });
     }
-    
-    setShowScanModal(false);
+
+    // Perform reconciliation against patient history to exclude already issued medicines and tests
+    const cleanPid = parseInt(targetPatientId);
+    let historyMeds = [];
+    let historyTests = [];
+    let hasHistory = false;
+    if (!isNaN(cleanPid) && selectedCamp) {
+        try {
+            const res = await axios.get(`${API_BASE}/patient_camp_medicines/${cleanPid}/${selectedCamp}`);
+            historyMeds = res.data.medicines || [];
+            historyTests = res.data.tests || [];
+            if (historyMeds.length > 0 || historyTests.length > 0) {
+                hasHistory = true;
+            }
+        } catch (err) {
+            console.error("Error fetching patient history:", err);
+        }
+    }
+
+    const newMeds = [];
+    const oldMeds = [];
+    const matchedHistoryIndices = new Set();
+
+    for (const scanned of mappedMeds) {
+        const scanUqid = parseInt(scanned.msNo);
+        const scanQty = parseInt(scanned.quantity);
+        
+        if (isNaN(scanUqid) || isNaN(scanQty)) {
+            newMeds.push(scanned);
+            continue;
+        }
+        
+        let foundMatchIndex = -1;
+        for (let i = 0; i < historyMeds.length; i++) {
+            if (matchedHistoryIndices.has(i)) continue;
+            if (parseInt(historyMeds[i].medicine_id) === scanUqid && parseInt(historyMeds[i].qty) === scanQty) {
+                foundMatchIndex = i;
+                break;
+            }
+        }
+        
+        if (foundMatchIndex !== -1) {
+            matchedHistoryIndices.add(foundMatchIndex);
+            oldMeds.push(scanned);
+        } else {
+            newMeds.push(scanned);
+        }
+    }
+
+    // Reconcile lab tests
+    const newTests = [];
+    const oldTests = [];
+    for (const testId of parsedTests) {
+        if (historyTests.includes(testId)) {
+            oldTests.push(testId);
+        } else {
+            newTests.push(testId);
+        }
+    }
+
+    const collectedVitals = {
+        patientId: targetPatientId,
+        patientName: pName,
+        patientAge: pAge,
+        eNo: entryNo,
+        weight: w,
+        height: h,
+        bloodPressure: bp,
+        pulse: pul,
+        rbs: rb,
+        haemoglobin: hemo,
+        drId: doctorId,
+        drName: doctorName,
+        diagnosis: diag,
+        selectedTests: parsedTests
+    };
+
+    if (hasHistory) {
+        setVerifyData({
+            patientId: targetPatientId,
+            patientName: pName,
+            newMeds: newMeds,
+            oldMeds: oldMeds,
+            newTests: newTests,
+            oldTests: oldTests,
+            vitals: collectedVitals
+        });
+        setShowVerifyModal(true);
+        setShowScanModal(false);
+    } else {
+        applyAutofill(collectedVitals, newMeds);
+        setShowScanModal(false);
+    }
   };
 
   const addMedicineRow = () => {
@@ -865,7 +1005,7 @@ const Vitals = () => {
                     <>
                         <div className="bg-slate-50 p-6 rounded-3xl border-2 border-slate-100 mb-6 shadow-inner">
                             <QRCodeSVG 
-                                value={`http://${window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? '192.168.0.32' : window.location.hostname}:5173/mobile-upload/${scanSessionId}`}
+                                value={`http://${window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? serverIp : window.location.hostname}:5173/mobile-upload/${scanSessionId}`}
                                 size={200}
                                 level="H"
                                 includeMargin={true}
@@ -879,7 +1019,7 @@ const Vitals = () => {
                         {(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && (
                             <div className="mt-4 p-3 bg-amber-50 border border-amber-100 rounded-xl text-[10px] text-amber-700 font-bold text-center leading-tight">
                                 ⚠️ Localhost detected. For best results, access the laptop dashboard at:<br/>
-                                <span className="text-amber-900 underline">http://192.168.0.32:5173/vitals</span>
+                                <span className="text-amber-900 underline">http://{serverIp}:5173/vitals</span>
                             </div>
                         )}
                         
@@ -982,6 +1122,162 @@ const Vitals = () => {
                     <span className="text-[9px] font-black uppercase tracking-widest">Phase 1 Workflow Active</span>
                 </div>
                 <p className="text-[9px] font-bold text-slate-400 text-center uppercase tracking-widest">Images are stored in media/scanned_reports/</p>
+          </div>
+        </div>
+      </div>
+    )}
+
+      {/* Verification Modal for Older Users */}
+      {showVerifyModal && (
+        <div id="verify-modal" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-2xl rounded-[32px] overflow-hidden shadow-2xl flex flex-col border border-slate-100 animate-in zoom-in duration-200">
+            {/* Header */}
+            <div className="p-6 bg-amber-50 border-b border-amber-100 flex items-center gap-4">
+              <div className="p-3 bg-amber-100 text-amber-800 rounded-2xl">
+                <AlertCircle size={28} strokeWidth={2.5} />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-slate-800 tracking-tight">Verify Patient Prescription</h3>
+                <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">
+                  Existing records found for Patient: {verifyData.patientName} (ID: {verifyData.patientId})
+                </p>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-8 space-y-6 max-h-[60vh] overflow-y-auto">
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
+                <p className="text-sm font-bold text-slate-600">
+                  <span className="text-slate-400">Important Note:</span> This patient already has medicines issued in this camp session today. To prevent double-entry, we compared the scanned sheet with their history.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Left Column: Already Issued (Ignored) */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                    <CheckCircle size={14} className="text-slate-400" strokeWidth={3} />
+                    Already Issued (Will Not Add)
+                  </h4>
+                  <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 space-y-2 max-h-48 overflow-y-auto">
+                    {verifyData.oldMeds.length === 0 ? (
+                      <p className="text-xs font-bold text-slate-400 italic">None of the scanned medicines were previously issued.</p>
+                    ) : (
+                      verifyData.oldMeds.map((med, idx) => (
+                        <div key={idx} className="flex items-start gap-2 text-xs font-bold text-slate-400 line-through decoration-slate-300">
+                          <span className="bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded text-[10px] font-black">{med.msNo}</span>
+                          <div>
+                            <div>{med.medicine}</div>
+                            <div className="text-[10px] font-medium text-slate-400">Qty: {med.quantity} • {med.days} Days</div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Right Column: New Medicines (To Add) */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-black text-teal-600 uppercase tracking-widest flex items-center gap-1.5">
+                    <PlusCircle size={14} className="text-teal-600" strokeWidth={3} />
+                    New Medicines (Will Be Added)
+                  </h4>
+                  <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-4 space-y-2 max-h-48 overflow-y-auto">
+                    {verifyData.newMeds.length === 0 ? (
+                      <p className="text-xs font-bold text-slate-500 italic">No new medicines found in this scan.</p>
+                    ) : (
+                      verifyData.newMeds.map((med, idx) => (
+                        <div key={idx} className="flex items-start gap-2 text-xs font-black text-emerald-800">
+                          <span className="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded text-[10px] font-black">{med.msNo}</span>
+                          <div>
+                            <div>{med.medicine}</div>
+                            <div className="text-[10px] font-bold text-emerald-600/80">Qty: {med.quantity} • {med.days} Days</div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Vitals and Lab Tests Reconciliation */}
+              <div className="border-t border-slate-100 pt-6 space-y-4">
+                <h4 className="text-xs font-black text-slate-700 uppercase tracking-widest">Vitals & Lab Tests Reconciliation</h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Vitals status */}
+                  <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 space-y-3">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Scanned Vitals</p>
+                    <div className="grid grid-cols-2 gap-2 text-xs font-bold text-slate-700">
+                      <div>BP: <span className="text-slate-500">{verifyData.vitals.bloodPressure || '—'}</span></div>
+                      <div>Pulse: <span className="text-slate-500">{verifyData.vitals.pulse || '—'}</span></div>
+                      <div>Weight: <span className="text-slate-500">{verifyData.vitals.weight || '—'}</span></div>
+                      <div>Height: <span className="text-slate-500">{verifyData.vitals.height || '—'}</span></div>
+                      <div>RBS: <span className="text-slate-500">{verifyData.vitals.rbs || '—'}</span></div>
+                      <div>Hb: <span className="text-slate-500">{verifyData.vitals.haemoglobin || '—'}</span></div>
+                    </div>
+                    <p className="text-[9px] text-slate-400 font-bold leading-tight uppercase tracking-wider">
+                      ℹ️ Empty scanned fields will NOT overwrite existing values in the form.
+                    </p>
+                  </div>
+
+                  {/* Lab Tests status */}
+                  <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 space-y-3">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Scanned Lab Tests</p>
+                    <div className="space-y-1.5">
+                      {/* Old Tests */}
+                      {verifyData.oldTests && verifyData.oldTests.length > 0 && (
+                        <div className="flex flex-wrap gap-1 items-center">
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-1">Already Ordered:</span>
+                          {verifyData.oldTests.map(tId => {
+                            const name = labTests.find(lt => lt.id === tId)?.name || `Test ID ${tId}`;
+                            return (
+                              <span key={tId} className="bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full text-[9px] font-bold line-through decoration-slate-400">{name}</span>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {/* New Tests */}
+                      {verifyData.newTests && verifyData.newTests.length > 0 && (
+                        <div className="flex flex-wrap gap-1 items-center">
+                          <span className="text-[9px] font-black text-teal-600 uppercase tracking-widest mr-1">New to Add:</span>
+                          {verifyData.newTests.map(tId => {
+                            const name = labTests.find(lt => lt.id === tId)?.name || `Test ID ${tId}`;
+                            return (
+                              <span key={tId} className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full text-[9px] font-bold">{name}</span>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {(!verifyData.oldTests || verifyData.oldTests.length === 0) && (!verifyData.newTests || verifyData.newTests.length === 0) && (
+                        <p className="text-xs font-bold text-slate-400 italic">No lab tests found in this scan.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-4">
+              <button
+                onClick={() => {
+                  setShowVerifyModal(false);
+                  setShowScanModal(true); // Return to scan view
+                }}
+                className="flex-1 bg-white hover:bg-slate-100 text-slate-500 py-4 rounded-2xl font-black text-xs uppercase tracking-[0.15em] border border-slate-200 transition-all active:scale-95"
+              >
+                Go Back to Scan
+              </button>
+              <button
+                onClick={() => {
+                  applyAutofill(verifyData.vitals, verifyData.newMeds);
+                  setShowVerifyModal(false);
+                }}
+                className="flex-1 bg-teal-600 hover:bg-teal-700 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-[0.15em] transition-all shadow-lg shadow-teal-100 active:scale-95"
+              >
+                Yes, Import New Medicines
+              </button>
             </div>
           </div>
         </div>

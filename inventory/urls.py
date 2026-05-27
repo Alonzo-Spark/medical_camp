@@ -35,6 +35,7 @@ urlpatterns = [
     path('api/update_visit/<int:vitals_id>', api_update_visit_details),
     path('api/register_patient', api_register_patient),
     path('api/check_patient_id/<int:pid>', api_check_patient_id),
+    path('api/patient_camp_medicines/<int:pid>/<int:camp_id>', api_patient_camp_medicines),
     path('api/doctor/<int:doctor_id>', api_get_doctor),
     path('api/login', api_login),
     path('api/update_stock', api_update_medicine_stock),
@@ -69,6 +70,7 @@ urlpatterns = [
     path('api/camps', api_get_all_camps),
     path('api/camp_details/<int:camp_id>', api_get_camp_details),
     path('api/issued_tests_list', api_get_patients_with_tests),
+    path('api/get_server_ip', api_get_server_ip),
 
 
 
