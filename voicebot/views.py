@@ -45,8 +45,12 @@ class TriggerTestReminderView(APIView):
         try:
             updated_schedule = service.process_and_generate_audio(schedule.id)
             
-            # Formulate the absolute media URL (respecting incoming hostname/port)
-            audio_url = request.build_absolute_uri(updated_schedule.audio_file.url)
+            import os
+            public_url = os.getenv("PUBLIC_URL")
+            if public_url:
+                audio_url = public_url.rstrip('/') + updated_schedule.audio_file.url
+            else:
+                audio_url = request.build_absolute_uri(updated_schedule.audio_file.url)
             
             return Response({
                 "status": "success",
