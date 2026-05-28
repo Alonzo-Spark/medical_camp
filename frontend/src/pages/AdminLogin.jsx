@@ -5,7 +5,7 @@ import { ShieldCheck, Lock, User, Eye, EyeOff, Loader2, Heart, Activity, Stethos
 import cccLogo from "../assets/ccc-logo.png";
 import medicalCampBg from "../assets/medical_camp_bg.png";
 
-const API_BASE = `http://${window.location.hostname}:8000/api`;
+const API_BASE = '/api';
 
 function AdminLogin() {
     const [username, setUsername] = useState("");

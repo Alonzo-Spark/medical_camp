@@ -53,7 +53,7 @@ ChartJS.register(
   ChartDataLabels
 );
 
-const API_BASE = `http://${window.location.hostname}:8000/api`;
+const API_BASE = '/api';
 
 // Reusable Input Component
 const VitalInput = ({ icon: Icon, label, value, onChange, type = 'text', placeholder = '', iconColor = 'text-teal-500', required = false }) => (

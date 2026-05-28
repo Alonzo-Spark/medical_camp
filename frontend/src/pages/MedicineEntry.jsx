@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Pill, Search, PackageOpen, Filter, Box, PlusCircle, CheckCircle2, Heart, Landmark, RefreshCcw, AlertTriangle, Download, Edit3, Check, X } from 'lucide-react';
 
-const API_BASE = `http://${window.location.hostname}:8000/api`;
+const API_BASE = '/api';
 
 const MedicineEntry = () => {
   const [medicines, setMedicines] = useState([]);
@@ -25,6 +25,8 @@ const MedicineEntry = () => {
   const [campUnitCosts, setCampUnitCosts] = useState({});
   const [editingUqid, setEditingUqid] = useState(null);
   const [tempAltName, setTempAltName] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
 
 
 
@@ -65,6 +67,7 @@ const MedicineEntry = () => {
           uqid: med.uqid,
           medication: med.name,
           formulation: med.formulation || '',
+          category: med.category || '',
           total_stock: med.stock,
           camp_stock: campData.allocated,
           used_stock: campData.used,
@@ -384,6 +387,34 @@ const MedicineEntry = () => {
     s.uqid.toString().includes(searchTerm)
   ).sort((a, b) => Number(a.uqid) - Number(b.uqid));
 
+  const groupedMeds = filteredMeds.reduce((acc, med) => {
+    const category = med.category || 'Uncategorized';
+    if (!acc[category]) acc[category] = [];
+    acc[category].push(med);
+    return acc;
+  }, {});
+  const sortedCategories = Object.keys(groupedMeds).sort();
+
+  const groupedCampStocks = filteredCampStocks.reduce((acc, stock) => {
+    const category = stock.category || 'Uncategorized';
+    if (!acc[category]) acc[category] = [];
+    acc[category].push(stock);
+    return acc;
+  }, {});
+  const sortedCampCategories = Object.keys(groupedCampStocks).sort();
+
+  const getCategoryOrderKey = (category) => {
+    const match = category.match(/-\s*([A-Z])/i);
+    return match ? match[1].charCodeAt(0) : 999;
+  };
+  const availableCategories = Array.from(new Set(medicines.map(m => m.category).filter(Boolean)));
+  const sortedFilterCategories = [...availableCategories].sort((a, b) => {
+    const keyA = getCategoryOrderKey(a);
+    const keyB = getCategoryOrderKey(b);
+    if (keyA !== keyB) return keyA - keyB;
+    return a.localeCompare(b);
+  });
+
   return (
     <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 space-y-8 pb-10">
       {/* Header Section */}
@@ -520,9 +551,25 @@ const MedicineEntry = () => {
                 )}
               </button>
             )}
-            <button onClick={() => { fetchMedicines(); fetchCampStocks(); }} className="p-4 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-teal-600 hover:border-teal-200 transition-all shadow-sm">
-              <Filter size={20} strokeWidth={2.5} />
-            </button>
+            <div className="flex-shrink-0 min-w-[220px]">
+              <div className="relative">
+                <select
+                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-4 pr-10 text-xs font-black text-slate-600 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 outline-none transition-all appearance-none cursor-pointer shadow-sm"
+                  value={selectedCategory || ''}
+                  onChange={(e) => setSelectedCategory(e.target.value === '' ? null : e.target.value)}
+                >
+                  <option value="">Select Category</option>
+                  {sortedFilterCategories.map(cat => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-slate-400">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -603,6 +650,7 @@ const MedicineEntry = () => {
                 <tr className="bg-slate-50 border-b border-slate-100 text-[12px] font-black uppercase tracking-wide text-slate-600">
                   <th className="px-4 py-4 max-w-[130px] leading-snug">System Identity (UQID)</th>
                   <th className="px-4 py-4">Medication Description</th>
+                  <th className="px-4 py-4">Formulation</th>
                   <th className="px-4 py-4">Unit Cost (₹)</th>
                   <th className="px-4 py-4">Total Cost (₹)</th>
                   <th className="px-4 py-4 max-w-[130px] leading-snug">Global Inventory Status</th>
@@ -620,8 +668,22 @@ const MedicineEntry = () => {
                     </td>
                   </tr>
                 ) : filteredMeds.length > 0 ? (
-                  filteredMeds.map((med) => (
-                    <tr key={med.uqid} className="hover:bg-teal-50/40 transition-all group">
+                  (selectedCategory ? sortedCategories.filter(c => c === selectedCategory) : sortedCategories).map((categoryName) => (
+                    <React.Fragment key={categoryName}>
+                      <tr className="bg-slate-100/60 border-y border-slate-200">
+                        <td colSpan="7" className="px-8 py-4 relative">
+                          <div className="flex items-center justify-center">
+                            <span className="font-black text-[15px] text-teal-800 uppercase tracking-[0.2em] font-sans">
+                              {categoryName}
+                            </span>
+                          </div>
+                          <span className="absolute right-8 top-1/2 -translate-y-1/2 bg-teal-50 text-teal-700 text-[10px] font-black px-3 py-1 rounded-full border border-teal-100/50">
+                            {groupedMeds[categoryName].length} {groupedMeds[categoryName].length === 1 ? 'item' : 'items'}
+                          </span>
+                        </td>
+                      </tr>
+                      {groupedMeds[categoryName].map((med) => (
+                        <tr key={med.uqid} className="hover:bg-teal-50/40 transition-all group">
                       <td className="px-4 py-4">
                         {editingMedId === med.uqid ? (
                           <input
@@ -638,28 +700,27 @@ const MedicineEntry = () => {
                       </td>
                       <td className="px-4 py-4">
                         {editingMedId === med.uqid ? (
-                          <div className="flex flex-col gap-1 max-w-md">
-                            <input
-                              type="text"
-                              className="w-full bg-white border border-teal-300 rounded-lg px-2 py-1.5 text-sm font-black outline-none focus:ring-2 focus:ring-teal-500/20 shadow-sm"
-                              value={editMedData.name}
-                              onChange={(e) => setEditMedData({ ...editMedData, name: e.target.value })}
-                            />
-                            <input
-                              type="text"
-                              className="w-full bg-white border border-teal-300 rounded-lg px-2 py-1 text-xs font-extrabold outline-none focus:ring-2 focus:ring-teal-500/20 shadow-sm mt-1 uppercase"
-                              placeholder="Formulation (e.g. TABLET)"
-                              value={editMedData.formulation || ''}
-                              onChange={(e) => setEditMedData({ ...editMedData, formulation: e.target.value })}
-                            />
-                          </div>
+                          <input
+                            type="text"
+                            className="w-full bg-white border border-teal-300 rounded-lg px-2 py-1.5 text-sm font-black outline-none focus:ring-2 focus:ring-teal-500/20 shadow-sm"
+                            value={editMedData.name}
+                            onChange={(e) => setEditMedData({ ...editMedData, name: e.target.value })}
+                          />
                         ) : (
-                          <div className="flex items-center gap-2 max-w-md">
-                            <span className="text-base font-black text-slate-800 group-hover:text-teal-700 transition-colors truncate">{med.name}</span>
-                            <span className="text-xs text-slate-600 font-extrabold uppercase tracking-wider px-2 py-0.5 bg-slate-50 rounded-md border border-slate-100 truncate">
-                              {med.formulation || 'Generic Formulation'}
-                            </span>
-                          </div>
+                          <span className="text-base font-black text-slate-800 group-hover:text-teal-700 transition-colors truncate">{med.name}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4">
+                        {editingMedId === med.uqid ? (
+                          <input
+                            type="text"
+                            className="w-full bg-white border border-teal-300 rounded-lg px-2 py-1 text-xs font-extrabold outline-none focus:ring-2 focus:ring-teal-500/20 shadow-sm uppercase"
+                            placeholder="Formulation (e.g. TABLET)"
+                            value={editMedData.formulation || ''}
+                            onChange={(e) => setEditMedData({ ...editMedData, formulation: e.target.value })}
+                          />
+                        ) : (
+                          <span className="text-sm font-black text-slate-700">{med.formulation || '-'}</span>
                         )}
                       </td>
                       <td className="px-4 py-4">
@@ -748,8 +809,10 @@ const MedicineEntry = () => {
                         </div>
                       </td>
                     </tr>
-                  ))
-                ) : (
+                  ))}
+                  </React.Fragment>
+                ))
+              ) : (
                   <tr>
                     <td colSpan="6" className="px-8 py-32 text-center text-slate-700">
                       <div className="flex flex-col items-center gap-4 animate-fade-in">
@@ -786,8 +849,22 @@ const MedicineEntry = () => {
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {filteredCampStocks.length > 0 ? (
-                  filteredCampStocks.map((stock) => (
-                    <tr key={stock.uqid} className="hover:bg-emerald-50/40 transition-all group">
+                  (selectedCategory ? sortedCampCategories.filter(c => c === selectedCategory) : sortedCampCategories).map((categoryName) => (
+                    <React.Fragment key={categoryName}>
+                      <tr className="bg-slate-100/60 border-y border-slate-200">
+                        <td colSpan="11" className="px-8 py-4 relative">
+                          <div className="flex items-center justify-center">
+                            <span className="font-black text-[15px] text-teal-800 uppercase tracking-[0.2em] font-sans">
+                              {categoryName}
+                            </span>
+                          </div>
+                          <span className="absolute right-8 top-1/2 -translate-y-1/2 bg-teal-50 text-teal-700 text-[10px] font-black px-3 py-1 rounded-full border border-teal-100/50">
+                            {groupedCampStocks[categoryName].length} {groupedCampStocks[categoryName].length === 1 ? 'item' : 'items'}
+                          </span>
+                        </td>
+                      </tr>
+                      {groupedCampStocks[categoryName].map((stock) => (
+                        <tr key={stock.uqid} className="hover:bg-emerald-50/40 transition-all group">
                       <td className="px-4 py-4">
                         <span className="font-data text-sm font-bold text-slate-400 group-hover:text-emerald-600 transition-colors">#{stock.uqid}</span>
                       </td>
@@ -844,8 +921,8 @@ const MedicineEntry = () => {
                         )}
                       </td>
                       <td className="px-4 py-4">
-                        <span className="text-sm font-bold text-slate-600">
-                          {stock.formulation || 'Generic Formulation'}
+                        <span className="text-sm font-black text-slate-700">
+                          {stock.formulation || '-'}
                         </span>
                       </td>
                       <td className="px-4 py-4">
@@ -954,8 +1031,10 @@ const MedicineEntry = () => {
                         </div>
                       </td>
                     </tr>
-                  ))
-                ) : (
+                  ))}
+                  </React.Fragment>
+                ))
+              ) : (
                   <tr>
                     <td colSpan="13" className="px-8 py-24 text-center text-slate-400 font-bold">No records found for camp allocation</td>
                   </tr>
@@ -971,6 +1050,7 @@ const MedicineEntry = () => {
                 <tr className="bg-slate-50 border-b border-slate-100 text-xs font-black uppercase tracking-[0.2em] text-slate-400">
                   <th className="px-4 py-4">UQID</th>
                   <th className="px-4 py-4">Medication Name</th>
+                  <th className="px-4 py-4">Formulation</th>
                   <th className="px-4 py-4">Company Name</th>
                   <th className="px-4 py-4">Expiry Date</th>
                   <th className="px-4 py-4 text-right">Action</th>
@@ -978,7 +1058,21 @@ const MedicineEntry = () => {
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {filteredMeds.length > 0 ? (
-                  filteredMeds.map((med) => {
+                  (selectedCategory ? sortedCategories.filter(c => c === selectedCategory) : sortedCategories).map((categoryName) => (
+                    <React.Fragment key={categoryName}>
+                      <tr className="bg-slate-100/60 border-y border-slate-200">
+                        <td colSpan="6" className="px-8 py-4 relative">
+                          <div className="flex items-center justify-center">
+                            <span className="font-black text-[15px] text-teal-800 uppercase tracking-[0.2em] font-sans">
+                              {categoryName}
+                            </span>
+                          </div>
+                          <span className="absolute right-8 top-1/2 -translate-y-1/2 bg-teal-50 text-teal-700 text-[10px] font-black px-3 py-1 rounded-full border border-teal-100/50">
+                            {groupedMeds[categoryName].length} {groupedMeds[categoryName].length === 1 ? 'item' : 'items'}
+                          </span>
+                        </td>
+                      </tr>
+                      {groupedMeds[categoryName].map((med) => {
                     const formState = detailsForm[med.uqid] || {};
                     const campStock = campStocks.find(s => s.uqid === med.uqid);
                     const displayCompany = formState.company_name !== undefined 
@@ -993,6 +1087,9 @@ const MedicineEntry = () => {
                           <span className="font-data text-sm font-bold text-slate-400">#{med.uqid}</span>
                         </td>
                         <td className="px-4 py-4 text-base font-black text-slate-800">{med.name}</td>
+                        <td className="px-4 py-4">
+                          <span className="text-sm font-black text-slate-700">{med.formulation || '-'}</span>
+                        </td>
                         <td className="px-4 py-4">
                           <input
                             type="text"
@@ -1021,8 +1118,10 @@ const MedicineEntry = () => {
                         </td>
                       </tr>
                     );
-                  })
-                ) : (
+                  })}
+                  </React.Fragment>
+                ))
+              ) : (
                   <tr>
                     <td colSpan="6" className="px-8 py-24 text-center text-slate-400 font-bold">No records found</td>
                   </tr>

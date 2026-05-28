@@ -19,7 +19,8 @@ from django.db import close_old_connections
 from .ocr_service import MedicalOCRService
 
 # DRF Imports
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 # Global OCR Service instance
@@ -1360,7 +1361,8 @@ def api_get_doctor(request, doctor_id):
         }, status=404)
 
 @api_view(['POST'])
-@csrf_exempt
+@authentication_classes([])
+@permission_classes([AllowAny])
 def api_login(request):
     try:
         data = request.data

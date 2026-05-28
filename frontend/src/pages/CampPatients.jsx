@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
-  ClipboardList, Landmark, Users, ChevronUp, ChevronDown, 
-  Pill, FlaskConical, Search, X, Save
+  ClipboardList, Landmark, Users, ChevronUp, ChevronDown,
+  Pill, FlaskConical, Search, X, Save, Volume2
 } from 'lucide-react';
 
-const API_BASE = `http://${window.location.hostname}:8000/api`;
+const API_BASE = '/api';
 
 const CampPatients = () => {
   const [camps, setCamps] = useState([]);
@@ -55,12 +55,22 @@ const CampPatients = () => {
 
 
 
+  const handleBroadcastReminders = async (campId) => {
+    if (!window.confirm("Are you sure you want to broadcast automated voice reminders to all patients in this camp?")) return;
+    
+    try {
+      alert("Broadcast initiated! Voice calls are being queued via Exotel.");
+      await axios.post(`${API_BASE}/broadcast_reminders/`, { camp_id: campId });
+    } catch (err) {
+      alert('Error triggering broadcast: ' + (err.response?.data?.message || err.message));
+    }
+  };
 
   const filteredPatients = campPatients.filter(pat => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
-    return pat.patient_id.toString().includes(query) || 
-           (pat.patient_name && pat.patient_name.toLowerCase().includes(query));
+    return pat.patient_id.toString().includes(query) ||
+      (pat.patient_name && pat.patient_name.toLowerCase().includes(query));
   });
 
   return (
@@ -69,12 +79,24 @@ const CampPatients = () => {
       <div className="glass-panel-light p-8 relative overflow-hidden">
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-400 to-purple-400" />
 
-        {/* Section title */}
-        <div className="flex items-center gap-2 mb-6">
-          <div className="p-1.5 bg-blue-50 rounded-lg border border-blue-100">
-            <ClipboardList size={16} className="text-blue-600" strokeWidth={2.5} />
+        {/* Section title & Broadcast Button */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-blue-50 rounded-lg border border-blue-100">
+              <ClipboardList size={16} className="text-blue-600" strokeWidth={2.5} />
+            </div>
+            <h4 className="text-sm font-black text-slate-700 uppercase tracking-wider">Camp Wise Patient List</h4>
           </div>
-          <h4 className="text-sm font-black text-slate-700 uppercase tracking-wider">Camp Wise Patient List</h4>
+          
+          {listCamp && campPatients.length > 0 && (
+            <button
+              onClick={() => handleBroadcastReminders(listCamp)}
+              className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-blue-500/20 active:scale-95"
+            >
+              <Volume2 size={16} strokeWidth={2.5} />
+              Broadcast Reminders
+            </button>
+          )}
         </div>
 
         {/* Camp Selector */}
@@ -156,11 +178,10 @@ const CampPatients = () => {
               return (
                 <div
                   key={idx}
-                  className={`border rounded-2xl transition-all overflow-hidden ${
-                    isExpanded
-                      ? 'border-blue-300 shadow-md shadow-blue-50 bg-white'
-                      : 'border-slate-200 bg-white hover:border-blue-200 hover:shadow-sm'
-                  }`}
+                  className={`border rounded-2xl transition-all overflow-hidden ${isExpanded
+                    ? 'border-blue-300 shadow-md shadow-blue-50 bg-white'
+                    : 'border-slate-200 bg-white hover:border-blue-200 hover:shadow-sm'
+                    }`}
                 >
                   {/* Patient Header (clickable) */}
                   <button
@@ -169,11 +190,10 @@ const CampPatients = () => {
                     onClick={() => setExpandedPatient(isExpanded ? null : idx)}
                   >
                     <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black ${
-                        isExpanded
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-blue-50 text-blue-600 border border-blue-100'
-                      }`} >
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black ${isExpanded
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-blue-50 text-blue-600 border border-blue-100'
+                        }`} >
                         {pat.patient_id}
                       </div>
                       <div>
@@ -181,12 +201,21 @@ const CampPatients = () => {
                           <p className="text-sm font-black text-slate-800">
                             {pat.patient_name || <span className="text-slate-400 italic">No Name</span>}
                           </p>
-                          <span className={`px-2 py-0.5 text-[9px] font-black rounded-full border ${
-                            pat.is_new 
-                              ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
-                              : 'bg-blue-50 text-blue-600 border-blue-100'
-                          }`}>
+                          <span className={`px-2 py-0.5 text-[9px] font-black rounded-full border ${pat.is_new
+                            ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                            : 'bg-blue-50 text-blue-600 border-blue-100'
+                            }`}>
                             {pat.is_new ? 'NEW' : 'OLD'}
+                          </span>
+                          
+                          {/* Call Status Badge */}
+                          <span className={`px-2 py-0.5 text-[9px] font-black rounded-full border ${
+                            pat.call_status === 'completed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                            pat.call_status === 'failed' ? 'bg-red-50 text-red-600 border-red-100' :
+                            pat.call_status === 'queued' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                            'bg-slate-50 text-slate-400 border-slate-100'
+                          }`}>
+                            {pat.call_status ? pat.call_status.toUpperCase() : 'NO CALL'}
                           </span>
                         </div>
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
@@ -196,9 +225,8 @@ const CampPatients = () => {
                         </p>
                       </div>
                     </div>
-                    <div className={`p-1.5 rounded-lg transition-all ${
-                      isExpanded ? 'bg-blue-100 text-blue-600' : 'text-slate-300'
-                    }`}>
+                    <div className={`p-1.5 rounded-lg transition-all ${isExpanded ? 'bg-blue-100 text-blue-600' : 'text-slate-300'
+                      }`}>
                       {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                     </div>
                   </button>
@@ -206,7 +234,7 @@ const CampPatients = () => {
                   {/* Expanded Details */}
                   {isExpanded && (
                     <div className="px-5 pb-5 pt-1 border-t border-slate-100">
-                      
+
                       {/* Patient Info Row */}
                       <div className="flex items-center justify-between mt-3 mb-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
                         <div className="flex gap-6 text-xs font-bold text-slate-600">
@@ -299,8 +327,8 @@ const CampPatients = () => {
                                       </td>
                                       <td className="px-3 py-2 text-xs font-bold text-slate-700">{t.test_name}</td>
                                       <td className="px-3 py-2 text-center">
-                                        <input 
-                                          type="checkbox" 
+                                        <input
+                                          type="checkbox"
                                           className="w-4 h-4 accent-purple-600 cursor-pointer"
                                           checked={t.reports_issued || false}
                                           onChange={(e) => handleUpdateTestRecord(t.test_issue_id, e.target.checked, pat.patient_id, ti)}

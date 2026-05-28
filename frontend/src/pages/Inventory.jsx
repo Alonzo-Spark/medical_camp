@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Pill, Search, Download, PackageOpen, Filter, Box, Heart, Check, X, AlertTriangle } from 'lucide-react';
 
-const API_BASE = `http://${window.location.hostname}:8000/api`;
+const API_BASE = '/api';
 
 const Inventory = () => {
   const [medicines, setMedicines] = useState([]);
@@ -180,67 +180,24 @@ const Inventory = () => {
               </button>
             )}
           </div>
-          <div className="relative">
-            <button
-              onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-              className={`p-4 rounded-xl border transition-all flex items-center gap-2 ${
-                selectedCategory
-                  ? 'bg-teal-50 border-teal-300 text-teal-600 font-bold'
-                  : 'bg-white border-slate-200 text-slate-400 hover:text-teal-600 hover:border-teal-200'
-              }`}
-            >
-              <Filter size={20} strokeWidth={2.5} />
-              {selectedCategory && (
-                <span className="text-xs truncate max-w-[150px] text-teal-700 bg-teal-100/50 px-2 py-0.5 rounded border border-teal-200">
-                  {selectedCategory.split(' - ')[0]}
-                </span>
-              )}
-            </button>
-
-            {showFilterDropdown && (
-              <>
-                <div
-                  className="fixed inset-0 z-10"
-                  onClick={() => setShowFilterDropdown(false)}
-                />
-                <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200 rounded-xl shadow-xl z-20 py-2 animate-fade-in max-h-[400px] overflow-y-auto">
-                  <div className="px-4 py-2 border-b border-slate-100 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-                    Filter by Category
-                  </div>
-                  <button
-                    onClick={() => {
-                      setSelectedCategory(null);
-                      setShowFilterDropdown(false);
-                    }}
-                    className={`w-full text-left px-4 py-3 text-xs font-bold transition-all border-l-2 flex justify-between items-center ${
-                      selectedCategory === null
-                        ? 'bg-teal-50 border-teal-500 text-teal-700'
-                        : 'border-transparent text-slate-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    <span>All Categories</span>
-                    {selectedCategory === null && <Check size={14} strokeWidth={3} className="text-teal-500" />}
-                  </button>
-                  {sortedFilterCategories.map(cat => (
-                    <button
-                      key={cat}
-                      onClick={() => {
-                        setSelectedCategory(cat);
-                        setShowFilterDropdown(false);
-                      }}
-                      className={`w-full text-left px-4 py-3 text-xs font-bold transition-all border-l-2 flex justify-between items-center ${
-                        selectedCategory === cat
-                          ? 'bg-teal-50/50 border-teal-500 text-teal-700'
-                          : 'border-transparent text-slate-600 hover:bg-slate-50'
-                      }`}
-                    >
-                      <span className="truncate">{cat}</span>
-                      {selectedCategory === cat && <Check size={14} strokeWidth={3} className="text-teal-500" />}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
+          <div className="flex-shrink-0 min-w-[220px]">
+            <div className="relative">
+              <select
+                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-4 pr-10 text-xs font-black text-slate-600 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 outline-none transition-all appearance-none cursor-pointer shadow-sm"
+                value={selectedCategory || ''}
+                onChange={(e) => setSelectedCategory(e.target.value === '' ? null : e.target.value)}
+              >
+                <option value="">Select Category</option>
+                {sortedFilterCategories.map(cat => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-slate-400">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -248,10 +205,10 @@ const Inventory = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-500">
+              <tr className="bg-slate-50 border-b border-slate-200 text-xs font-black uppercase tracking-wider text-slate-700">
                 <th className="px-8 py-5">Identity (UQID)</th>
                 <th className="px-8 py-5">Medication Description</th>
-                <th className="px-8 py-5">Classification</th>
+                <th className="px-8 py-5 text-center">Formulation</th>
                 <th className="px-8 py-5 text-right">Available Stock</th>
               </tr>
             </thead>
@@ -266,18 +223,18 @@ const Inventory = () => {
                   </td>
                 </tr>
               ) : filteredMeds.length > 0 ? (
-                sortedCategories.map((categoryName) => (
+                (selectedCategory ? sortedCategories.filter(c => c === selectedCategory) : sortedCategories).map((categoryName) => (
                   <React.Fragment key={categoryName}>
                     <tr className="bg-slate-100/60 border-y border-slate-200">
-                      <td colSpan="4" className="px-8 py-3.5">
-                        <div className="flex items-center justify-between">
-                          <span className="font-extrabold text-[11px] text-teal-800 uppercase tracking-[0.2em] font-sans">
+                      <td colSpan="4" className="px-8 py-4 relative">
+                        <div className="flex items-center justify-center">
+                          <span className="font-black text-[15px] text-teal-800 uppercase tracking-[0.2em] font-sans">
                             {categoryName}
                           </span>
-                          <span className="bg-teal-50 text-teal-700 text-[10px] font-black px-3 py-1 rounded-full border border-teal-100/50">
-                            {groupedMeds[categoryName].length} {groupedMeds[categoryName].length === 1 ? 'item' : 'items'}
-                          </span>
                         </div>
+                        <span className="absolute right-8 top-1/2 -translate-y-1/2 bg-teal-50 text-teal-700 text-[10px] font-black px-3 py-1 rounded-full border border-teal-100/50">
+                          {groupedMeds[categoryName].length} {groupedMeds[categoryName].length === 1 ? 'item' : 'items'}
+                        </span>
                       </td>
                     </tr>
                     {groupedMeds[categoryName].map((med) => (
@@ -288,16 +245,11 @@ const Inventory = () => {
                           </span>
                         </td>
                         <td className="px-8 py-6">
-                          <div className="flex items-center justify-between gap-6">
-                            <span className="font-bold text-slate-800 group-hover:text-teal-700 transition-colors">{med.name}</span>
-                            <span className="text-xs text-slate-600 font-bold italic bg-slate-50 px-2.5 py-1 rounded border border-slate-200">
-                              {med.formulation || 'No formulation specified'}
-                            </span>
-                          </div>
+                          <span className="font-bold text-slate-800 group-hover:text-teal-700 transition-colors">{med.name}</span>
                         </td>
-                        <td className="px-8 py-6">
-                          <span className="text-[10px] font-extrabold uppercase tracking-wider px-3 py-1.5 rounded-lg bg-slate-100 text-slate-500 border border-slate-200">
-                            {med.category}
+                        <td className="px-8 py-6 text-center">
+                          <span className="text-sm text-slate-700 font-black">
+                            {med.formulation || '-'}
                           </span>
                         </td>
                         <td className="px-8 py-6 text-right">
