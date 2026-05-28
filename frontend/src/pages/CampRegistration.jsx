@@ -5,7 +5,7 @@ import {
   AlertCircle, Stethoscope
 } from 'lucide-react';
 
-const API_BASE = 'http://127.0.0.1:8000/api';
+const API_BASE = import.meta.env.VITE_API_BASE || `http://${window.location.hostname}:8000/api`;
 
 const CampRegistration = () => {
   const [campId, setCampId] = useState('');
@@ -154,7 +154,15 @@ const CampRegistration = () => {
               className="w-full bg-white border border-slate-200 rounded-xl px-5 py-4 text-xl font-black text-slate-800 placeholder:text-slate-300 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 outline-none transition-all shadow-sm hover:border-slate-300"
               placeholder="Enter Camp ID..."
               value={campId}
-              onChange={e => setCampId(e.target.value)}
+              onChange={e => {
+                const val = e.target.value;
+                if (/\D/.test(val)) {
+                  alert("Please enter numbers only for the Camp Number.");
+                  setCampId(val.replace(/\D/g, ''));
+                } else {
+                  setCampId(val);
+                }
+              }}
             />
           </div>
 

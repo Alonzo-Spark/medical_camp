@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { ShieldCheck, Lock, User, Eye, EyeOff, Loader2, Heart } from "lucide-react";
+import { ShieldCheck, Lock, User, Eye, EyeOff, Loader2, Heart, Activity, Stethoscope, Pill } from "lucide-react";
 import cccLogo from "../assets/ccc-logo.png";
+import medicalCampBg from "../assets/medical_camp_bg.png";
 
-const API_BASE = 'http://127.0.0.1:8000/api';
+const API_BASE = import.meta.env.VITE_API_BASE || `http://${window.location.hostname}:8000/api`;
 
 function AdminLogin() {
     const [username, setUsername] = useState("");
@@ -23,7 +24,11 @@ function AdminLogin() {
                 setStatus("success");
                 localStorage.setItem("userRole", res.data.role);
                 setTimeout(() => {
-                    navigate("/dashboard");
+                    if (res.data.role === "medicine_entry_staff") {
+                        navigate("/inventory");
+                    } else {
+                        navigate("/dashboard");
+                    }
                 }, 1000);
             } else {
                 setStatus("error");
@@ -36,13 +41,19 @@ function AdminLogin() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-50 relative overflow-hidden font-sans">
-            {/* Dynamic Background Elements */}
-            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-teal-500/5 rounded-full blur-[120px]" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-500/5 rounded-full blur-[120px]" />
+        <div
+            className="min-h-screen flex items-center justify-center relative overflow-hidden font-sans bg-cover bg-center"
+            style={{ backgroundImage: `url(${medicalCampBg})` }}
+        >
+            {/* Enhanced Gradient Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-br from-teal-900/60 via-slate-900/70 to-emerald-900/60 backdrop-blur-[6px] z-0" />
+            
+            {/* Decorative Glowing Orbs */}
+            <div className="absolute -top-40 -right-40 w-96 h-96 bg-teal-400/30 rounded-full blur-[80px] z-0 animate-pulse" style={{ animationDuration: '4s' }} />
+            <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-emerald-400/20 rounded-full blur-[100px] z-0 animate-pulse" style={{ animationDuration: '6s' }} />
 
             {/* Login Card */}
-            <div className="relative w-full max-w-md px-4 animate-fade-in">
+            <div className="relative w-full max-w-md px-4 animate-fade-in z-10">
                 <div className="glass-panel-light p-10 relative overflow-hidden bg-white/80 backdrop-blur-xl">
                     <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-teal-500 via-teal-400 to-emerald-400" />
 

@@ -11,7 +11,9 @@ import {
   ClipboardList,
   PlusSquare,
   LayoutDashboard,
-  Users
+  Users,
+  FileText,
+  FlaskConical
 } from 'lucide-react';
 
 const SidebarLink = ({ to, icon: Icon, label, active }) => (
@@ -35,11 +37,18 @@ const Layout = () => {
   const initials = adminUsername.slice(0, 2).toUpperCase();
   const userRole = localStorage.getItem('userRole') || 'main_admin';
 
+  React.useEffect(() => {
+    if (location.pathname === '/camp-registration' && userRole !== 'main_admin') {
+      navigate('/dashboard');
+    }
+  }, [location.pathname, userRole, navigate]);
+
   const formatRole = (role) => {
     switch (role) {
       case 'registration_staff': return 'Registration Staff';
       case 'log_vitals_staff': return 'Vitals Staff';
       case 'main_admin': return 'Main Admin';
+      case 'medicine_entry_staff': return 'Medicine Entry Staff';
       default: return 'Medical Staff';
     }
   };
@@ -57,6 +66,9 @@ const Layout = () => {
       '/medicine-entry': 'Stock Entry',
       '/camp-registration': 'Camp Registration',
       '/camp-patients': 'Camp Patients List',
+      '/doctors': 'Doctors List',
+      '/doctor-consultation-log': 'Doctor Consultation Log',
+      '/adding-patients': 'Adding Patients',
     };
     return titles[path] || path.replace('/', '').replace('-', ' ');
   };
@@ -94,27 +106,48 @@ const Layout = () => {
             Clinical Menu
           </p>
           <nav className="flex flex-col gap-1">
-            {(userRole === 'main_admin' || userRole === 'registration_staff') && (
-              <>
-                <SidebarLink to="/camp-registration" icon={Stethoscope} label="Camp Registration" active={location.pathname === '/camp-registration'} />
-                <SidebarLink to="/dashboard" icon={LayoutDashboard} label="Dashboard" active={location.pathname === '/dashboard'} />
-              </>
+            {userRole === 'main_admin' && (
+              <SidebarLink to="/camp-registration" icon={Stethoscope} label="Camp Registration" active={location.pathname === '/camp-registration'} />
             )}
-            
+            {(userRole === 'main_admin' || userRole === 'registration_staff') && (
+              <SidebarLink to="/dashboard" icon={LayoutDashboard} label="Dashboard" active={location.pathname === '/dashboard'} />
+            )}
+
             {(userRole === 'main_admin' || userRole === 'registration_staff' || userRole === 'log_vitals_staff') && (
-              <SidebarLink to="/camp-patients" icon={Users} label="Camp Patient List" active={location.pathname === '/camp-patients'} />
+              <>
+                <SidebarLink to="/camp-patients" icon={Users} label="Camp Patient List" active={location.pathname === '/camp-patients'} />
+                {(userRole === 'main_admin' || userRole === 'registration_staff') && (
+                  <SidebarLink to="/adding-patients" icon={UserPlus} label="Adding Patients" active={location.pathname === '/adding-patients'} />
+                )}
+              </>
             )}
 
             {(userRole === 'main_admin' || userRole === 'log_vitals_staff') && (
-              <SidebarLink to="/vitals" icon={Activity} label="Log Vitals" active={location.pathname === '/vitals'} />
+              <>
+                <SidebarLink to="/vitals" icon={Activity} label="Log Vitals" active={location.pathname === '/vitals'} />
+                <SidebarLink to="/doctors" icon={UserCircle} label="Doctors List" active={location.pathname === '/doctors'} />
+                <SidebarLink to="/doctor-consultation-log" icon={FileText} label="Doctor Consultation Log" active={location.pathname === '/doctor-consultation-log'} />
+                <SidebarLink to="/issued-tests" icon={FlaskConical} label="Issued Tests Tracker" active={location.pathname === '/issued-tests'} />
+              </>
             )}
 
-            {userRole === 'main_admin' && (
+            {(userRole === 'main_admin' || userRole === 'medicine_entry_staff') && (
               <>
                 <SidebarLink to="/inventory" icon={Pill} label="Inventory" active={location.pathname === '/inventory'} />
                 <SidebarLink to="/medicine-entry" icon={PlusSquare} label="Stock Entry" active={location.pathname === '/medicine-entry'} />
               </>
             )}
+
+            {userRole === 'main_admin' && (
+              <SidebarLink
+                to="/camp-report"
+                icon={ClipboardList}
+                label="Camp Reports"
+                active={location.pathname === '/camp-report'}
+              />
+            )}
+
+
           </nav>
         </div>
 
@@ -130,10 +163,10 @@ const Layout = () => {
             </div>
           </div>
           <button
-            onClick={() => { 
-              localStorage.removeItem('medicamp_username'); 
-              localStorage.removeItem('userRole'); 
-              navigate('/login'); 
+            onClick={() => {
+              localStorage.removeItem('medicamp_username');
+              localStorage.removeItem('userRole');
+              navigate('/login');
             }}
             className="flex items-center justify-center gap-2 w-full py-2.5 text-xs font-bold text-slate-400 hover:text-red-500 bg-white rounded-lg transition-all duration-200 border border-slate-200 hover:border-red-200 hover:bg-red-50"
           >

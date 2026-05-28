@@ -5,7 +5,7 @@ import {
   Pill, FlaskConical, Search, X, Save
 } from 'lucide-react';
 
-const API_BASE = 'http://127.0.0.1:8000/api';
+const API_BASE = import.meta.env.VITE_API_BASE || `http://${window.location.hostname}:8000/api`;
 
 const CampPatients = () => {
   const [camps, setCamps] = useState([]);
@@ -177,9 +177,18 @@ const CampPatients = () => {
                         {pat.patient_id}
                       </div>
                       <div>
-                        <p className="text-sm font-black text-slate-800">
-                          {pat.patient_name || <span className="text-slate-400 italic">No Name</span>}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-black text-slate-800">
+                            {pat.patient_name || <span className="text-slate-400 italic">No Name</span>}
+                          </p>
+                          <span className={`px-2 py-0.5 text-[9px] font-black rounded-full border ${
+                            pat.is_new 
+                              ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
+                              : 'bg-blue-50 text-blue-600 border-blue-100'
+                          }`}>
+                            {pat.is_new ? 'NEW' : 'OLD'}
+                          </span>
+                        </div>
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
                           Patient ID: {pat.patient_id}
                           {pat.medicines.length > 0 && <span className="ml-2">• {pat.medicines.length} medicine{pat.medicines.length !== 1 && 's'}</span>}
@@ -239,7 +248,14 @@ const CampPatients = () => {
                                           {med.medicine_id}
                                         </span>
                                       </td>
-                                      <td className="px-3 py-2 text-xs font-bold text-slate-700">{med.medicine_name}</td>
+                                      <td className="px-3 py-2 text-xs font-bold text-slate-700">
+                                        {med.medicine_name}
+                                        {(med.formulation || med.strength) && (
+                                          <span className="ml-2 text-[10px] font-bold text-slate-600 uppercase">
+                                            ({med.formulation} {med.strength})
+                                          </span>
+                                        )}
+                                      </td>
                                       <td className="px-3 py-2 text-center">
                                         <span className="inline-flex items-center justify-center px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 text-[11px] font-black border border-emerald-100">
                                           {med.quantity}

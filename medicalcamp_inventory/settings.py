@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-d$c^f6%i$#q+bvxl%lhv(byess%jnx16ajhio@sv&_6-!r_+no
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['0.0.0.0', '65.108.94.76', '127.0.0.1', 'localhost']
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'django_bootstrap5',
     'inventory',
     'corsheaders',
+    'rest_framework',
 ]
 
 MIDDLEWARE = [
@@ -129,3 +130,6 @@ STATIC_URL = '/static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # CORS Settings
 CORS_ALLOW_ALL_ORIGINS = True
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'

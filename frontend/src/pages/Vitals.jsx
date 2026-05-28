@@ -5,10 +5,12 @@ import {
   Droplets, Thermometer, Clock, Calendar, Hash, Weight,
   Ruler, Stethoscope, Pill, PlusCircle, Trash2, FileText,
   AlertCircle, X, Landmark, FlaskConical, TestTubes,
-  Users, ChevronDown, ChevronUp, Search, ClipboardList
+  Users, ChevronDown, ChevronUp, Search, ClipboardList,
+  QrCode, ScanLine, ExternalLink, Image as ImageIcon, CheckCircle, Loader2
 } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 
-const API_BASE = 'http://127.0.0.1:8000/api';
+const API_BASE = import.meta.env.VITE_API_BASE || `http://${window.location.hostname}:8000/api`;
 
 // Input field component for consistency - MOVED OUTSIDE to prevent re-mounting bug
 const VitalInput = ({ icon: Icon, label, value, onChange, type = 'text', placeholder = '', iconColor = 'text-teal-500', required = false, colSpan = '', readOnly = false }) => (
@@ -33,7 +35,16 @@ const VitalInput = ({ icon: Icon, label, value, onChange, type = 'text', placeho
 const Vitals = () => {
   // Patient Vitals state
   const [patientId, setPatientId] = useState('');
-  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [patientName, setPatientName] = useState('');
+  const [patientAge, setPatientAge] = useState('');
+  const [lastFetchedId, setLastFetchedId] = useState('');
+  const [date, setDate] = useState(() => {
+    const d = new Date();
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  });
   const [time, setTime] = useState(() => new Date().toTimeString().slice(0, 5));
   const [eNo, setENo] = useState('');
   const [weight, setWeight] = useState('');
@@ -53,7 +64,7 @@ const Vitals = () => {
 
   // Medicine table state
   const [medicines, setMedicines] = useState([
-    { msNo: '', medicine: '', strength: '', days: '', morning: '', afternoon: '', night: '', quantity: '' }
+    { msNo: '', medicine: '', formulation: '', strength: '', days: '', quantity: '' }
   ]);
   const [allMedicines, setAllMedicines] = useState([]); // Master list for auto-fill
   const [campStocks, setCampStocks] = useState({}); // Real-time stock for selected camp (Object)
@@ -69,10 +80,30 @@ const Vitals = () => {
   const [listLoading, setListLoading] = useState(false);
   const [expandedPatient, setExpandedPatient] = useState(null);
 
+  // Mobile Scan state
+  const [scanSessionId, setScanSessionId] = useState(null);
+  const [showScanModal, setShowScanModal] = useState(false);
+  const [scanStatus, setScanStatus] = useState(null); // { is_completed: bool, image_url: string }
+  const [serverIp, setServerIp] = useState('192.168.0.32');
+
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [verifyData, setVerifyData] = useState({
+    patientId: '',
+    patientName: '',
+    newMeds: [],
+    oldMeds: [],
+    vitals: {}
+  });
+
   useEffect(() => {
     axios.get(`${API_BASE}/camps`).then(res => setCamps(res.data));
     axios.get(`${API_BASE}/medicines`).then(res => setAllMedicines(res.data));
     axios.get(`${API_BASE}/tests`).then(res => setLabTests(res.data));
+    axios.get(`${API_BASE}/get_server_ip`).then(res => {
+      if (res.data && res.data.ip) {
+        setServerIp(res.data.ip);
+      }
+    }).catch(err => console.log("Failed to fetch server IP:", err));
   }, []);
 
   useEffect(() => {
@@ -80,10 +111,20 @@ const Vitals = () => {
       axios.get(`${API_BASE}/camp_stock/${selectedCamp}`).then(res => {
         setCampStocks(res.data);
       });
+      // Synchronize session date with camp date
+      const camp = camps.find(c => c.number === parseInt(selectedCamp));
+      if (camp && camp.date) {
+        if (camp.date.includes('/')) {
+            setDate(camp.date); // Already in DD/MM/YYYY
+        } else {
+            const [y, m, d] = camp.date.split('-');
+            setDate(`${d}/${m}/${y}`);
+        }
+      }
     } else {
       setCampStocks({});
     }
-  }, [selectedCamp]);
+  }, [selectedCamp, camps]);
 
   // Effect to auto-fill Doctor Name
   useEffect(() => {
@@ -103,15 +144,317 @@ const Vitals = () => {
           // Do not clear the doctor name on error so they can type it manually
           console.log("Doctor not found for auto-fill");
         });
-    }, 500);
+    }, 800);
     
     return () => clearTimeout(timer);
   }, [drId]);
 
+  // Effect to auto-fill Patient Name & Age from Patient ID
+  useEffect(() => {
+    if (!patientId) {
+      setPatientName('');
+      setPatientAge('');
+      setLastFetchedId('');
+      return;
+    }
+
+    // Clear fields if we are switching away from a previously fetched patient ID
+    if (lastFetchedId && patientId !== lastFetchedId) {
+      setPatientName('');
+      setPatientAge('');
+      setLastFetchedId('');
+    }
+
+    const timer = setTimeout(() => {
+      axios.get(`${API_BASE}/check_patient_id/${patientId}`)
+        .then(res => {
+          if (res.data.exists) {
+            setPatientName(res.data.patient_name || '');
+            setPatientAge(res.data.patient_age || '');
+            setLastFetchedId(patientId);
+          }
+        })
+        .catch(err => {
+          console.log("Patient not found for auto-fill");
+        });
+    }, 400); // 400ms debounce to avoid spamming requests while typing
+
+    return () => clearTimeout(timer);
+  }, [patientId, lastFetchedId]);
+
+  // Mobile Scan Handlers
+  const handleCreateScanSession = async () => {
+    try {
+      const res = await axios.post(`${API_BASE}/create_scan_session`);
+      if (res.data.status === 'success') {
+        setScanSessionId(res.data.session_id);
+        setShowScanModal(true);
+        setScanStatus({ is_completed: false });
+        startPolling(res.data.session_id);
+      }
+    } catch (err) {
+      alert("Failed to create scan session. Check console.");
+      console.error(err);
+    }
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !scanSessionId) return;
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+        await axios.post(`${API_BASE}/upload_scan/${scanSessionId}`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        // Polling will handle the state update
+    } catch (err) {
+        console.error("Upload failed", err);
+        setError("Image upload failed. Please try again.");
+    }
+  };
+
+  const startPolling = (sessionId) => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await axios.get(`${API_BASE}/check_scan_status/${sessionId}`);
+        if (res.data.status === 'success' && res.data.is_completed) {
+          setScanStatus(prev => ({
+            ...prev,
+            is_completed: true,
+            image_url: res.data.image_url,
+            ocr_status: res.data.ocr_status,
+            ocr_data: res.data.ocr_data,
+            ocr_raw_text: res.data.ocr_raw_text
+          }));
+          
+          // Stop polling if OCR is done or errored
+          if (res.data.ocr_status === 'completed' || res.data.ocr_status === 'error') {
+            clearInterval(interval);
+          }
+        }
+      } catch (err) {
+        console.error("Polling error", err);
+      }
+    }, 2000);
+
+    // Stop polling if user closes modal manually or component unmounts
+    setTimeout(() => {
+        const modalCheck = setInterval(() => {
+            if (!document.getElementById('scan-modal')) {
+                clearInterval(interval);
+                clearInterval(modalCheck);
+            }
+        }, 500);
+    }, 100);
+  };
+
+  const handleDateChange = (value) => {
+    let val = value.replace(/\D/g, '');
+    if (val.length > 2) val = val.slice(0, 2) + '/' + val.slice(2);
+    if (val.length > 5) val = val.slice(0, 5) + '/' + val.slice(5, 10);
+    setDate(val);
+  };
+
+  const handleNativeDateChange = (e) => {
+    const val = e.target.value; // YYYY-MM-DD
+    if (val) {
+        const [y, m, d] = val.split('-');
+        setDate(`${d}/${m}/${y}`);
+    }
+  };
+
+  const applyAutofill = (vitals, medsList) => {
+    const merge = (current, incoming) => {
+      if (incoming !== undefined && incoming !== null && incoming.toString().trim() !== '') {
+        return incoming;
+      }
+      return current;
+    };
+
+    setPatientId(prev => merge(prev, vitals.patientId));
+    setPatientName(prev => merge(prev, vitals.patientName));
+    setPatientAge(prev => merge(prev, vitals.patientAge));
+    setENo(prev => merge(prev, vitals.eNo));
+    setWeight(prev => merge(prev, vitals.weight));
+    setHeight(prev => merge(prev, vitals.height));
+    setBloodPressure(prev => merge(prev, vitals.bloodPressure));
+    setPulse(prev => merge(prev, vitals.pulse));
+    setRbs(prev => merge(prev, vitals.rbs));
+    setHaemoglobin(prev => merge(prev, vitals.haemoglobin));
+    setDrId(prev => merge(prev, vitals.drId));
+    setDrName(prev => merge(prev, vitals.drName));
+    setDiagnosis(prev => merge(prev, vitals.diagnosis));
+    
+    setSelectedTests(prev => {
+      const combined = [...prev, ...(vitals.selectedTests || [])];
+      return Array.from(new Set(combined));
+    });
+    
+    if (medsList && medsList.length > 0) {
+        setMedicines(medsList);
+    } else {
+        setMedicines([{ msNo: '', medicine: '', formulation: '', strength: '', days: '', quantity: '' }]);
+    }
+  };
+
+  const handleAutoFill = async () => {
+    if (!scanStatus.ocr_data) return;
+    const d = scanStatus.ocr_data;
+    
+    // Helper to get value from flat OR nested structure
+    const getV = (key, category) => {
+        if (d[key] !== undefined) return d[key];
+        if (category && d[category] && d[category][key] !== undefined) return d[category][key];
+        return '';
+    };
+
+    const targetPatientId = getV('patient_id', 'demographics');
+    const pName = getV('patient_name', 'demographics') || getV('name', 'demographics');
+    const pAge = getV('age', 'demographics');
+    const entryNo = getV('entry_no', 'demographics');
+    const w = getV('weight', 'vitals');
+    const h = getV('height', 'vitals');
+    const bp = getV('bp', 'vitals');
+    const pul = getV('pulse', 'vitals');
+    const rb = getV('rbs', 'vitals');
+    const hemo = getV('hemo', 'vitals');
+    const doctorId = getV('doctor_id', 'clinical');
+    const doctorName = getV('doctor_name', 'clinical');
+    const diag = getV('diagnosis', 'clinical');
+    
+    // Lab Tests (ensure IDs are numbers for the checkboxes to work)
+    const tests = d.lab_tests || (d.clinical && d.clinical.lab_tests) || [];
+    const parsedTests = tests.map(id => parseInt(id)).filter(id => !isNaN(id));
+    
+    // Medicines with Inventory Lookup
+    const meds = d.medicines || (d.clinical && d.clinical.medicines) || [];
+    let mappedMeds = [];
+    if (meds.length > 0) {
+        mappedMeds = meds.map(m => {
+            let medData = {
+                msNo: m.ms_no || '', 
+                medicine: m.medicine_name || '', 
+                formulation: m.formulation || m.strength || '', // Support migration
+                strength: m.strength_value || m.strength || '', 
+                days: m.days || '', 
+                quantity: m.quantity || '' 
+            };
+
+            // Always validate and override using UQID if it is present to prevent human reporting errors
+            const uqidVal = parseInt(medData.msNo);
+            if (!isNaN(uqidVal)) {
+                const found = allMedicines.find(am => am.uqid === uqidVal);
+                if (found) {
+                    const campStockItem = campStocks[uqidVal];
+                    medData.medicine = (campStockItem && campStockItem.alternate_name) ? campStockItem.alternate_name : found.name;
+                    medData.formulation = found.formulation || '';
+                }
+            }
+            return medData;
+        });
+    }
+
+    // Perform reconciliation against patient history to exclude already issued medicines and tests
+    const cleanPid = parseInt(targetPatientId);
+    let historyMeds = [];
+    let historyTests = [];
+    let hasHistory = false;
+    if (!isNaN(cleanPid) && selectedCamp) {
+        try {
+            const res = await axios.get(`${API_BASE}/patient_camp_medicines/${cleanPid}/${selectedCamp}`);
+            historyMeds = res.data.medicines || [];
+            historyTests = res.data.tests || [];
+            if (historyMeds.length > 0 || historyTests.length > 0) {
+                hasHistory = true;
+            }
+        } catch (err) {
+            console.error("Error fetching patient history:", err);
+        }
+    }
+
+    const newMeds = [];
+    const oldMeds = [];
+    const matchedHistoryIndices = new Set();
+
+    for (const scanned of mappedMeds) {
+        const scanUqid = parseInt(scanned.msNo);
+        const scanQty = parseInt(scanned.quantity);
+        
+        if (isNaN(scanUqid) || isNaN(scanQty)) {
+            newMeds.push(scanned);
+            continue;
+        }
+        
+        let foundMatchIndex = -1;
+        for (let i = 0; i < historyMeds.length; i++) {
+            if (matchedHistoryIndices.has(i)) continue;
+            if (parseInt(historyMeds[i].medicine_id) === scanUqid && parseInt(historyMeds[i].qty) === scanQty) {
+                foundMatchIndex = i;
+                break;
+            }
+        }
+        
+        if (foundMatchIndex !== -1) {
+            matchedHistoryIndices.add(foundMatchIndex);
+            oldMeds.push(scanned);
+        } else {
+            newMeds.push(scanned);
+        }
+    }
+
+    // Reconcile lab tests
+    const newTests = [];
+    const oldTests = [];
+    for (const testId of parsedTests) {
+        if (historyTests.includes(testId)) {
+            oldTests.push(testId);
+        } else {
+            newTests.push(testId);
+        }
+    }
+
+    const collectedVitals = {
+        patientId: targetPatientId,
+        patientName: pName,
+        patientAge: pAge,
+        eNo: entryNo,
+        weight: w,
+        height: h,
+        bloodPressure: bp,
+        pulse: pul,
+        rbs: rb,
+        haemoglobin: hemo,
+        drId: doctorId,
+        drName: doctorName,
+        diagnosis: diag,
+        selectedTests: parsedTests
+    };
+
+    if (hasHistory) {
+        setVerifyData({
+            patientId: targetPatientId,
+            patientName: pName,
+            newMeds: newMeds,
+            oldMeds: oldMeds,
+            newTests: newTests,
+            oldTests: oldTests,
+            vitals: collectedVitals
+        });
+        setShowVerifyModal(true);
+        setShowScanModal(false);
+    } else {
+        applyAutofill(collectedVitals, newMeds);
+        setShowScanModal(false);
+    }
+  };
+
   const addMedicineRow = () => {
     setMedicines(prev => [
       ...prev,
-      { msNo: '', medicine: '', strength: '', days: '', morning: '', afternoon: '', night: '', quantity: '' }
+      { msNo: '', medicine: '', formulation: '', strength: '', days: '', quantity: '' }
     ]);
   };
 
@@ -130,8 +473,9 @@ const Vitals = () => {
       if (field === 'msNo' && value !== '') {
         const foundMed = allMedicines.find(am => am.uqid === parseInt(value));
         if (foundMed) {
-          updatedMed.medicine = foundMed.name;
-          updatedMed.strength = foundMed.formulation || ''; // Use formulation as strength if available
+          const campStockItem = campStocks[value];
+          updatedMed.medicine = (campStockItem && campStockItem.alternate_name) ? campStockItem.alternate_name : foundMed.name;
+          updatedMed.formulation = foundMed.formulation || ''; // Use formulation from inventory
         }
       }
 
@@ -139,29 +483,32 @@ const Vitals = () => {
     }));
   };
 
-  // Auto-calculate quantity based on days × (morning + afternoon + night)
-  const calcQuantity = (med) => {
-    const days = parseInt(med.days) || 0;
-    const morning = parseInt(med.morning) || 0;
-    const afternoon = parseInt(med.afternoon) || 0;
-    const night = parseInt(med.night) || 0;
-    return days > 0 ? days * (morning + afternoon + night) : '';
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!patientId) {
       setError('Patient ID is required');
-      setTimeout(() => setError(''), 3000);
+      return;
+    }
+
+    if (!selectedCamp) {
+      setError('Please select an active medical camp session');
       return;
     }
 
     setLoading(true);
     try {
+      let apiDate = date;
+      if (date.includes('/')) {
+        const [d, m, y] = date.split('/');
+        apiDate = `${y}-${m}-${d}`;
+      }
+
       await axios.post(`${API_BASE}/save_vitals`, {
         patient_id: patientId,
+        patient_name: patientName,
+        patient_age: patientAge,
         medical_camp: selectedCamp,
-        date,
+        date: apiDate,
         time,
         e_no: eNo,
         weight,
@@ -176,14 +523,21 @@ const Vitals = () => {
         diagnosis,
         selected_tests: selectedTests,
         medicines: medicines.filter(m => m.medicine.trim() !== '').map(m => ({
-          ...m,
-          quantity: calcQuantity(m) || m.quantity
+          msNo: m.msNo,
+          medicine: m.medicine,
+          formulation: m.formulation,
+          strength: m.strength,
+          days: parseInt(m.days) || 0,
+          quantity: parseInt(m.quantity) || 0
         }))
       });
       setSuccess(true);
       setTimeout(() => setSuccess(false), 4000);
       // Reset form
       setPatientId('');
+      setPatientName('');
+      setPatientAge('');
+      setLastFetchedId('');
       setENo('');
       setWeight('');
       setHeight('');
@@ -196,58 +550,77 @@ const Vitals = () => {
       setDrId('');
       setDiagnosis('');
       setSelectedTests([]);
-      setMedicines([{ msNo: '', medicine: '', strength: '', days: '', morning: '', afternoon: '', night: '', quantity: '' }]);
+      setMedicines([{ msNo: '', medicine: '', formulation: '', strength: '', days: '', quantity: '' }]);
     } catch (err) {
       setError(err.response?.data?.message || 'Error saving vitals. Please try again.');
-      setTimeout(() => setError(''), 4000);
     } finally {
       setLoading(false);
     }
   };
 
-
-
-
-
   return (
     <div className="max-w-7xl mx-auto py-6 space-y-8">
+      {/* Centered Error Modal */}
+      {error && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full text-center border border-slate-100 flex flex-col items-center animate-in zoom-in-95 duration-300">
+            <div className="w-16 h-16 rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-500 mb-5 shadow-inner">
+              <AlertCircle size={32} strokeWidth={2.5} />
+            </div>
+            <h3 className="text-lg font-black text-slate-800 tracking-tight mb-2">Error Encountered</h3>
+            <p className="text-sm font-bold text-slate-500 leading-relaxed mb-6">{error}</p>
+            <button
+              type="button"
+              onClick={() => setError('')}
+              className="w-full py-3.5 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-rose-200 active:scale-[0.98]"
+            >
+              Okay, Dismiss
+            </button>
+          </div>
+        </div>
+      )}
 
-
-      {/* Header */}
+      {/* Header with Scan Button */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 px-4">
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <Heart size={14} className="text-teal-500" />
-            <p className="text-teal-600 text-[10px] font-extrabold uppercase tracking-[0.25em]">Clinical Intake</p>
+            <HeartPulse size={14} className="text-teal-500" />
+            <p className="text-teal-600 text-[10px] font-extrabold uppercase tracking-[0.25em]">Clinical Assessment</p>
           </div>
           <div className="flex items-center gap-3 mb-1">
             <div className="p-2.5 bg-teal-50 rounded-xl border border-teal-200">
               <Activity className="text-teal-600" size={24} strokeWidth={2.5} />
             </div>
-            <h3 className="text-3xl font-black text-slate-800 tracking-tight">Log Patient Vitals</h3>
+            <h3 className="text-3xl font-black text-slate-800 tracking-tight">Patient Vitals</h3>
           </div>
-          <p className="text-slate-400 text-sm font-bold ml-[52px]">Record vitals, diagnosis & issue medicines</p>
+          <p className="text-slate-400 text-sm font-bold ml-[52px]">Comprehensive health baseline and diagnostics</p>
         </div>
 
-        {/* Success / Error badges */}
-        <div className="flex gap-3">
-          {success && (
-            <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 px-5 py-3 rounded-xl border border-emerald-200 shadow-sm animate-bounce">
-              <CheckCircle2 size={18} strokeWidth={3} />
-              <span className="text-xs font-black uppercase tracking-widest">Record Saved</span>
+        <div className="flex flex-col items-end gap-3">
+            {/* Success / Error badges */}
+            <div className="flex gap-3">
+            {success && (
+                <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 px-5 py-3 rounded-xl border border-emerald-200 shadow-sm animate-bounce">
+                <CheckCircle2 size={18} strokeWidth={3} />
+                <span className="text-xs font-black uppercase tracking-widest">Record Saved</span>
+                </div>
+            )}
             </div>
-          )}
-          {error && (
-            <div className="flex items-center gap-2 text-rose-600 bg-rose-50 px-5 py-3 rounded-xl border border-rose-200 shadow-sm">
-              <AlertCircle size={18} strokeWidth={3} />
-              <span className="text-xs font-black uppercase tracking-widest">{error}</span>
-            </div>
-          )}
+
+            <button 
+                onClick={handleCreateScanSession}
+                className="flex items-center gap-3 bg-white hover:bg-slate-50 text-slate-700 px-6 py-4 rounded-2xl border border-slate-200 hover:border-teal-200 transition-all shadow-sm font-black text-xs uppercase tracking-widest active:scale-95"
+            >
+                <div className="p-2 bg-teal-50 rounded-lg text-teal-600">
+                    <ScanLine size={18} strokeWidth={2.5} />
+                </div>
+                Scan Patient Report
+            </button>
         </div>
       </div>
 
       {/* Main Form */}
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6 px-4">
 
         {/* ═══════════ PATIENT VITALS SECTION ═══════════ */}
         <div className="glass-panel-light p-8 relative overflow-hidden">
@@ -281,24 +654,69 @@ const Vitals = () => {
             </select>
           </div>
 
-          {/* Row 1: Patient ID, Date, Time, E.No */}
+          {/* Row 1: Date, Patient ID, Patient Name, Patient Age */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mb-5">
-            <VitalInput icon={User} label="Patient ID" value={patientId} onChange={setPatientId} placeholder="Enter ID" required iconColor="text-blue-500" />
-            <VitalInput icon={Calendar} label="Date" value={date} onChange={setDate} type="date" iconColor="text-indigo-500" />
+            <div className="space-y-2">
+                <label className="flex items-center gap-1.5 text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                <Calendar size={11} className="text-indigo-500" strokeWidth={2.5} />
+                Date (DD/MM/YYYY)
+                </label>
+                <div className="relative">
+                    <input
+                        type="text"
+                        className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 placeholder:text-slate-300 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 outline-none transition-all shadow-sm bg-white hover:border-slate-300"
+                        placeholder="DD/MM/YYYY"
+                        value={date}
+                        onChange={e => handleDateChange(e.target.value)}
+                    />
+                    <button
+                        type="button"
+                        onClick={() => document.getElementById('native-date-picker').showPicker()}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-teal-500 transition-colors"
+                    >
+                        <Calendar size={16} />
+                    </button>
+                    <input 
+                        type="date"
+                        id="native-date-picker"
+                        className="absolute opacity-0 pointer-events-none right-0"
+                        onChange={handleNativeDateChange}
+                    />
+                </div>
+            </div>
+
+            <div className={`space-y-2`}>
+              <label className="flex items-center gap-1.5 text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                <User size={11} className="text-blue-500" strokeWidth={2.5} />
+                Patient ID
+                <span className="text-rose-400">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                className={`w-full border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 placeholder:text-slate-300 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 outline-none transition-all shadow-sm bg-white hover:border-slate-300`}
+                placeholder="Enter ID"
+                value={patientId}
+                onChange={e => setPatientId(e.target.value)}
+              />
+            </div>
+
+            <VitalInput icon={User} label="Patient Name" value={patientName} onChange={setPatientName} placeholder="Auto-filled" iconColor="text-blue-500" />
+            <VitalInput icon={User} label="Age" value={patientAge} onChange={setPatientAge} placeholder="Age" iconColor="text-blue-500" />
+          </div>
+
+          {/* Row 2: Time, E.No, WT, HT */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mb-5">
             <VitalInput icon={Clock} label="Time" value={time} onChange={setTime} type="time" iconColor="text-violet-500" />
             <VitalInput icon={Hash} label="E.No" value={eNo} onChange={setENo} placeholder="Entry No." iconColor="text-cyan-500" />
-          </div>
-
-          {/* Row 2: WT, HT, B.P, PULSE */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mb-5">
             <VitalInput icon={Weight} label="WT (kg)" value={weight} onChange={setWeight} placeholder="Weight" iconColor="text-amber-500" />
             <VitalInput icon={Ruler} label="HT (cm)" value={height} onChange={setHeight} placeholder="Height" iconColor="text-orange-500" />
-            <VitalInput icon={HeartPulse} label="B.P" value={bloodPressure} onChange={setBloodPressure} placeholder="e.g. 120/80" iconColor="text-rose-500" />
-            <VitalInput icon={Activity} label="Pulse" value={pulse} onChange={setPulse} placeholder="BPM" iconColor="text-pink-500" />
           </div>
 
-          {/* Row 3: RBS, Hemo */}
-          <div className="grid grid-cols-2 md:grid-cols-2 gap-5 mb-5">
+          {/* Row 3: B.P, PULSE, RBS, Hemo */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mb-5">
+            <VitalInput icon={HeartPulse} label="B.P" value={bloodPressure} onChange={setBloodPressure} placeholder="e.g. 120/80" iconColor="text-rose-500" />
+            <VitalInput icon={Activity} label="Pulse" value={pulse} onChange={setPulse} placeholder="BPM" iconColor="text-pink-500" />
             <VitalInput icon={Droplets} label="RBS" value={rbs} onChange={setRbs} placeholder="Blood Sugar" iconColor="text-amber-500" />
             <VitalInput icon={Thermometer} label="Hemo" value={haemoglobin} onChange={setHaemoglobin} placeholder="Haemoglobin" iconColor="text-rose-500" />
           </div>
@@ -427,19 +845,16 @@ const Vitals = () => {
               <thead>
                 <tr className="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
                   <th className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] w-20 text-center">M.S.No</th>
-                  <th className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] min-w-[200px]">Medicines</th>
+                  <th className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] w-[35%]">Medicines</th>
+                  <th className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] w-[20%] text-center">Formulation</th>
                   <th className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] w-24 text-center">Strength</th>
                   <th className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] w-20 text-center">Days</th>
-                  <th className="px-4 py-4 text-[10px] font-black text-amber-500 uppercase tracking-[0.15em] w-20 text-center">Morning</th>
-                  <th className="px-4 py-4 text-[10px] font-black text-blue-500 uppercase tracking-[0.15em] w-24 text-center">Afternoon</th>
-                  <th className="px-4 py-4 text-[10px] font-black text-indigo-500 uppercase tracking-[0.15em] w-20 text-center">Night</th>
                   <th className="px-4 py-4 text-[10px] font-black text-emerald-600 uppercase tracking-[0.15em] w-24 text-center">Quantity</th>
                   <th className="px-4 py-4 w-12"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {medicines.map((med, index) => {
-                  const autoQty = calcQuantity(med);
                   return (
                     <tr key={index} className="hover:bg-emerald-50/30 transition-all group">
                       {/* M.S.No */}
@@ -464,12 +879,23 @@ const Vitals = () => {
                         />
                       </td>
 
+                      {/* Formulation */}
+                      <td className="px-3 py-3">
+                        <input
+                          type="text"
+                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-bold text-slate-800 text-center placeholder:text-slate-300 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+                          placeholder="e.g. Tab"
+                          value={med.formulation}
+                          onChange={e => updateMedicine(index, 'formulation', e.target.value)}
+                        />
+                      </td>
+
                       {/* Strength */}
                       <td className="px-3 py-3">
                         <input
                           type="text"
                           className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-bold text-slate-800 text-center placeholder:text-slate-300 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
-                          placeholder="mg"
+                          placeholder="mg/ml"
                           value={med.strength}
                           onChange={e => updateMedicine(index, 'strength', e.target.value)}
                         />
@@ -481,65 +907,33 @@ const Vitals = () => {
                           type="number"
                           min="0"
                           className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-bold text-slate-800 text-center placeholder:text-slate-300 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
-                          placeholder="0"
+                          placeholder="Days"
                           value={med.days}
                           onChange={e => updateMedicine(index, 'days', e.target.value)}
                         />
                       </td>
 
-                      {/* Morning */}
+                      {/* Quantity */}
                       <td className="px-3 py-3">
-                        <input
-                          type="number"
-                          min="0"
-                          className="w-full bg-amber-50/50 border border-amber-200 rounded-lg px-3 py-2.5 text-sm font-bold text-slate-800 text-center placeholder:text-amber-300 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
-                          placeholder="0"
-                          value={med.morning}
-                          onChange={e => updateMedicine(index, 'morning', e.target.value)}
-                        />
-                      </td>
-
-                      {/* Afternoon */}
-                      <td className="px-3 py-3">
-                        <input
-                          type="number"
-                          min="0"
-                          className="w-full bg-blue-50/50 border border-blue-200 rounded-lg px-3 py-2.5 text-sm font-bold text-slate-800 text-center placeholder:text-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-                          placeholder="0"
-                          value={med.afternoon}
-                          onChange={e => updateMedicine(index, 'afternoon', e.target.value)}
-                        />
-                      </td>
-
-                      {/* Night */}
-                      <td className="px-3 py-3">
-                        <input
-                          type="number"
-                          min="0"
-                          className="w-full bg-indigo-50/50 border border-indigo-200 rounded-lg px-3 py-2.5 text-sm font-bold text-slate-800 text-center placeholder:text-indigo-300 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
-                          placeholder="0"
-                          value={med.night}
-                          onChange={e => updateMedicine(index, 'night', e.target.value)}
-                        />
-                      </td>
-
-                      {/* Quantity (auto-calculated) */}
-                      <td className="px-3 py-3">
-                        <div className={`w-full border rounded-lg px-3 py-2.5 text-sm font-black text-center min-h-[42px] flex flex-col items-center justify-center transition-all ${(() => {
-                          const stockItem = campStocks[med.msNo];
-                          const remaining = stockItem ? stockItem.remaining : null;
-                          if (remaining !== null && autoQty > remaining) return 'bg-rose-50 border-rose-200 text-rose-700';
-                          return 'bg-emerald-50 border-emerald-200 text-emerald-700';
-                        })()
-                          }`}>
-                          {autoQty || (
-                            <span className="text-emerald-300 font-bold">—</span>
-                          )}
+                        <div className="flex flex-col gap-1 items-center">
+                          <input
+                            type="number"
+                            min="0"
+                            className={`w-full bg-white border rounded-lg px-3 py-2.5 text-sm font-bold text-slate-800 text-center placeholder:text-slate-300 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all ${(() => {
+                              const stockItem = campStocks[med.msNo];
+                              const remaining = stockItem ? stockItem.remaining : null;
+                              if (remaining !== null && med.quantity > remaining) return 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/50';
+                              return 'border-slate-200';
+                            })()}`}
+                            placeholder="Qty"
+                            value={med.quantity}
+                            onChange={e => updateMedicine(index, 'quantity', e.target.value)}
+                          />
                           {(() => {
                             const stockItem = campStocks[med.msNo];
                             const remaining = stockItem ? stockItem.remaining : null;
-                            if (remaining !== null && autoQty > remaining) {
-                              return <span className="text-[8px] uppercase mt-1">Exceeds Stock ({remaining})</span>
+                            if (remaining !== null && med.quantity > remaining) {
+                              return <span className="text-[9px] font-bold text-rose-500 uppercase text-center leading-tight">Exceeds<br/>({remaining})</span>
                             }
                             return null;
                           })()}
@@ -565,11 +959,7 @@ const Vitals = () => {
             </table>
           </div>
 
-          {/* Quick add hint */}
-          <div className="mt-4 flex items-center gap-2 text-[10px] text-slate-400 font-bold ml-1">
-            <AlertCircle size={12} />
-            <span>Quantity is auto-calculated as <span className="text-slate-500">Days × (Morning + Afternoon + Night)</span></span>
-          </div>
+
         </div>
 
         {/* ═══════════ SUBMIT BUTTON ═══════════ */}
@@ -591,6 +981,307 @@ const Vitals = () => {
           </div>
         </button>
       </form>
+      {/* Mobile Scan Modal */}
+      {showScanModal && (
+        <div id="scan-modal" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl flex flex-col animate-in zoom-in duration-300">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-teal-50 rounded-xl text-teal-600">
+                        <QrCode size={24} />
+                    </div>
+                    <h4 className="font-black text-slate-800 tracking-tight">Scan Patient Report</h4>
+                </div>
+                <button 
+                    onClick={() => setShowScanModal(false)}
+                    className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
+                >
+                    <X size={20} />
+                </button>
+            </div>
+
+            <div className="p-8 flex flex-col items-center">
+                {!scanStatus.is_completed ? (
+                    <>
+                        <div className="bg-slate-50 p-6 rounded-3xl border-2 border-slate-100 mb-6 shadow-inner">
+                            <QRCodeSVG 
+                                value={`http://${window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? serverIp : window.location.hostname}:5173/mobile-upload/${scanSessionId}`}
+                                size={200}
+                                level="H"
+                                includeMargin={true}
+                            />
+                        </div>
+                        <p className="text-center text-slate-800 font-bold mb-2">Scan with Admin Phone</p>
+                        <p className="text-center text-slate-400 text-xs font-bold leading-relaxed max-w-[240px]">
+                            Open the camera on your phone to scan this code and upload the report image.
+                        </p>
+
+                        {(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && (
+                            <div className="mt-4 p-3 bg-amber-50 border border-amber-100 rounded-xl text-[10px] text-amber-700 font-bold text-center leading-tight">
+                                ⚠️ Localhost detected. For best results, access the laptop dashboard at:<br/>
+                                <span className="text-amber-900 underline">http://{serverIp}:5173/vitals</span>
+                            </div>
+                        )}
+                        
+                        <div className="mt-8 flex items-center gap-2 text-[10px] font-black text-teal-600 bg-teal-50 px-4 py-2 rounded-full uppercase tracking-widest animate-pulse">
+                            <div className="w-1.5 h-1.5 bg-teal-500 rounded-full" />
+                            Waiting for upload...
+                        </div>
+
+                        {/* Divider */}
+                        <div className="w-full flex items-center gap-4 my-8">
+                            <div className="flex-1 h-px bg-slate-100" />
+                            <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">OR</span>
+                            <div className="flex-1 h-px bg-slate-100" />
+                        </div>
+
+                        {/* Local Upload */}
+                        <label className="w-full flex flex-col items-center justify-center gap-4 p-8 border-2 border-dashed border-slate-200 rounded-[32px] bg-slate-50/50 hover:bg-teal-50/30 hover:border-teal-200 transition-all cursor-pointer group">
+                            <input 
+                                type="file" 
+                                className="sr-only" 
+                                accept="image/*" 
+                                onChange={handleFileUpload}
+                            />
+                            <div className="p-4 bg-white rounded-2xl shadow-sm border border-slate-100 text-slate-400 group-hover:text-teal-600 transition-colors">
+                                <ImageIcon size={28} strokeWidth={2.5} />
+                            </div>
+                            <div className="text-center">
+                                <p className="text-[11px] font-black text-slate-700 uppercase tracking-widest mb-1">Upload from Computer</p>
+                                <p className="text-[10px] font-bold text-slate-400 tracking-wide">Choose report photo from your folder</p>
+                            </div>
+                        </label>
+                    </>
+                ) : (
+                    <div className="w-full animate-in fade-in zoom-in duration-500">
+                        <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl flex items-center gap-3 text-emerald-700 mb-6">
+                            <CheckCircle size={20} strokeWidth={3} />
+                            <span className="text-xs font-black uppercase tracking-widest">Report Received</span>
+                        </div>
+                        
+                        {scanStatus.ocr_status === 'processing' && (
+                            <div className="mb-6 p-6 bg-teal-50 border-2 border-teal-100 rounded-[24px] flex flex-col items-center gap-4 animate-pulse">
+                                <div className="relative">
+                                    <Loader2 className="animate-spin text-teal-600" size={32} strokeWidth={3} />
+                                    <Activity className="absolute inset-0 m-auto text-teal-400 animate-pulse" size={12} />
+                                </div>
+                                <div className="text-center">
+                                    <p className="text-xs font-black text-teal-700 uppercase tracking-[0.2em] mb-1">Medical OCR AI is Processing</p>
+                                    <p className="text-[10px] font-bold text-teal-600/60 uppercase tracking-widest">Digitizing handwritten medical vitals...</p>
+                                </div>
+                                <div className="w-full bg-teal-100/50 h-1 rounded-full overflow-hidden">
+                                    <div className="bg-teal-500 h-full w-1/2 animate-shimmer" style={{ backgroundSize: '200% 100%' }} />
+                                </div>
+                            </div>
+                        )}
+
+                        {scanStatus.ocr_status === 'completed' && (
+                            <button 
+                                onClick={handleAutoFill}
+                                className="w-full mb-6 bg-teal-600 hover:bg-teal-700 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-teal-100 flex items-center justify-center gap-2 animate-bounce"
+                            >
+                                <PlusCircle size={18} />
+                                Auto-Fill Patient Form
+                            </button>
+                        )}
+                        
+                        <div className="aspect-[4/5] bg-slate-100 rounded-2xl overflow-hidden border border-slate-200 shadow-inner group relative">
+                            <img 
+                                src={scanStatus.image_url} 
+                                alt="Scanned Report" 
+                                className="w-full h-full object-contain"
+                            />
+                            <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <a 
+                                    href={scanStatus.image_url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="bg-white text-slate-800 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2"
+                                >
+                                    <ExternalLink size={14} /> View Full
+                                </a>
+                            </div>
+                        </div>
+
+                        <button 
+                            onClick={() => {
+                                setScanStatus({ is_completed: false });
+                                handleCreateScanSession();
+                            }}
+                            className="w-full mt-6 flex items-center justify-center gap-2 text-slate-400 hover:text-teal-600 font-black text-[10px] uppercase tracking-[0.2em] transition-all"
+                        >
+                            <ScanLine size={14} /> Scan Another Page
+                        </button>
+                    </div>
+                )}
+            </div>
+            
+            <div className="bg-slate-50 p-6 flex flex-col items-center border-t border-slate-100">
+                <div className="flex items-center gap-2 text-slate-300 mb-1">
+                    <ImageIcon size={12} />
+                    <span className="text-[9px] font-black uppercase tracking-widest">Phase 1 Workflow Active</span>
+                </div>
+                <p className="text-[9px] font-bold text-slate-400 text-center uppercase tracking-widest">Images are stored in media/scanned_reports/</p>
+          </div>
+        </div>
+      </div>
+    )}
+
+      {/* Verification Modal for Older Users */}
+      {showVerifyModal && (
+        <div id="verify-modal" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-2xl rounded-[32px] overflow-hidden shadow-2xl flex flex-col border border-slate-100 animate-in zoom-in duration-200">
+            {/* Header */}
+            <div className="p-6 bg-amber-50 border-b border-amber-100 flex items-center gap-4">
+              <div className="p-3 bg-amber-100 text-amber-800 rounded-2xl">
+                <AlertCircle size={28} strokeWidth={2.5} />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-slate-800 tracking-tight">Verify Patient Prescription</h3>
+                <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">
+                  Existing records found for Patient: {verifyData.patientName} (ID: {verifyData.patientId})
+                </p>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-8 space-y-6 max-h-[60vh] overflow-y-auto">
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
+                <p className="text-sm font-bold text-slate-600">
+                  <span className="text-slate-400">Important Note:</span> This patient already has medicines issued in this camp session today. To prevent double-entry, we compared the scanned sheet with their history.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Left Column: Already Issued (Ignored) */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                    <CheckCircle size={14} className="text-slate-400" strokeWidth={3} />
+                    Already Issued (Will Not Add)
+                  </h4>
+                  <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 space-y-2 max-h-48 overflow-y-auto">
+                    {verifyData.oldMeds.length === 0 ? (
+                      <p className="text-xs font-bold text-slate-400 italic">None of the scanned medicines were previously issued.</p>
+                    ) : (
+                      verifyData.oldMeds.map((med, idx) => (
+                        <div key={idx} className="flex items-start gap-2 text-xs font-bold text-slate-400 line-through decoration-slate-300">
+                          <span className="bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded text-[10px] font-black">{med.msNo}</span>
+                          <div>
+                            <div>{med.medicine}</div>
+                            <div className="text-[10px] font-medium text-slate-400">Qty: {med.quantity} • {med.days} Days</div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Right Column: New Medicines (To Add) */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-black text-teal-600 uppercase tracking-widest flex items-center gap-1.5">
+                    <PlusCircle size={14} className="text-teal-600" strokeWidth={3} />
+                    New Medicines (Will Be Added)
+                  </h4>
+                  <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-4 space-y-2 max-h-48 overflow-y-auto">
+                    {verifyData.newMeds.length === 0 ? (
+                      <p className="text-xs font-bold text-slate-500 italic">No new medicines found in this scan.</p>
+                    ) : (
+                      verifyData.newMeds.map((med, idx) => (
+                        <div key={idx} className="flex items-start gap-2 text-xs font-black text-emerald-800">
+                          <span className="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded text-[10px] font-black">{med.msNo}</span>
+                          <div>
+                            <div>{med.medicine}</div>
+                            <div className="text-[10px] font-bold text-emerald-600/80">Qty: {med.quantity} • {med.days} Days</div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Vitals and Lab Tests Reconciliation */}
+              <div className="border-t border-slate-100 pt-6 space-y-4">
+                <h4 className="text-xs font-black text-slate-700 uppercase tracking-widest">Vitals & Lab Tests Reconciliation</h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Vitals status */}
+                  <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 space-y-3">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Scanned Vitals</p>
+                    <div className="grid grid-cols-2 gap-2 text-xs font-bold text-slate-700">
+                      <div>BP: <span className="text-slate-500">{verifyData.vitals.bloodPressure || '—'}</span></div>
+                      <div>Pulse: <span className="text-slate-500">{verifyData.vitals.pulse || '—'}</span></div>
+                      <div>Weight: <span className="text-slate-500">{verifyData.vitals.weight || '—'}</span></div>
+                      <div>Height: <span className="text-slate-500">{verifyData.vitals.height || '—'}</span></div>
+                      <div>RBS: <span className="text-slate-500">{verifyData.vitals.rbs || '—'}</span></div>
+                      <div>Hb: <span className="text-slate-500">{verifyData.vitals.haemoglobin || '—'}</span></div>
+                    </div>
+                    <p className="text-[9px] text-slate-400 font-bold leading-tight uppercase tracking-wider">
+                      ℹ️ Empty scanned fields will NOT overwrite existing values in the form.
+                    </p>
+                  </div>
+
+                  {/* Lab Tests status */}
+                  <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 space-y-3">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Scanned Lab Tests</p>
+                    <div className="space-y-1.5">
+                      {/* Old Tests */}
+                      {verifyData.oldTests && verifyData.oldTests.length > 0 && (
+                        <div className="flex flex-wrap gap-1 items-center">
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-1">Already Ordered:</span>
+                          {verifyData.oldTests.map(tId => {
+                            const name = labTests.find(lt => lt.id === tId)?.name || `Test ID ${tId}`;
+                            return (
+                              <span key={tId} className="bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full text-[9px] font-bold line-through decoration-slate-400">{name}</span>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {/* New Tests */}
+                      {verifyData.newTests && verifyData.newTests.length > 0 && (
+                        <div className="flex flex-wrap gap-1 items-center">
+                          <span className="text-[9px] font-black text-teal-600 uppercase tracking-widest mr-1">New to Add:</span>
+                          {verifyData.newTests.map(tId => {
+                            const name = labTests.find(lt => lt.id === tId)?.name || `Test ID ${tId}`;
+                            return (
+                              <span key={tId} className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full text-[9px] font-bold">{name}</span>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {(!verifyData.oldTests || verifyData.oldTests.length === 0) && (!verifyData.newTests || verifyData.newTests.length === 0) && (
+                        <p className="text-xs font-bold text-slate-400 italic">No lab tests found in this scan.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-4">
+              <button
+                onClick={() => {
+                  setShowVerifyModal(false);
+                  setShowScanModal(true); // Return to scan view
+                }}
+                className="flex-1 bg-white hover:bg-slate-100 text-slate-500 py-4 rounded-2xl font-black text-xs uppercase tracking-[0.15em] border border-slate-200 transition-all active:scale-95"
+              >
+                Go Back to Scan
+              </button>
+              <button
+                onClick={() => {
+                  applyAutofill(verifyData.vitals, verifyData.newMeds);
+                  setShowVerifyModal(false);
+                }}
+                className="flex-1 bg-teal-600 hover:bg-teal-700 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-[0.15em] transition-all shadow-lg shadow-teal-100 active:scale-95"
+              >
+                Yes, Import New Medicines
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
