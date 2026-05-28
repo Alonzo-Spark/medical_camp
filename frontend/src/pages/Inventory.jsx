@@ -251,14 +251,13 @@ const Inventory = () => {
               <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-500">
                 <th className="px-8 py-5">Identity (UQID)</th>
                 <th className="px-8 py-5">Medication Description</th>
-                <th className="px-8 py-5">Classification</th>
                 <th className="px-8 py-5 text-right">Available Stock</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan="5" className="px-8 py-24 text-center">
+                  <td colSpan="3" className="px-8 py-24 text-center">
                     <div className="flex flex-col items-center gap-4 text-slate-400">
                       <div className="h-8 w-8 border-4 border-teal-200 border-t-teal-600 rounded-full animate-spin" />
                       <span className="font-extrabold uppercase tracking-widest text-xs">Syncing Repository...</span>
@@ -269,8 +268,8 @@ const Inventory = () => {
                 sortedCategories.map((categoryName) => (
                   <React.Fragment key={categoryName}>
                     <tr className="bg-slate-100/60 border-y border-slate-200">
-                      <td colSpan="4" className="px-8 py-3.5">
-                        <div className="flex items-center justify-between">
+                      <td colSpan="3" className="px-8 py-3.5">
+                        <div className="flex items-center justify-center gap-3">
                           <span className="font-extrabold text-[11px] text-teal-800 uppercase tracking-[0.2em] font-sans">
                             {categoryName}
                           </span>
@@ -294,11 +293,6 @@ const Inventory = () => {
                               {med.formulation || 'No formulation specified'}
                             </span>
                           </div>
-                        </td>
-                        <td className="px-8 py-6">
-                          <span className="text-[10px] font-extrabold uppercase tracking-wider px-3 py-1.5 rounded-lg bg-slate-100 text-slate-500 border border-slate-200">
-                            {med.category}
-                          </span>
                         </td>
                         <td className="px-8 py-6 text-right">
                           {editingUqid === med.uqid ? (
@@ -347,7 +341,7 @@ const Inventory = () => {
                               </div>
                               <div className={`h-1.5 w-14 rounded-full mt-2 ${med.stock >= 50 ? 'bg-emerald-100' : 'bg-red-100'}`}>
                                 <div
-                                  className={`h-full rounded-full transition-all ${med.stock >= 50 ? 'bg-emerald-500' : 'bg-red-500'}`}
+                                  className={`h-full rounded-full transition-all ${med.stock >= 50 ? 'bg-red-500' : 'bg-emerald-500'}`}
                                   style={{ width: `${Math.min(med.stock, 100)}%` }}
                                 />
                               </div>
@@ -360,7 +354,7 @@ const Inventory = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="5" className="px-8 py-32 text-center">
+                  <td colSpan="3" className="px-8 py-32 text-center">
                     <div className="flex flex-col items-center gap-4 animate-fade-in">
                       <div className="p-6 bg-slate-50 rounded-2xl border border-slate-200 mb-2">
                         <PackageOpen size={60} strokeWidth={1} className="text-slate-300" />

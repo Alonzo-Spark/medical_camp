@@ -457,9 +457,6 @@ def api_update_medicine_details(request):
             
         medicine.save()
         
-        # Sync all camp wise stock records
-        CampWiseStock.objects.filter(medicine=medicine).update(unit_cost=cost_val)
-        
         return Response({
             'status': 'success',
             'message': 'Medicine details updated successfully'
@@ -555,10 +552,15 @@ def api_update_medicine_profile(request):
             cost_val = float(cost)
             
         medicine.cost = cost_val
-        medicine.save()
         
-        # Sync all camp wise stock records
-        CampWiseStock.objects.filter(medicine=medicine).update(unit_cost=cost_val)
+        category_id = data.get('category_id')
+        if category_id and str(category_id).strip() != '' and str(category_id) != 'null':
+            category = get_object_or_404(MedicineCategory, id=category_id)
+            medicine.category = category
+        else:
+            medicine.category = None
+            
+        medicine.save()
         
         return Response({
             'status': 'success',
@@ -593,11 +595,8 @@ def api_update_camp_unit_cost(request):
         if unit_cost is not None and str(unit_cost).strip() != '':
             val = float(unit_cost)
             
-        medicine.cost = val
-        medicine.save()
-        
-        # Sync all camp wise stock records for this medicine (including this camp)
-        CampWiseStock.objects.filter(medicine=medicine).update(unit_cost=val)
+        camp_stock.unit_cost = val
+        camp_stock.save()
         
         return Response({
             'status': 'success',
@@ -653,6 +652,7 @@ def api_add_medicine(request):
         formulation = data.get('formulation', '')
         stock = int(data.get('stock', 0))
         custom_uqid = data.get('uqid')
+        category_id = data.get('category_id')
         
         if not name:
             return Response({'status': 'error', 'message': 'Medicine name is required'}, status=400)
@@ -682,13 +682,18 @@ def api_add_medicine(request):
             except ValueError:
                 pass
 
+        category = None
+        if category_id and str(category_id).strip() != '' and str(category_id) != 'null':
+            category = get_object_or_404(MedicineCategory, id=category_id)
+
         # pyrefly: ignore [missing-attribute]
         medicine = Medicine.objects.create(
             uqid=new_uqid,
             name=name,
             formulation=formulation,
             stock=stock,
-            cost=cost_val
+            cost=cost_val,
+            category=category
         )
         
         serializer = MedicineSerializer(medicine)
@@ -2727,6 +2732,92 @@ def api_get_server_ip(request):
     finally:
         s.close()
     return Response({'ip': ip})
+
+@api_view(['GET'])
+def api_get_categories(request):
+    # pyrefly: ignore [missing-attribute]
+    categories = list(MedicineCategory.objects.all().values('id', 'name', 'short_code'))
+    return Response(categories)
+
+@api_view(['POST'])
+def api_create_category(request):
+    try:
+        data = request.data
+        name = data.get('name')
+        short_code = data.get('short_code')
+        if not name or not short_code:
+            return Response({'status': 'error', 'message': 'Name and short code are required.'}, status=400)
+        
+        # pyrefly: ignore [missing-attribute]
+        category = MedicineCategory.objects.create(name=name.strip(), short_code=short_code.strip())
+        return Response({
+            'status': 'success',
+            'message': 'Category created successfully',
+            'category': {'id': category.id, 'name': category.name, 'short_code': category.short_code}
+        })
+    except Exception as e:
+        return Response({'status': 'error', 'message': str(e)}, status=400)
+
+@api_view(['POST'])
+def api_update_category(request):
+    try:
+        data = request.data
+        category_id = data.get('id')
+        name = data.get('name')
+        short_code = data.get('short_code')
+        
+        category = get_object_or_404(MedicineCategory, id=category_id)
+        if name:
+            category.name = name.strip()
+        if short_code:
+            category.short_code = short_code.strip()
+        category.save()
+        
+        return Response({
+            'status': 'success',
+            'message': 'Category updated successfully'
+        })
+    except Exception as e:
+        return Response({'status': 'error', 'message': str(e)}, status=400)
+
+@api_view(['POST'])
+def api_delete_category(request):
+    try:
+        data = request.data
+        category_id = data.get('id')
+        category = get_object_or_404(MedicineCategory, id=category_id)
+        
+        # pyrefly: ignore [missing-attribute]
+        if Medicine.objects.filter(category=category, is_active=True).exists():
+            return Response({
+                'status': 'error',
+                'message': 'Cannot delete category as it is currently assigned to one or more active medicines.'
+            }, status=400)
+            
+        category.delete()
+        return Response({
+            'status': 'success',
+            'message': 'Category deleted successfully'
+        })
+    except Exception as e:
+        return Response({'status': 'error', 'message': str(e)}, status=400)
+
+@api_view(['POST'])
+def api_delete_medicine(request):
+    try:
+        data = request.data
+        uqid = data.get('uqid')
+        medicine = get_object_or_404(Medicine, uqid=uqid)
+        
+        medicine.is_active = False
+        medicine.save()
+        
+        return Response({
+            'status': 'success',
+            'message': f'Medicine {medicine.name} deleted successfully.'
+        })
+    except Exception as e:
+        return Response({'status': 'error', 'message': str(e)}, status=400)
         
 
 
