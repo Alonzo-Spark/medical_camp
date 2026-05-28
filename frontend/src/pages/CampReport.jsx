@@ -6,7 +6,7 @@ import {
     TrendingUp, Download, Banknote, FileCheck
 } from 'lucide-react';
 
-const API_BASE = `http://${window.location.hostname}:8000/api`;
+const API_BASE = import.meta.env.VITE_API_BASE || `http://${window.location.hostname}:8000/api`;
 
 const StatCard = ({ title, value, subValue, icon: Icon, color }) => (
     <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FileText, Activity, Save, Users, Plus } from 'lucide-react';
 
 const DoctorReport = () => {
-  const API_BASE = `http://${window.location.hostname}:8000/api`;
+  const API_BASE = import.meta.env.VITE_API_BASE || `http://${window.location.hostname}:8000/api`;
 
   const [camps, setCamps] = useState([]);
   const [selectedCamp, setSelectedCamp] = useState('');

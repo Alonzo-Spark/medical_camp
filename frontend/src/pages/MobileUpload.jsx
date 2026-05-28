@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { Camera, CheckCircle2, AlertCircle, Upload, Loader2 } from 'lucide-react';
 
-const API_BASE = 'http://' + window.location.hostname + ':8000/api';
+const API_BASE = import.meta.env.VITE_API_BASE || `http://${window.location.hostname}:8000/api`;
 
 const MobileUpload = () => {
     const { sessionId } = useParams();
