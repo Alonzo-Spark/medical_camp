@@ -8,9 +8,10 @@ from .models import (
 class MedicineSerializer(serializers.ModelSerializer):
     category = serializers.ReadOnlyField(source='category.name', default="General")
     category_name = serializers.ReadOnlyField(source='category.name', default="General")
+    category_id = serializers.ReadOnlyField(source='category.id')
     class Meta:
         model = Medicine
-        fields = ['id', 'uqid', 'name', 'formulation', 'category', 'category_name', 'stock', 'expiry_date', 'company_name', 'cost']
+        fields = ['id', 'uqid', 'name', 'formulation', 'category', 'category_name', 'category_id', 'stock', 'expiry_date', 'company_name', 'cost']
 
 class MedicalCampSerializer(serializers.ModelSerializer):
     venue = serializers.ReadOnlyField(source='venue.name')

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { Pill, Search, PackageOpen, Filter, Box, PlusCircle, CheckCircle2, Heart, Landmark, RefreshCcw, AlertTriangle, Download, Edit3, Check, X } from 'lucide-react';
 
@@ -17,21 +18,37 @@ const MedicineEntry = () => {
   const [camps, setCamps] = useState([]);
   const [selectedCamp, setSelectedCamp] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newMed, setNewMed] = useState({ uqid: '', name: '', formulation: '', stock: '', cost: '' });
+  const [newMed, setNewMed] = useState({ uqid: '', name: '', formulation: '', stock: '', cost: '', category_id: '' });
   const [isAdding, setIsAdding] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [editingMedId, setEditingMedId] = useState(null);
-  const [editMedData, setEditMedData] = useState({ uqid: '', name: '', cost: '' });
+  const [editMedData, setEditMedData] = useState({ uqid: '', name: '', cost: '', formulation: '', category_id: '' });
   const [campUnitCosts, setCampUnitCosts] = useState({});
   const [editingUqid, setEditingUqid] = useState(null);
   const [tempAltName, setTempAltName] = useState('');
 
-
+  // Category management state
+  const [categories, setCategories] = useState([]);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryCode, setNewCategoryCode] = useState('');
+  const [editingCategoryId, setEditingCategoryId] = useState(null);
+  const [editCategoryName, setEditCategoryName] = useState('');
+  const [editCategoryCode, setEditCategoryCode] = useState('');
 
   useEffect(() => {
     fetchMedicines();
     fetchCamps();
+    fetchCategories();
   }, []);
+
+  useEffect(() => {
+    // Reset all camp-specific local states when switching camps
+    setCampUnitCosts({});
+    setAllocateQtys({});
+    setEditingUqid(null);
+    setTempAltName('');
+  }, [selectedCamp]);
 
   useEffect(() => {
     fetchCampStocks();
@@ -41,6 +58,78 @@ const MedicineEntry = () => {
     axios.get(`${API_BASE}/camps`).then(res => {
       setCamps(res.data);
     });
+  };
+
+  const fetchCategories = () => {
+    axios.get(`${API_BASE}/categories`).then(res => {
+      setCategories(res.data);
+    });
+  };
+
+  const handleCreateCategory = async (e) => {
+    e.preventDefault();
+    if (!newCategoryName.trim() || !newCategoryCode.trim()) {
+      alert('Name and Short Code are required');
+      return;
+    }
+    try {
+      const res = await axios.post(`${API_BASE}/categories/create`, {
+        name: newCategoryName,
+        short_code: newCategoryCode
+      });
+      setSuccessMsg(res.data.message);
+      setTimeout(() => setSuccessMsg(''), 2000);
+      setNewCategoryName('');
+      setNewCategoryCode('');
+      fetchCategories();
+    } catch (err) {
+      alert(err.response?.data?.message || err.message);
+    }
+  };
+
+  const handleUpdateCategory = async (id) => {
+    if (!editCategoryName.trim() || !editCategoryCode.trim()) {
+      alert('Name and Short Code are required');
+      return;
+    }
+    try {
+      const res = await axios.post(`${API_BASE}/categories/update`, {
+        id,
+        name: editCategoryName,
+        short_code: editCategoryCode
+      });
+      setSuccessMsg(res.data.message);
+      setTimeout(() => setSuccessMsg(''), 2000);
+      setEditingCategoryId(null);
+      fetchCategories();
+      fetchMedicines();
+    } catch (err) {
+      alert(err.response?.data?.message || err.message);
+    }
+  };
+
+  const handleDeleteCategory = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this category?')) return;
+    try {
+      const res = await axios.post(`${API_BASE}/categories/delete`, { id });
+      setSuccessMsg(res.data.message);
+      setTimeout(() => setSuccessMsg(''), 2000);
+      fetchCategories();
+    } catch (err) {
+      alert(err.response?.data?.message || err.message);
+    }
+  };
+
+  const handleDeleteMedicine = async (uqid, name) => {
+    if (!window.confirm(`Are you sure you want to delete "${name}" (UQID: ${uqid})?`)) return;
+    try {
+      const res = await axios.post(`${API_BASE}/delete_medicine`, { uqid });
+      setSuccessMsg(res.data.message);
+      setTimeout(() => setSuccessMsg(''), 2000);
+      fetchMedicines();
+    } catch (err) {
+      alert(err.response?.data?.message || err.message);
+    }
   };
 
   const fetchMedicines = () => {
@@ -270,7 +359,7 @@ const MedicineEntry = () => {
   };
 
   const handleSaveEdit = async (oldUqid) => {
-    const { uqid, name, cost, formulation } = editMedData;
+    const { uqid, name, cost, formulation, category_id } = editMedData;
     if (!name || !name.trim()) {
       alert('Medicine name is required');
       return;
@@ -282,7 +371,8 @@ const MedicineEntry = () => {
         new_uqid: parseInt(uqid),
         name: name,
         cost: cost !== '' && cost !== null ? parseFloat(cost) : null,
-        formulation: formulation !== '' && formulation !== null ? formulation : null
+        formulation: formulation !== '' && formulation !== null ? formulation : null,
+        category_id: category_id || null
       });
 
       setSuccessMsg(res.data.message);
@@ -349,12 +439,13 @@ const MedicineEntry = () => {
         name: newMed.name,
         formulation: newMed.formulation,
         stock: parseInt(newMed.stock) || 0,
-        cost: newMed.cost !== '' ? parseFloat(newMed.cost) : null
+        cost: newMed.cost !== '' ? parseFloat(newMed.cost) : null,
+        category_id: newMed.category_id || null
       });
 
       setSuccessMsg(res.data.message);
       setTimeout(() => setSuccessMsg(''), 3000);
-      setNewMed({ uqid: '', name: '', formulation: '', stock: '', cost: '' });
+      setNewMed({ uqid: '', name: '', formulation: '', stock: '', cost: '', category_id: '' });
       setShowAddForm(false);
       fetchMedicines().then(updatedMeds => {
         fetchCampStocks(updatedMeds);
@@ -542,20 +633,29 @@ const MedicineEntry = () => {
           </div>
           <div className="flex gap-2">
             {viewMode === 'total' && (
-              <button
-                onClick={() => setShowAddForm(!showAddForm)}
-                className={`flex items-center gap-2 px-6 py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.15em] transition-all duration-300 ${showAddForm
-                  ? 'bg-rose-600 text-white'
-                  : 'bg-teal-600 text-white hover:bg-teal-700'
-                  } shadow-lg`}
-              >
-                {showAddForm ? 'Cancel' : (
-                  <>
-                    <PlusCircle size={18} strokeWidth={2.5} />
-                    New Medicine
-                  </>
-                )}
-              </button>
+              <>
+                <button
+                  onClick={() => setShowAddForm(!showAddForm)}
+                  className={`flex items-center gap-2 px-6 py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.15em] transition-all duration-300 ${showAddForm
+                    ? 'bg-rose-600 text-white'
+                    : 'bg-teal-600 text-white hover:bg-teal-700'
+                    } shadow-lg`}
+                >
+                  {showAddForm ? 'Cancel' : (
+                    <>
+                      <PlusCircle size={18} strokeWidth={2.5} />
+                      New Medicine
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => setShowCategoryModal(true)}
+                  className="flex items-center gap-2 px-6 py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.15em] transition-all duration-300 bg-slate-800 hover:bg-slate-900 text-white shadow-lg"
+                >
+                  <Filter size={18} strokeWidth={2.5} />
+                  Manage Categories
+                </button>
+              </>
             )}
             <button onClick={() => { fetchMedicines(); fetchCampStocks(); }} className="p-4 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-teal-600 hover:border-teal-200 transition-all shadow-sm">
               <Filter size={20} strokeWidth={2.5} />
@@ -565,7 +665,7 @@ const MedicineEntry = () => {
 
         {showAddForm && viewMode === 'total' && (
           <div className="p-8 bg-teal-50/30 border-b border-slate-100 animate-in slide-in-from-top-4 duration-300">
-            <form onSubmit={handleAddMedicine} className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+            <form onSubmit={handleAddMedicine} className="grid grid-cols-1 md:grid-cols-7 gap-4 items-end">
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">UQID (Optional)</label>
                 <input
@@ -596,6 +696,21 @@ const MedicineEntry = () => {
                   value={newMed.formulation}
                   onChange={e => setNewMed({ ...newMed, formulation: e.target.value })}
                 />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Category</label>
+                <select
+                  className="w-full bg-white border border-slate-200 rounded-xl px-5 py-3 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-teal-500/30 transition-all cursor-pointer appearance-none"
+                  value={newMed.category_id}
+                  onChange={e => setNewMed({ ...newMed, category_id: e.target.value })}
+                >
+                  <option value="">Select Category</option>
+                  {categories.map(cat => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name} ({cat.short_code})
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Initial Stock</label>
@@ -703,6 +818,18 @@ const MedicineEntry = () => {
                                   value={editMedData.formulation || ''}
                                   onChange={(e) => setEditMedData({ ...editMedData, formulation: e.target.value })}
                                 />
+                                <select
+                                  className="w-full bg-white border border-teal-300 rounded-lg px-2 py-1 text-xs font-extrabold outline-none focus:ring-2 focus:ring-teal-500/20 shadow-sm mt-1 cursor-pointer"
+                                  value={editMedData.category_id || ''}
+                                  onChange={(e) => setEditMedData({ ...editMedData, category_id: e.target.value })}
+                                >
+                                  <option value="">No Category</option>
+                                  {categories.map(cat => (
+                                    <option key={cat.id} value={cat.id}>
+                                      {cat.name}
+                                    </option>
+                                  ))}
+                                </select>
                               </div>
                             ) : (
                               <div className="flex items-center gap-2 max-w-md">
@@ -771,7 +898,7 @@ const MedicineEntry = () => {
                                   <button
                                     onClick={() => {
                                       setEditingMedId(med.uqid);
-                                      setEditMedData({ uqid: med.uqid, name: med.name, cost: med.cost || '', formulation: med.formulation || '' });
+                                      setEditMedData({ uqid: med.uqid, name: med.name, cost: med.cost || '', formulation: med.formulation || '', category_id: med.category_id || '' });
                                     }}
                                     className="px-3 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
                                     title="Edit Medicine"
@@ -779,6 +906,13 @@ const MedicineEntry = () => {
                                     Edit
                                   </button>
                                 )}
+                                <button
+                                  onClick={() => handleDeleteMedicine(med.uqid, med.name)}
+                                  className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
+                                  title="Delete Medicine"
+                                >
+                                  Delete
+                                </button>
                                 <button
                                   onClick={() => handleUpdate(med.uqid)}
                                   disabled={!updateQtys[med.uqid] || updateQtys[med.uqid] <= 0}
@@ -1117,6 +1251,146 @@ const MedicineEntry = () => {
           </div>
         )}
       </div>
+
+      {/* Category Management Modal */}
+      {showCategoryModal && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-100 flex flex-col max-h-[85vh]">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div>
+                <h3 className="text-lg font-black text-slate-800">Manage Medicine Categories</h3>
+                <p className="text-xs font-semibold text-slate-400 mt-1">Add, edit, or delete inventory categories</p>
+              </div>
+              <button
+                onClick={() => setShowCategoryModal(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-all"
+              >
+                <X size={20} strokeWidth={2.5} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 overflow-y-auto space-y-6 flex-1">
+              {/* Category list */}
+              <div className="space-y-3">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Existing Categories</h4>
+                <div className="border border-slate-100 rounded-2xl overflow-hidden divide-y divide-slate-100">
+                  {categories.length > 0 ? (
+                    categories.map(cat => (
+                      <div key={cat.id} className="p-4 flex items-center justify-between hover:bg-slate-50/50 transition-all">
+                        {editingCategoryId === cat.id ? (
+                          <div className="flex gap-2 flex-1 mr-4">
+                            <input
+                              type="text"
+                              className="flex-1 bg-white border border-teal-300 rounded-xl px-3 py-2 text-sm font-bold outline-none"
+                              value={editCategoryName}
+                              onChange={e => setEditCategoryName(e.target.value)}
+                              placeholder="Category Name"
+                            />
+                            <input
+                              type="text"
+                              className="w-28 bg-white border border-teal-300 rounded-xl px-3 py-2 text-sm font-bold outline-none uppercase"
+                              value={editCategoryCode}
+                              onChange={e => setEditCategoryCode(e.target.value)}
+                              placeholder="Code"
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-3">
+                            <span className="font-bold text-slate-800 text-sm">{cat.name}</span>
+                            <span className="text-[10px] font-black text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded uppercase tracking-wider">
+                              {cat.short_code}
+                            </span>
+                          </div>
+                        )}
+
+                        <div className="flex gap-2">
+                          {editingCategoryId === cat.id ? (
+                            <>
+                              <button
+                                onClick={() => handleUpdateCategory(cat.id)}
+                                className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+                                title="Save"
+                              >
+                                <Check size={18} strokeWidth={3} />
+                              </button>
+                              <button
+                                onClick={() => setEditingCategoryId(null)}
+                                className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                                title="Cancel"
+                              >
+                                <X size={18} strokeWidth={3} />
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => {
+                                  setEditingCategoryId(cat.id);
+                                  setEditCategoryName(cat.name);
+                                  setEditCategoryCode(cat.short_code);
+                                }}
+                                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-all"
+                                title="Edit"
+                              >
+                                <Edit3 size={18} strokeWidth={2.5} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteCategory(cat.id)}
+                                className="p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                                title="Delete"
+                              >
+                                <X size={18} strokeWidth={2.5} />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-8 text-center text-slate-400 font-semibold text-sm">No categories configured.</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Create new category */}
+              <form onSubmit={handleCreateCategory} className="border-t border-slate-100 pt-6 space-y-4">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Add New Category</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Category Name</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Antibiotic"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-teal-500/30 transition-all"
+                      value={newCategoryName}
+                      onChange={e => setNewCategoryName(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Short Code</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. ANT"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-teal-500/30 transition-all uppercase"
+                      value={newCategoryCode}
+                      onChange={e => setNewCategoryCode(e.target.value)}
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full bg-teal-600 text-white h-[42px] rounded-xl font-black text-[10px] uppercase tracking-wider hover:bg-teal-700 transition-all shadow-sm"
+                  >
+                    Add Category
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };

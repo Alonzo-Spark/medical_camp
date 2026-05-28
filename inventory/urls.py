@@ -71,10 +71,9 @@ urlpatterns = [
     path('api/camp_details/<int:camp_id>', api_get_camp_details),
     path('api/issued_tests_list', api_get_patients_with_tests),
     path('api/get_server_ip', api_get_server_ip),
-
-
-
-
-
-
+    path('api/categories', api_get_categories),
+    path('api/categories/create', api_create_category),
+    path('api/categories/update', api_update_category),
+    path('api/categories/delete', api_delete_category),
+    path('api/delete_medicine', api_delete_medicine),
 ]
