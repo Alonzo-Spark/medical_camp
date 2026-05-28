@@ -4,7 +4,7 @@ import { Users, Activity, Database, Edit2, Trash2, ArrowLeft } from 'lucide-reac
 
 const DoctorPatientList = () => {
   const navigate = useNavigate();
-  const API_BASE = `http://${window.location.hostname}:8000/api`;
+  const API_BASE = import.meta.env.VITE_API_BASE || `http://${window.location.hostname}:8000/api`;
 
   const [camps, setCamps] = useState([]);
   const [selectedCamp, setSelectedCamp] = useState('');
