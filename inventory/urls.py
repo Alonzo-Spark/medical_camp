@@ -72,9 +72,6 @@ urlpatterns = [
     path('api/issued_tests_list', api_get_patients_with_tests),
     path('api/get_server_ip', api_get_server_ip),
 
-
-
-
-
-
-]
+    path('api/broadcast_reminders/', api_broadcast_reminders),
+    path('api/exotel_call_flow/', api_exotel_call_flow),
+    path('api/exotel_webhook/', api_exotel_webhook),]

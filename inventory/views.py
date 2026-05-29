@@ -2717,8 +2717,102 @@ def api_get_server_ip(request):
     finally:
         s.close()
     return Response({'ip': ip})
+
+import os
+import requests
+
+@api_view(['POST'])
+def api_broadcast_reminders(request):
+    camp_id = request.data.get('camp_id')
+    if not camp_id:
+        return Response({"status": "error", "message": "camp_id is required"}, status=400)
+    
+    patients = Patient.objects.filter(camp_visits__camp__number=camp_id)
+    
+    # Exotel Credentials
+    account_sid = os.getenv("EXOTEL_ACCOUNT_SID")
+    api_key = os.getenv("EXOTEL_API_KEY")
+    api_token = os.getenv("EXOTEL_API_TOKEN")
+    caller_id = os.getenv("EXOTEL_VIRTUAL_NUMBER")
+    
+    if not all([account_sid, api_key, api_token, caller_id]):
+        patients.update(call_status="failed")
+        return Response({"status": "error", "message": "Exotel credentials are missing from .env!"}, status=400)
+    
+    scheme = "https" if request.is_secure() or "ngrok" in request.get_host() else "http"
+    host = request.get_host()
+    base_url = f"{scheme}://{host}"
+    
+    # Convert https:// to wss:// for the stream URL
+    ws_url = base_url.replace("http://", "ws://").replace("https://", "wss://") + "/ws/exotel_inbound"
+    webhook_url = f"{base_url}/api/exotel_webhook/"
+    
+    exotel_url = f"https://api.exotel.com/v1/Accounts/{account_sid}/Calls/connect.json"
+    
+    queued_count = 0
+    for patient in patients:
+        phone = patient.contact_no
+        if not phone or len(phone) < 10:
+            continue
+            
+        data = {
+            "From": phone,
+            "CallerId": caller_id,
+            "CallType": "trans",
+            "StreamUrl": ws_url,
+            "StreamType": "bidirectional",
+            "StatusCallback": webhook_url,
+            "StatusCallbackEvents[0]": "terminal",
+            "CustomField": str(patient.patient_id)
+        }
         
+        try:
+            response = requests.post(exotel_url, auth=(api_key, api_token), data=data)
+            if response.status_code in [200, 201]:
+                patient.call_status = "queued"
+                patient.save()
+                queued_count += 1
+            else:
+                patient.call_status = "failed"
+                patient.save()
+        except Exception:
+            patient.call_status = "failed"
+            patient.save()
 
+    return Response({
+        "status": "success",
+        "message": f"Broadcast triggered for {queued_count} patients."
+    })
 
+@csrf_exempt
+def api_exotel_call_flow(request):
+    host = request.get_host()
+    stream_url = f"wss://{host}/ws/exotel_inbound"
+    
+    xml_response = f'''<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Connect>
+        <Stream url="{stream_url}" />
+    </Connect>
+</Response>'''
+    
+    return HttpResponse(xml_response, content_type='text/xml')
+
+@csrf_exempt
+def api_exotel_webhook(request):
+    if request.method == "POST":
+        status = request.POST.get('Status', '').lower()
+        patient_id = request.POST.get('CustomField')
         
-
+        if patient_id and status:
+            try:
+                patient = Patient.objects.get(patient_id=patient_id)
+                if status in ['completed', 'in-progress', 'answered']:
+                    patient.call_status = 'completed'
+                else:
+                    patient.call_status = 'failed'
+                patient.save()
+            except Patient.DoesNotExist:
+                pass
+                
+    return HttpResponse("OK")

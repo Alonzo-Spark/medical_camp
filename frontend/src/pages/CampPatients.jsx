@@ -19,21 +19,33 @@ const CampPatients = () => {
     axios.get(`${API_BASE}/camps`).then(res => setCamps(res.data));
   }, []);
 
-  const fetchCampPatients = async (campId) => {
+  const fetchCampPatients = async (campId, silent = false) => {
     if (!campId) {
       setCampPatients([]);
       return;
     }
-    setListLoading(true);
+    if (!silent) setListLoading(true);
     try {
       const res = await axios.get(`${API_BASE}/camp_patients/${campId}`);
       setCampPatients(res.data);
     } catch {
       setCampPatients([]);
     } finally {
-      setListLoading(false);
+      if (!silent) setListLoading(false);
     }
   };
+
+  // Poll for call status updates if any patient is in 'queued' state
+  useEffect(() => {
+    let interval;
+    const hasQueued = campPatients.some(p => p.call_status === 'queued');
+    if (listCamp && hasQueued) {
+      interval = setInterval(() => {
+        fetchCampPatients(listCamp, true);
+      }, 5000); // Check every 5 seconds
+    }
+    return () => clearInterval(interval);
+  }, [listCamp, campPatients]);
 
   const handleUpdateTestRecord = async (testIssueId, newValue, patientId, tIndex) => {
     try {

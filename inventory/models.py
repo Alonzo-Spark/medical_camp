@@ -151,6 +151,10 @@ class Patient(models.Model):
     contact_no = models.CharField(max_length=20, null=True, blank=True)
     registered_date = models.DateField(null=True, blank=True)
     camp_session = models.IntegerField(null=True, blank=True)
+    call_status = models.CharField(max_length=50, null=True, blank=True)
+    retry_count = models.IntegerField(default=0)
+    next_retry_time = models.DateTimeField(null=True, blank=True)
+    latest_call_sid = models.CharField(max_length=200, null=True, blank=True)
 
     def __str__(self):
         return f"{self.patient_id} - {self.patient_name or 'No Name'}"
