@@ -1,0 +1,54 @@
+{
+  "features": [
+    {
+      "id": "feat-001-unified-asgi",
+      "name": "Unified ASGI Server (FastAPI + Django)",
+      "status": "complete",
+      "depends_on": [],
+      "rollback_ref": null,
+      "created_at": "2026-05-27T06:00:00Z",
+      "completed_at": "2026-05-28T12:00:00Z",
+      "edits": []
+    },
+    {
+      "id": "feat-002-exotel-websocket-streaming",
+      "name": "Exotel StreamUrl Integration",
+      "status": "complete",
+      "depends_on": ["feat-001-unified-asgi"],
+      "rollback_ref": null,
+      "created_at": "2026-05-28T13:00:00Z",
+      "completed_at": "2026-05-29T04:00:00Z",
+      "edits": []
+    },
+    {
+      "id": "feat-003-sarvam-ai-integration",
+      "name": "Sarvam ASR & TTS Integration",
+      "status": "complete",
+      "depends_on": ["feat-002-exotel-websocket-streaming"],
+      "rollback_ref": null,
+      "created_at": "2026-05-29T04:00:00Z",
+      "completed_at": "2026-05-29T05:00:00Z",
+      "edits": []
+    },
+    {
+      "id": "feat-004-voicebot-speed-config",
+      "name": "Voicebot Config Settings",
+      "status": "complete",
+      "depends_on": ["feat-003-sarvam-ai-integration"],
+      "rollback_ref": null,
+      "created_at": "2026-05-29T05:00:00Z",
+      "completed_at": "2026-05-29T05:22:00Z",
+      "edits": []
+    },
+    {
+      "id": "feat-005-background-retry-loop",
+      "name": "Background Exotel Retry Task",
+      "status": "complete",
+      "depends_on": ["feat-001-unified-asgi"],
+      "rollback_ref": null,
+      "created_at": "2026-05-29T05:25:00Z",
+      "completed_at": "2026-05-29T05:27:00Z",
+      "edits": []
+    }
+  ]
+}

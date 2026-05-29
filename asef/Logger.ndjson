@@ -1,0 +1,8 @@
+{"ts":"2026-05-27T06:00:00Z","loop":"project","feat":null,"edit":null,"event":"loop_open","detail":"Project loop initialised — Medical Camp System & Telugu Voicebot boilerplate ready."}
+{"ts":"2026-05-28T12:00:00Z","loop":"project","feat":null,"edit":null,"event":"loop_close","detail":"Completed unified ASGI Server setup."}
+{"ts":"2026-05-29T04:00:00Z","loop":"feature","feat":"feat-002-exotel-websocket-streaming","edit":null,"event":"loop_open","detail":"Completed Exotel StreamUrl integration."}
+{"ts":"2026-05-29T05:00:00Z","loop":"feature","feat":"feat-003-sarvam-ai-integration","edit":null,"event":"loop_close","detail":"Upgraded sarvamai client and integrated ASR/TTS streams."}
+{"ts":"2026-05-29T05:22:00Z","loop":"feature","feat":"feat-004-voicebot-speed-config","edit":null,"event":"loop_close","detail":"Implemented configurable voicebot settings and greeting WAV stream."}
+{"ts":"2026-05-29T05:27:00Z","loop":"feature","feat":"feat-005-background-retry-loop","edit":null,"event":"loop_close","detail":"Resolved NameError in exotel background retry task loop."}
+{"ts":"2026-05-29T06:12:00Z","loop":"project","feat":null,"edit":null,"event":"loop_close","detail":"Merged git branch resolving conflicts in favor of local changes."}
+{"ts":"2026-05-29T06:59:00Z","loop":"project","feat":null,"edit":null,"event":"loop_close","detail":"Updated asef documentation to reflect the Medical Camp project."}
