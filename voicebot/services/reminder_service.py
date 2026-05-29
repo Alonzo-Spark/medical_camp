@@ -108,7 +108,7 @@ class ReminderService:
         formatted_date = format_date_for_telugu_tts(date_val)
         formatted_venue = translate_venue_to_telugu(venue_name)
         
-        return f"నమస్కారం, మేము సీ సీ సీ ఉచిత వైద్య శిబిరం నుండి మాట్లాడుతున్నాము. మన తదుపరి వైద్య శిబిరం {formatted_date}న, {formatted_venue} వద్ద జరుగుతుంది. దయచేసి హాజరుకాగలరు. ధన్యవాదాలు."
+        return f"నమస్కారం, మేము సీ సీ సీ మెడికల్ క్యాంప్ నుండి మాట్లాడుతున్నాము. మన తదుపరి మెడికల్ క్యాంప్ {formatted_date}న, {formatted_venue} వద్ద జరుగుతుంది. దయచేసి హాజరుకాగలరు. ధన్యవాదాలు."
 
     def process_and_generate_audio(self, schedule_id: int) -> CallSchedule:
         """
