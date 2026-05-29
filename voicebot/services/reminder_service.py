@@ -75,6 +75,28 @@ def format_date_for_telugu_tts(date_val) -> str:
 
 
 
+def translate_venue_to_telugu(venue_name: str) -> str:
+    """
+    Translates common English venue names phonetically into Telugu script for clear TTS pronunciation.
+    Using spaces between words (e.g. పద్మా రావు) ensures the TTS engine pronounces the segments correctly.
+    """
+    normalized = " ".join(venue_name.lower().split())
+    
+    mappings = {
+        "padmaraonagar": "పద్మా రావు నగర్",
+        "padmarao nagar": "పద్మా రావు నగర్",
+        "padma rao nagar": "పద్మా రావు నగర్",
+        "kphb": "కే పీ హెచ్ బీ",
+        "miyapur": "మియాపూర్",
+        "nizampet": "నిజాంపేట్",
+        "ss function hall": "ఎస్ ఎస్ ఫంక్షన్ హాల్",
+        "default venue": "డిఫాల్ట్ వేదిక",
+        "test venue name": "టెస్ట్ వేదిక",
+    }
+    
+    return mappings.get(normalized, format_acronyms_to_telugu(venue_name))
+
+
 class ReminderService:
     def __init__(self):
         self.tts = SarvamTTSService()
@@ -84,14 +106,14 @@ class ReminderService:
         Generates natural, phonetically accurate Telugu text for TTS.
         """
         formatted_date = format_date_for_telugu_tts(date_val)
-        formatted_venue = format_acronyms_to_telugu(venue_name)
+        formatted_venue = translate_venue_to_telugu(venue_name)
         
-        return f"నమస్కారం, మేము సీ సీ సీ మెడికల్ క్యాంప్ నుండి కాల్ చేస్తున్నాము. మీ తదుపరి మెడికల్ క్యాంప్ {formatted_date}న {formatted_venue} వద్ద జరుగుతుంది. దయచేసి హాజరుకాగలరు. ధన్యవాదాలు."
+        return f"నమస్కారం, మేము సీ సీ సీ ఉచిత వైద్య శిబిరం నుండి మాట్లాడుతున్నాము. మన తదుపరి వైద్య శిబిరం {formatted_date}న, {formatted_venue} వద్ద జరుగుతుంది. దయచేసి హాజరుకాగలరు. ధన్యవాదాలు."
 
     def process_and_generate_audio(self, schedule_id: int) -> CallSchedule:
         """
         Processes a call schedule. Reuses the camp-wide audio reminder if it already
-        exists as a valid 8kHz WAV file. Otherwise regenerates it automatically.
+        exists as a valid 8kHz WAV file and matches the current text. Otherwise regenerates it.
         """
         schedule = CallSchedule.objects.get(id=schedule_id)
         schedule.status = 'processing'
@@ -100,15 +122,18 @@ class ReminderService:
         try:
             camp = schedule.camp
             reminder, created = CampVoiceReminder.objects.get_or_create(camp=camp)
+            telugu_text = self.generate_telugu_text(camp.date, camp.venue.name)
 
             # Determine if we need to (re)generate the audio:
             # - First time (created = True)
             # - No audio file saved yet
             # - Audio file is old .mp3 format (not Exotel-compatible .wav)
+            # - The template text or pronunciation dictionary has changed
             needs_generation = (
                 created
                 or not reminder.audio_file
                 or not reminder.audio_file.name.endswith('.wav')
+                or reminder.telugu_text != telugu_text
             )
 
             if needs_generation:
