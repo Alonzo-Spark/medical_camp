@@ -81,16 +81,16 @@ class TriggerTestReminderView(APIView):
                     )
                     if response.status_code == 200:
                         call_status = "Exotel call triggered successfully!"
-                        schedule.status = 'triggered'
-                        schedule.save()
+                        updated_schedule.status = 'triggered'
+                        updated_schedule.save()
                     else:
                         call_status = f"Exotel API error {response.status_code}: {response.text}"
-                        schedule.status = 'failed'
-                        schedule.save()
+                        updated_schedule.status = 'failed'
+                        updated_schedule.save()
                 except Exception as call_err:
                     call_status = f"Failed to connect to Exotel: {str(call_err)}"
-                    schedule.status = 'failed'
-                    schedule.save()
+                    updated_schedule.status = 'failed'
+                    updated_schedule.save()
 
             return Response({
                 "status": "success",
