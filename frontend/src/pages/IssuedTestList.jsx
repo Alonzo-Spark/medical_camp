@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Search, FlaskConical, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
 
+<<<<<<< HEAD
 const API_BASE = '/api';
+=======
+const API_BASE = import.meta.env.VITE_API_BASE || `http://${window.location.hostname}:8000/api`;
+>>>>>>> c6659da61c08e3b8d274bc51787783944d4b4306
 
 function IssuedTestsList() {
     const [data, setData] = useState([]);

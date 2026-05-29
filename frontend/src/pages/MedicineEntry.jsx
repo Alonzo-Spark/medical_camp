@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Pill, Search, PackageOpen, Filter, Box, PlusCircle, CheckCircle2, Heart, Landmark, RefreshCcw, AlertTriangle, Download, Edit3, Check, X } from 'lucide-react';
 
+<<<<<<< HEAD
 const API_BASE = '/api';
+=======
+const API_BASE = import.meta.env.VITE_API_BASE || `http://${window.location.hostname}:8000/api`;
+>>>>>>> c6659da61c08e3b8d274bc51787783944d4b4306
 
 const MedicineEntry = () => {
   const [medicines, setMedicines] = useState([]);
@@ -67,7 +71,11 @@ const MedicineEntry = () => {
           uqid: med.uqid,
           medication: med.name,
           formulation: med.formulation || '',
+<<<<<<< HEAD
           category: med.category || '',
+=======
+          category: med.category || 'Uncategorized',
+>>>>>>> c6659da61c08e3b8d274bc51787783944d4b4306
           total_stock: med.stock,
           camp_stock: campData.allocated,
           used_stock: campData.used,
@@ -387,6 +395,7 @@ const MedicineEntry = () => {
     s.uqid.toString().includes(searchTerm)
   ).sort((a, b) => Number(a.uqid) - Number(b.uqid));
 
+<<<<<<< HEAD
   const groupedMeds = filteredMeds.reduce((acc, med) => {
     const category = med.category || 'Uncategorized';
     if (!acc[category]) acc[category] = [];
@@ -409,6 +418,38 @@ const MedicineEntry = () => {
   };
   const availableCategories = Array.from(new Set(medicines.map(m => m.category).filter(Boolean)));
   const sortedFilterCategories = [...availableCategories].sort((a, b) => {
+=======
+  const getCategoryOrderKey = (catName) => {
+    const rangeMatch = catName.match(/\((\d+)/);
+    if (rangeMatch) return parseInt(rangeMatch[1], 10);
+    const letterMatch = catName.match(/\s+-\s+([A-Z])\b/);
+    if (letterMatch) return letterMatch[1].charCodeAt(0);
+    return 9999;
+  };
+
+  const groupedTotalMeds = filteredMeds.reduce((acc, med) => {
+    const cat = med.category || 'Uncategorized';
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(med);
+    return acc;
+  }, {});
+
+  const sortedTotalCategories = Object.keys(groupedTotalMeds).sort((a, b) => {
+    const keyA = getCategoryOrderKey(a);
+    const keyB = getCategoryOrderKey(b);
+    if (keyA !== keyB) return keyA - keyB;
+    return a.localeCompare(b);
+  });
+
+  const groupedCampMeds = filteredCampStocks.reduce((acc, stock) => {
+    const cat = stock.category || 'Uncategorized';
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(stock);
+    return acc;
+  }, {});
+
+  const sortedCampCategories = Object.keys(groupedCampMeds).sort((a, b) => {
+>>>>>>> c6659da61c08e3b8d274bc51787783944d4b4306
     const keyA = getCategoryOrderKey(a);
     const keyB = getCategoryOrderKey(b);
     if (keyA !== keyB) return keyA - keyB;
@@ -668,6 +709,7 @@ const MedicineEntry = () => {
                     </td>
                   </tr>
                 ) : filteredMeds.length > 0 ? (
+<<<<<<< HEAD
                   (selectedCategory ? sortedCategories.filter(c => c === selectedCategory) : sortedCategories).map((categoryName) => (
                     <React.Fragment key={categoryName}>
                       <tr className="bg-slate-100/60 border-y border-slate-200">
@@ -769,26 +811,38 @@ const MedicineEntry = () => {
                             />
                           </div>
                           <div className="flex flex-col gap-1 min-w-[50px]">
+=======
+                  sortedTotalCategories.map((categoryName) => (
+                    <React.Fragment key={categoryName}>
+                      <tr className="bg-slate-100/60 border-y border-slate-200">
+                        <td colSpan="6" className="px-8 py-3.5">
+                          <div className="flex items-center justify-center gap-3">
+                            <span className="font-extrabold text-[11px] text-teal-800 uppercase tracking-[0.2em] font-sans">
+                              {categoryName}
+                            </span>
+                            <span className="bg-teal-50 text-teal-700 text-[10px] font-black px-3 py-1 rounded-full border border-teal-100/50">
+                              {groupedTotalMeds[categoryName].length} {groupedTotalMeds[categoryName].length === 1 ? 'item' : 'items'}
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                      {groupedTotalMeds[categoryName].map((med) => (
+                        <tr key={med.uqid} className="hover:bg-teal-50/40 transition-all group">
+                          <td className="px-4 py-4">
+>>>>>>> c6659da61c08e3b8d274bc51787783944d4b4306
                             {editingMedId === med.uqid ? (
-                              <button
-                                onClick={() => handleSaveEdit(med.uqid)}
-                                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
-                                title="Save Edit"
-                              >
-                                Save
-                              </button>
+                              <input
+                                type="text"
+                                className="w-full max-w-[100px] bg-white border border-teal-300 rounded-lg px-2 py-1.5 text-sm font-data outline-none focus:ring-2 focus:ring-teal-500/20 shadow-sm"
+                                value={editMedData.uqid}
+                                onChange={(e) => setEditMedData({ ...editMedData, uqid: e.target.value })}
+                              />
                             ) : (
-                              <button
-                                onClick={() => {
-                                  setEditingMedId(med.uqid);
-                                  setEditMedData({ uqid: med.uqid, name: med.name, cost: med.cost || '', formulation: med.formulation || '' });
-                                }}
-                                className="px-3 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
-                                title="Edit Medicine"
-                              >
-                                Edit
-                              </button>
+                              <span className="font-data text-sm font-bold text-teal-600 bg-teal-50 px-3 py-1.5 rounded-lg border border-teal-100">
+                                #{med.uqid}
+                              </span>
                             )}
+<<<<<<< HEAD
                             <button
                               onClick={() => handleUpdate(med.uqid)}
                               disabled={!updateQtys[med.uqid] || updateQtys[med.uqid] <= 0}
@@ -813,6 +867,125 @@ const MedicineEntry = () => {
                   </React.Fragment>
                 ))
               ) : (
+=======
+                          </td>
+                          <td className="px-4 py-4">
+                            {editingMedId === med.uqid ? (
+                              <div className="flex flex-col gap-1 max-w-md">
+                                <input
+                                  type="text"
+                                  className="w-full bg-white border border-teal-300 rounded-lg px-2 py-1.5 text-sm font-black outline-none focus:ring-2 focus:ring-teal-500/20 shadow-sm"
+                                  value={editMedData.name}
+                                  onChange={(e) => setEditMedData({ ...editMedData, name: e.target.value })}
+                                />
+                                <input
+                                  type="text"
+                                  className="w-full bg-white border border-teal-300 rounded-lg px-2 py-1 text-xs font-extrabold outline-none focus:ring-2 focus:ring-teal-500/20 shadow-sm mt-1 uppercase"
+                                  placeholder="Formulation (e.g. TABLET)"
+                                  value={editMedData.formulation || ''}
+                                  onChange={(e) => setEditMedData({ ...editMedData, formulation: e.target.value })}
+                                />
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 max-w-md">
+                                <span className="text-base font-black text-slate-800 group-hover:text-teal-700 transition-colors truncate">{med.name}</span>
+                                <span className="text-xs text-slate-600 font-extrabold uppercase tracking-wider px-2 py-0.5 bg-slate-50 rounded-md border border-slate-100 truncate">
+                                  {med.formulation || 'Generic Formulation'}
+                                </span>
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-4">
+                            {editingMedId === med.uqid ? (
+                              <input
+                                type="number"
+                                step="0.01"
+                                className="w-full max-w-[100px] bg-white border border-teal-300 rounded-lg px-2 py-1.5 text-sm font-data outline-none focus:ring-2 focus:ring-teal-500/20 shadow-sm"
+                                value={editMedData.cost !== undefined ? editMedData.cost : ''}
+                                onChange={(e) => setEditMedData({ ...editMedData, cost: e.target.value })}
+                              />
+                            ) : (
+                              <span className="font-data text-sm font-bold text-slate-600">
+                                {med.cost ? `₹ ${parseFloat(med.cost).toFixed(2)}` : '₹ 0.00'}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-4">
+                            <span className="font-data text-sm font-black text-slate-800">
+                              {editingMedId === med.uqid ? (
+                                editMedData.cost && !isNaN(parseFloat(editMedData.cost))
+                                  ? `₹ ${(parseFloat(editMedData.cost) * med.stock).toFixed(2)}`
+                                  : '₹ 0.00'
+                              ) : (
+                                med.cost ? `₹ ${(parseFloat(med.cost) * med.stock).toFixed(2)}` : '₹ 0.00'
+                              )}
+                            </span>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex flex-col">
+                              <span className={`text-xl font-black font-data ${med.stock > 10 ? 'text-slate-800' : 'text-rose-600'}`}>
+                                {med.stock}
+                              </span>
+                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Available Units</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4 text-right">
+                            <div className="flex items-center justify-end gap-3">
+                              <div className="relative">
+                                <input
+                                  type="number"
+                                  placeholder="0"
+                                  className="w-24 bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 font-black text-center focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10 outline-none transition-all placeholder:text-slate-200 shadow-sm"
+                                  value={updateQtys[med.uqid] !== undefined ? updateQtys[med.uqid] : ''}
+                                  onChange={e => handleQtyChange(med.uqid, e.target.value)}
+                                />
+                              </div>
+                              <div className="flex flex-col gap-1 min-w-[50px]">
+                                {editingMedId === med.uqid ? (
+                                  <button
+                                    onClick={() => handleSaveEdit(med.uqid)}
+                                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
+                                    title="Save Edit"
+                                  >
+                                    Save
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      setEditingMedId(med.uqid);
+                                      setEditMedData({ uqid: med.uqid, name: med.name, cost: med.cost || '', formulation: med.formulation || '' });
+                                    }}
+                                    className="px-3 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
+                                    title="Edit Medicine"
+                                  >
+                                    Edit
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => handleUpdate(med.uqid)}
+                                  disabled={!updateQtys[med.uqid] || updateQtys[med.uqid] <= 0}
+                                  className="px-3 py-1 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-100 disabled:text-slate-300 text-white rounded-lg transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
+                                  title="Add to existing stock"
+                                >
+                                  Add
+                                </button>
+                                <button
+                                  onClick={() => handleSetStock(med.uqid)}
+                                  disabled={updateQtys[med.uqid] === undefined || updateQtys[med.uqid] === '' || updateQtys[med.uqid] < 0}
+                                  className="px-3 py-1 bg-slate-700 hover:bg-slate-800 disabled:bg-slate-100 disabled:text-slate-300 text-white rounded-lg transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
+                                  title="Set absolute stock value"
+                                >
+                                  Set
+                                </button>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  ))
+                ) : (
+>>>>>>> c6659da61c08e3b8d274bc51787783944d4b4306
                   <tr>
                     <td colSpan="6" className="px-8 py-32 text-center text-slate-700">
                       <div className="flex flex-col items-center gap-4 animate-fade-in">
@@ -849,6 +1022,7 @@ const MedicineEntry = () => {
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {filteredCampStocks.length > 0 ? (
+<<<<<<< HEAD
                   (selectedCategory ? sortedCampCategories.filter(c => c === selectedCategory) : sortedCampCategories).map((categoryName) => (
                     <React.Fragment key={categoryName}>
                       <tr className="bg-slate-100/60 border-y border-slate-200">
@@ -930,96 +1104,180 @@ const MedicineEntry = () => {
                           {allocateQtys[stock.uqid] > 0 && (
                             <span className="text-sm font-black text-slate-400 line-through decoration-slate-300 animate-in fade-in slide-in-from-bottom-1">
                               {stock.total_stock}
+=======
+                  sortedCampCategories.map((categoryName) => (
+                    <React.Fragment key={categoryName}>
+                      <tr className="bg-slate-100/60 border-y border-slate-200">
+                        <td colSpan="11" className="px-8 py-3.5">
+                          <div className="flex items-center justify-center gap-3">
+                            <span className="font-extrabold text-[11px] text-teal-800 uppercase tracking-[0.2em] font-sans">
+                              {categoryName}
                             </span>
-                          )}
-                          <span className="text-xl font-black text-slate-800 font-data">
-                            {allocateQtys[stock.uqid] > 0
-                              ? stock.total_stock - parseInt(allocateQtys[stock.uqid])
-                              : stock.total_stock}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-3">
-                          <span className="w-10 h-10 flex items-center justify-center bg-blue-50 text-blue-600 rounded-xl font-black font-data border border-blue-100 text-sm">
-                            {stock.camp_stock}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-3">
-                          <span className="w-10 h-10 flex items-center justify-center bg-rose-50 text-rose-600 rounded-xl font-black font-data border border-rose-100 text-sm">
-                            {stock.used_stock}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-slate-400 font-extrabold text-sm">₹</span>
-                          <input
-                            type="number"
-                            step="any"
-                            min="0"
-                            placeholder="0.00"
-                            className="w-24 bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-sm font-black font-data text-slate-700 outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 shadow-sm"
-                            value={
-                              campUnitCosts[stock.uqid] !== undefined
-                                ? campUnitCosts[stock.uqid]
-                                : (stock.unit_cost !== null ? stock.unit_cost : '')
-                            }
-                            onChange={(e) => handleCampUnitCostChange(stock.uqid, e.target.value)}
-                            onBlur={() => handleSaveCampUnitCost(stock.uqid)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.target.blur();
-                              }
-                            }}
-                          />
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-3">
-                          <span className="font-data font-black text-base text-slate-900">
-                            {stock.used_stock && stock.unit_cost
-                              ? `₹ ${(stock.used_stock * stock.unit_cost).toFixed(2)}`
-                              : '₹ 0.00'}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-3">
-                          <span className="w-10 h-10 flex items-center justify-center bg-emerald-50 text-emerald-600 rounded-xl font-black font-data border border-emerald-100 text-sm">
-                            {stock.remaining_stock}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-3">
-                          <span className="w-10 h-10 flex items-center justify-center bg-teal-50 text-teal-600 rounded-xl font-black font-data border border-teal-100 text-sm">
-                            {stock.returned_stock}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <div className="flex items-center bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
-                            <input
-                              type="number"
-                              placeholder="Qty"
-                              className="w-16 bg-transparent px-2 py-1 text-slate-800 font-black text-center focus:outline-none placeholder:text-slate-200 text-xs"
-                              value={allocateQtys[stock.uqid] || ''}
-                              onChange={e => handleAllocateQtyChange(stock.uqid, e.target.value)}
-                            />
-                            <button
-                              onClick={() => handleAllocate(stock.uqid)}
-                              disabled={!selectedCamp || !allocateQtys[stock.uqid] || allocateQtys[stock.uqid] <= 0 || allocateQtys[stock.uqid] > stock.total_stock}
-                              className="p-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-50 disabled:text-slate-200 text-white rounded-lg transition-all shadow-sm"
-                              title="Allocate to Camp"
-                            >
-                              <PlusCircle size={16} strokeWidth={2.5} />
-                            </button>
+                            <span className="bg-teal-50 text-teal-700 text-[10px] font-black px-3 py-1 rounded-full border border-teal-100/50">
+                              {groupedCampMeds[categoryName].length} {groupedCampMeds[categoryName].length === 1 ? 'item' : 'items'}
+>>>>>>> c6659da61c08e3b8d274bc51787783944d4b4306
+                            </span>
                           </div>
+                        </td>
+                      </tr>
+                      {groupedCampMeds[categoryName].map((stock) => (
+                        <tr key={stock.uqid} className="hover:bg-emerald-50/40 transition-all group">
+                          <td className="px-4 py-4">
+                            <span className="font-data text-sm font-bold text-slate-400 group-hover:text-emerald-600 transition-colors">#{stock.uqid}</span>
+                          </td>
+                          <td className="px-4 py-4 text-base font-black text-slate-800">
+                            {editingUqid === stock.uqid ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={tempAltName}
+                                  onChange={(e) => setTempAltName(e.target.value)}
+                                  placeholder="Alternative Name"
+                                  className="bg-white border border-teal-300 rounded-lg px-2.5 py-1.5 text-sm font-bold outline-none focus:ring-2 focus:ring-teal-500/20 shadow-sm w-48"
+                                />
+                                <button
+                                  onClick={() => handleSaveAlternateName(stock.uqid)}
+                                  className="p-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors shadow-sm"
+                                  title="Save Alternate Name"
+                                >
+                                  <Check size={16} strokeWidth={2.5} />
+                                </button>
+                                <button
+                                  onClick={() => setEditingUqid(null)}
+                                  className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors border border-slate-200"
+                                  title="Cancel"
+                                >
+                                  <X size={16} strokeWidth={2.5} />
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 group/alt">
+                                <div className="flex flex-col">
+                                  {stock.alternate_name ? (
+                                    <>
+                                      <span className="text-base font-black text-slate-800">{stock.alternate_name}</span>
+                                      <span className="text-xs text-slate-400 font-bold mt-0.5">
+                                        Original: {stock.medication}
+                                      </span>
+                                    </>
+                                  ) : (
+                                    <span className="text-base font-black text-slate-800">{stock.medication}</span>
+                                  )}
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    setEditingUqid(stock.uqid);
+                                    setTempAltName(stock.alternate_name || '');
+                                  }}
+                                  className="p-1.5 bg-slate-50 hover:bg-teal-50 text-slate-400 hover:text-teal-600 rounded-lg border border-slate-200 hover:border-teal-200 transition-all ml-2 flex items-center justify-center shadow-sm"
+                                   title="Edit Alternative Name"
+                                >
+                                  <Edit3 size={14} strokeWidth={2.5} />
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-4">
+                            <span className="text-sm font-bold text-slate-600">
+                              {stock.formulation || 'Generic Formulation'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex flex-col">
+                              {allocateQtys[stock.uqid] > 0 && (
+                                <span className="text-sm font-black text-slate-400 line-through decoration-slate-300 animate-in fade-in slide-in-from-bottom-1">
+                                  {stock.total_stock}
+                                </span>
+                              )}
+                              <span className="text-xl font-black text-slate-800 font-data">
+                                {allocateQtys[stock.uqid] > 0
+                                  ? stock.total_stock - parseInt(allocateQtys[stock.uqid])
+                                  : stock.total_stock}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-3">
+                              <span className="w-10 h-10 flex items-center justify-center bg-blue-50 text-blue-600 rounded-xl font-black font-data border border-blue-100 text-sm">
+                                {stock.camp_stock}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-3">
+                              <span className="w-10 h-10 flex items-center justify-center bg-rose-50 text-rose-600 rounded-xl font-black font-data border border-rose-100 text-sm">
+                                {stock.used_stock}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-slate-400 font-extrabold text-sm">₹</span>
+                              <input
+                                type="number"
+                                step="any"
+                                min="0"
+                                placeholder="0.00"
+                                className="w-24 bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-sm font-black font-data text-slate-700 outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 shadow-sm"
+                                value={
+                                  campUnitCosts[stock.uqid] !== undefined
+                                    ? campUnitCosts[stock.uqid]
+                                    : (stock.unit_cost !== null ? stock.unit_cost : '')
+                                }
+                                onChange={(e) => handleCampUnitCostChange(stock.uqid, e.target.value)}
+                                onBlur={() => handleSaveCampUnitCost(stock.uqid)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.target.blur();
+                                  }
+                                }}
+                              />
+                            </div>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-3">
+                              <span className="font-data font-black text-base text-slate-900">
+                                {stock.used_stock && stock.unit_cost
+                                  ? `₹ ${(stock.used_stock * stock.unit_cost).toFixed(2)}`
+                                  : '₹ 0.00'}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-3">
+                              <span className="w-10 h-10 flex items-center justify-center bg-emerald-50 text-emerald-600 rounded-xl font-black font-data border border-emerald-100 text-sm">
+                                {stock.remaining_stock}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-3">
+                              <span className="w-10 h-10 flex items-center justify-center bg-teal-50 text-teal-600 rounded-xl font-black font-data border border-teal-100 text-sm">
+                                {stock.returned_stock}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <div className="flex items-center bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
+                                <input
+                                  type="number"
+                                  placeholder="Qty"
+                                  className="w-16 bg-transparent px-2 py-1 text-slate-800 font-black text-center focus:outline-none placeholder:text-slate-200 text-xs"
+                                  value={allocateQtys[stock.uqid] || ''}
+                                  onChange={e => handleAllocateQtyChange(stock.uqid, e.target.value)}
+                                />
+                                <button
+                                  onClick={() => handleAllocate(stock.uqid)}
+                                  disabled={!selectedCamp || !allocateQtys[stock.uqid] || allocateQtys[stock.uqid] <= 0 || allocateQtys[stock.uqid] > stock.total_stock}
+                                  className="p-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-50 disabled:text-slate-200 text-white rounded-lg transition-all shadow-sm"
+                                  title="Allocate to Camp"
+                                >
+                                  <PlusCircle size={16} strokeWidth={2.5} />
+                                </button>
+                              </div>
 
+<<<<<<< HEAD
                           <button
                             onClick={() => handleReturn(stock.uqid, stock.medication, stock.remaining_stock)}
                             disabled={!selectedCamp || stock.remaining_stock <= 0}
@@ -1035,8 +1293,25 @@ const MedicineEntry = () => {
                   </React.Fragment>
                 ))
               ) : (
+=======
+                              <button
+                                onClick={() => handleReturn(stock.uqid, stock.medication, stock.remaining_stock)}
+                                disabled={!selectedCamp || stock.remaining_stock <= 0}
+                                className="p-2.5 bg-white border border-slate-200 text-slate-400 hover:text-teal-600 hover:border-teal-200 hover:bg-teal-50 rounded-xl transition-all shadow-sm disabled:opacity-30 disabled:hover:bg-white disabled:hover:border-slate-200 flex items-center justify-center"
+                                title="Update single medication (Add Available Balance to Total Stock)"
+                              >
+                                <RefreshCcw size={16} strokeWidth={2.5} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  ))
+                ) : (
+>>>>>>> c6659da61c08e3b8d274bc51787783944d4b4306
                   <tr>
-                    <td colSpan="13" className="px-8 py-24 text-center text-slate-400 font-bold">No records found for camp allocation</td>
+                    <td colSpan="11" className="px-8 py-24 text-center text-slate-400 font-bold">No records found for camp allocation</td>
                   </tr>
                 )}
               </tbody>
@@ -1058,6 +1333,7 @@ const MedicineEntry = () => {
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {filteredMeds.length > 0 ? (
+<<<<<<< HEAD
                   (selectedCategory ? sortedCategories.filter(c => c === selectedCategory) : sortedCategories).map((categoryName) => (
                     <React.Fragment key={categoryName}>
                       <tr className="bg-slate-100/60 border-y border-slate-200">
@@ -1122,8 +1398,71 @@ const MedicineEntry = () => {
                   </React.Fragment>
                 ))
               ) : (
+=======
+                  sortedTotalCategories.map((categoryName) => (
+                    <React.Fragment key={categoryName}>
+                      <tr className="bg-slate-100/60 border-y border-slate-200">
+                        <td colSpan="5" className="px-8 py-3.5">
+                          <div className="flex items-center justify-center gap-3">
+                            <span className="font-extrabold text-[11px] text-teal-800 uppercase tracking-[0.2em] font-sans">
+                              {categoryName}
+                            </span>
+                            <span className="bg-teal-50 text-teal-700 text-[10px] font-black px-3 py-1 rounded-full border border-teal-100/50">
+                              {groupedTotalMeds[categoryName].length} {groupedTotalMeds[categoryName].length === 1 ? 'item' : 'items'}
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                      {groupedTotalMeds[categoryName].map((med) => {
+                        const formState = detailsForm[med.uqid] || {};
+                        const campStock = campStocks.find(s => s.uqid === med.uqid);
+                        const displayCompany = formState.company_name !== undefined 
+                          ? formState.company_name 
+                          : (selectedCamp && campStock ? campStock.company_name : (med.company_name || ''));
+                        const displayExpiry = formState.expiry_date !== undefined 
+                          ? formState.expiry_date 
+                          : (selectedCamp && campStock ? campStock.expiry_date : (med.expiry_date || ''));
+                        return (
+                          <tr key={`details-${med.uqid}`} className="hover:bg-slate-50/40 transition-all group">
+                            <td className="px-4 py-4">
+                              <span className="font-data text-sm font-bold text-slate-400">#{med.uqid}</span>
+                            </td>
+                            <td className="px-4 py-4 text-base font-black text-slate-800">{med.name}</td>
+                            <td className="px-4 py-4">
+                              <input
+                                type="text"
+                                placeholder="e.g. Pfizer"
+                                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-500"
+                                value={displayCompany}
+                                onChange={(e) => handleDetailsChange(med.uqid, 'company_name', e.target.value)}
+                              />
+                            </td>
+
+                            <td className="px-4 py-4">
+                              <input
+                                type="date"
+                                className="w-auto bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-500 text-slate-600"
+                                value={displayExpiry}
+                                onChange={(e) => handleDetailsChange(med.uqid, 'expiry_date', e.target.value)}
+                              />
+                            </td>
+                            <td className="px-4 py-4 text-right">
+                              <button
+                                onClick={() => handleSaveDetails(med.uqid)}
+                                className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-sm text-xs font-black uppercase tracking-wider"
+                              >
+                                Save
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </React.Fragment>
+                  ))
+                ) : (
+>>>>>>> c6659da61c08e3b8d274bc51787783944d4b4306
                   <tr>
-                    <td colSpan="6" className="px-8 py-24 text-center text-slate-400 font-bold">No records found</td>
+                    <td colSpan="5" className="px-8 py-24 text-center text-slate-400 font-bold">No records found</td>
                   </tr>
                 )}
               </tbody>

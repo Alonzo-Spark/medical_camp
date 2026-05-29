@@ -22,7 +22,11 @@ const DoctorsList = () => {
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({ dr_name: '', dr_id: '', specialization: '' });
 
+<<<<<<< HEAD
   const API_BASE = '/api';
+=======
+  const API_BASE = import.meta.env.VITE_API_BASE || `http://${window.location.hostname}:8000/api`;
+>>>>>>> c6659da61c08e3b8d274bc51787783944d4b4306
 
   useEffect(() => {
     fetchCamps();

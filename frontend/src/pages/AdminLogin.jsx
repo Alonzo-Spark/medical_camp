@@ -5,7 +5,11 @@ import { ShieldCheck, Lock, User, Eye, EyeOff, Loader2, Heart, Activity, Stethos
 import cccLogo from "../assets/ccc-logo.png";
 import medicalCampBg from "../assets/medical_camp_bg.png";
 
+<<<<<<< HEAD
 const API_BASE = '/api';
+=======
+const API_BASE = import.meta.env.VITE_API_BASE || `http://${window.location.hostname}:8000/api`;
+>>>>>>> c6659da61c08e3b8d274bc51787783944d4b4306
 
 function AdminLogin() {
     const [username, setUsername] = useState("");

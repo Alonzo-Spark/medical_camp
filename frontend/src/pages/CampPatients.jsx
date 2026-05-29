@@ -5,7 +5,11 @@ import {
   Pill, FlaskConical, Search, X, Save, Volume2
 } from 'lucide-react';
 
+<<<<<<< HEAD
 const API_BASE = '/api';
+=======
+const API_BASE = import.meta.env.VITE_API_BASE || `http://${window.location.hostname}:8000/api`;
+>>>>>>> c6659da61c08e3b8d274bc51787783944d4b4306
 
 const CampPatients = () => {
   const [camps, setCamps] = useState([]);
@@ -14,6 +18,28 @@ const CampPatients = () => {
   const [listLoading, setListLoading] = useState(false);
   const [expandedPatient, setExpandedPatient] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [voiceLoading, setVoiceLoading] = useState({});
+  const [voiceUrls, setVoiceUrls] = useState({});
+
+  const triggerVoiceReminder = async (patientId) => {
+    setVoiceLoading(prev => ({ ...prev, [patientId]: true }));
+    try {
+      const res = await axios.post(`${API_BASE}/voicebot/trigger-test/`, {
+        patient_id: patientId,
+        camp_id: listCamp
+      });
+      if (res.data.status === 'success') {
+        setVoiceUrls(prev => ({ ...prev, [patientId]: res.data.audio_url }));
+        alert('Voice reminder audio generated successfully!');
+      } else {
+        alert('Failed: ' + res.data.message);
+      }
+    } catch (err) {
+      alert('Error triggering reminder: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setVoiceLoading(prev => ({ ...prev, [patientId]: false }));
+    }
+  };
 
   useEffect(() => {
     axios.get(`${API_BASE}/camps`).then(res => setCamps(res.data));
@@ -252,7 +278,34 @@ const CampPatients = () => {
                         <div className="flex gap-6 text-xs font-bold text-slate-600">
                           <div><span className="text-slate-400 uppercase tracking-wider text-[10px] block mb-0.5">Age</span>{pat.age || '—'}</div>
                           <div><span className="text-slate-400 uppercase tracking-wider text-[10px] block mb-0.5">Gender</span>{pat.gender || '—'}</div>
-                          <div><span className="text-slate-400 uppercase tracking-wider text-[10px] block mb-0.5">Contact</span>{pat.contact || '—'}</div>
+                          <div>
+                            <span className="text-slate-400 uppercase tracking-wider text-[10px] block mb-0.5">Contact</span>
+                            <div className="flex items-center gap-2">
+                              <span>{pat.contact || '—'}</span>
+                              {pat.contact && (
+                                <button
+                                  type="button"
+                                  onClick={() => triggerVoiceReminder(pat.patient_id)}
+                                  disabled={voiceLoading[pat.patient_id]}
+                                  className="px-2 py-0.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-600 text-[10px] font-bold rounded transition-colors disabled:opacity-50"
+                                >
+                                  {voiceLoading[pat.patient_id] ? 'Generating...' : 'Call Reminder'}
+                                </button>
+                              )}
+                            </div>
+                            {voiceUrls[pat.patient_id] && (
+                              <div className="mt-1">
+                                <a
+                                  href={voiceUrls[pat.patient_id]}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[10px] text-blue-600 hover:underline font-bold"
+                                >
+                                  Listen to Audio (Test URL)
+                                </a>
+                              </div>
+                            )}
+                          </div>
                           <div><span className="text-slate-400 uppercase tracking-wider text-[10px] block mb-0.5">Reg Date</span>{pat.registered_date || '—'}</div>
                           <div><span className="text-slate-400 uppercase tracking-wider text-[10px] block mb-0.5">Address</span>{pat.address || '—'}</div>
                         </div>

@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Pill, Search, Download, PackageOpen, Filter, Box, Heart, Check, X, AlertTriangle } from 'lucide-react';
 
+<<<<<<< HEAD
 const API_BASE = '/api';
+=======
+const API_BASE = import.meta.env.VITE_API_BASE || `http://${window.location.hostname}:8000/api`;
+>>>>>>> c6659da61c08e3b8d274bc51787783944d4b4306
 
 const Inventory = () => {
   const [medicines, setMedicines] = useState([]);
@@ -208,14 +212,17 @@ const Inventory = () => {
               <tr className="bg-slate-50 border-b border-slate-200 text-xs font-black uppercase tracking-wider text-slate-700">
                 <th className="px-8 py-5">Identity (UQID)</th>
                 <th className="px-8 py-5">Medication Description</th>
+<<<<<<< HEAD
                 <th className="px-8 py-5 text-center">Formulation</th>
+=======
+>>>>>>> c6659da61c08e3b8d274bc51787783944d4b4306
                 <th className="px-8 py-5 text-right">Available Stock</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan="5" className="px-8 py-24 text-center">
+                  <td colSpan="3" className="px-8 py-24 text-center">
                     <div className="flex flex-col items-center gap-4 text-slate-400">
                       <div className="h-8 w-8 border-4 border-teal-200 border-t-teal-600 rounded-full animate-spin" />
                       <span className="font-extrabold uppercase tracking-widest text-xs">Syncing Repository...</span>
@@ -226,9 +233,15 @@ const Inventory = () => {
                 (selectedCategory ? sortedCategories.filter(c => c === selectedCategory) : sortedCategories).map((categoryName) => (
                   <React.Fragment key={categoryName}>
                     <tr className="bg-slate-100/60 border-y border-slate-200">
+<<<<<<< HEAD
                       <td colSpan="4" className="px-8 py-4 relative">
                         <div className="flex items-center justify-center">
                           <span className="font-black text-[15px] text-teal-800 uppercase tracking-[0.2em] font-sans">
+=======
+                      <td colSpan="3" className="px-8 py-3.5">
+                        <div className="flex items-center justify-center gap-3">
+                          <span className="font-extrabold text-[11px] text-teal-800 uppercase tracking-[0.2em] font-sans">
+>>>>>>> c6659da61c08e3b8d274bc51787783944d4b4306
                             {categoryName}
                           </span>
                         </div>
@@ -247,11 +260,14 @@ const Inventory = () => {
                         <td className="px-8 py-6">
                           <span className="font-bold text-slate-800 group-hover:text-teal-700 transition-colors">{med.name}</span>
                         </td>
+<<<<<<< HEAD
                         <td className="px-8 py-6 text-center">
                           <span className="text-sm text-slate-700 font-black">
                             {med.formulation || '-'}
                           </span>
                         </td>
+=======
+>>>>>>> c6659da61c08e3b8d274bc51787783944d4b4306
                         <td className="px-8 py-6 text-right">
                           {editingUqid === med.uqid ? (
                             /* Editing mode */
@@ -299,7 +315,7 @@ const Inventory = () => {
                               </div>
                               <div className={`h-1.5 w-14 rounded-full mt-2 ${med.stock >= 50 ? 'bg-emerald-100' : 'bg-red-100'}`}>
                                 <div
-                                  className={`h-full rounded-full transition-all ${med.stock >= 50 ? 'bg-emerald-500' : 'bg-red-500'}`}
+                                  className={`h-full rounded-full transition-all ${med.stock >= 50 ? 'bg-red-500' : 'bg-emerald-500'}`}
                                   style={{ width: `${Math.min(med.stock, 100)}%` }}
                                 />
                               </div>
@@ -312,7 +328,7 @@ const Inventory = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="5" className="px-8 py-32 text-center">
+                  <td colSpan="3" className="px-8 py-32 text-center">
                     <div className="flex flex-col items-center gap-4 animate-fade-in">
                       <div className="p-6 bg-slate-50 rounded-2xl border border-slate-200 mb-2">
                         <PackageOpen size={60} strokeWidth={1} className="text-slate-300" />
