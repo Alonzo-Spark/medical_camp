@@ -65,7 +65,7 @@ class TriggerTestReminderView(APIView):
             call_status = "Audio generated. Exotel credentials not configured in .env"
             
             if exotel_sid and exotel_key and exotel_token and exotel_caller_id and exotel_flow_url:
-                connect_url = f"https://api.in.exotel.com/v1/Accounts/{exotel_sid}/Calls/connect.json"
+                connect_url = f"https://api.exotel.com/v1/Accounts/{exotel_sid}/Calls/connect.json"
                 payload = {
                     "From": patient.contact_no,
                     "CallerId": exotel_caller_id,

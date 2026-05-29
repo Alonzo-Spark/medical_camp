@@ -79,28 +79,53 @@ class ReminderService:
 
     def process_and_generate_audio(self, schedule_id: int) -> CallSchedule:
         """
-        Processes a call schedule. Reuses the camp-wide audio reminder if it exists.
-        Otherwise, generates it dynamically and saves it for subsequent reuse.
+        Processes a call schedule. Reuses the camp-wide audio reminder if it already
+        exists as a valid 8kHz WAV file. Otherwise regenerates it automatically.
         """
         schedule = CallSchedule.objects.get(id=schedule_id)
         schedule.status = 'processing'
         schedule.save()
 
         try:
-            # Check if there is already a generated reminder audio for this camp
             camp = schedule.camp
             reminder, created = CampVoiceReminder.objects.get_or_create(camp=camp)
-            
-            if created or not reminder.audio_file:
-                # Generate new camp-wide reminder audio
+
+            # Determine if we need to (re)generate the audio:
+            # - First time (created = True)
+            # - No audio file saved yet
+            # - Audio file is old .mp3 format (not Exotel-compatible .wav)
+            needs_generation = (
+                created
+                or not reminder.audio_file
+                or not reminder.audio_file.name.endswith('.wav')
+            )
+
+            if needs_generation:
+                # Delete old incompatible file from disk if it exists
+                if reminder.audio_file:
+                    try:
+                        old_path = reminder.audio_file.path
+                        import os
+                        if os.path.exists(old_path):
+                            os.remove(old_path)
+                            print(f"[Reminder] Deleted old audio: {old_path}")
+                    except Exception as del_err:
+                        print(f"[Reminder] Could not delete old audio: {del_err}")
+                    reminder.audio_file = None
+                    reminder.save()
+
+                # Generate fresh 8kHz WAV audio
+                print(f"[Reminder] Generating new WAV audio for camp {camp.number}...")
                 telugu_text = self.generate_telugu_text(camp.date, camp.venue.name)
-                
                 audio_file = self.tts.synthesize_telugu(telugu_text)
-                filename = f"camp_reminder_{camp.id}.mp3"
+                filename = f"camp_reminder_{camp.id}.wav"
                 reminder.telugu_text = telugu_text
                 reminder.audio_file.save(filename, audio_file, save=True)
-                
-            # Assign the camp-wide audio file reference to the individual schedule record
+                print(f"[Reminder] Saved: {filename}")
+            else:
+                print(f"[Reminder] Reusing existing WAV for camp {camp.number}: {reminder.audio_file.name}")
+
+            # Link the camp-wide audio to the individual schedule record
             schedule.audio_file = reminder.audio_file
             schedule.status = 'completed'
             schedule.save()
@@ -110,3 +135,4 @@ class ReminderService:
             schedule.status = 'failed'
             schedule.save()
             raise e
+
