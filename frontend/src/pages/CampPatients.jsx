@@ -5,11 +5,7 @@ import {
   Pill, FlaskConical, Search, X, Save, Volume2
 } from 'lucide-react';
 
-<<<<<<< HEAD
 const API_BASE = '/api';
-=======
-const API_BASE = import.meta.env.VITE_API_BASE || `http://${window.location.hostname}:8000/api`;
->>>>>>> c6659da61c08e3b8d274bc51787783944d4b4306
 
 const CampPatients = () => {
   const [camps, setCamps] = useState([]);
