@@ -14,8 +14,8 @@ class TriggerTestReminderView(APIView):
     def post(self, request):
         """
         Trigger Telugu voice reminder generation and place outbound call via Exotel.
-        Uses ExoML Play approach — passes our Django ExoML endpoint as the call URL
-        so Exotel fetches XML and plays the WAV audio file directly.
+        Uses Exotel's App Builder Flow URL — passes EXOTEL_FLOW_URL as the call URL,
+        which executes the Exotel dashboard flow (which calls our exotel-callback/ to play audio).
         """
         patient_id = request.data.get("patient_id")
 
@@ -50,26 +50,26 @@ class TriggerTestReminderView(APIView):
             public_url = os.getenv("PUBLIC_URL", "").strip().rstrip('/')
             if public_url:
                 audio_url = public_url + updated_schedule.audio_file.url
-                exoml_url = f"{public_url}/api/voicebot/exotel-play/?camp_id={upcoming_camp.id}"
             else:
                 audio_url = request.build_absolute_uri(updated_schedule.audio_file.url)
-                exoml_url = request.build_absolute_uri(f"/api/voicebot/exotel-play/?camp_id={upcoming_camp.id}")
 
             exotel_sid = os.getenv("EXOTEL_ACCOUNT_SID", "").strip()
             exotel_key = os.getenv("EXOTEL_API_KEY", "").strip()
             exotel_token = os.getenv("EXOTEL_API_TOKEN", "").strip()
             exotel_caller_id = os.getenv("EXOTEL_CALLER_ID", "").strip()
+            exotel_flow_url = os.getenv("EXOTEL_FLOW_URL", "").strip()
 
             call_status = "Audio generated. Exotel credentials not configured in .env"
 
-            if exotel_sid and exotel_key and exotel_token and exotel_caller_id:
+            if exotel_sid and exotel_key and exotel_token and exotel_caller_id and exotel_flow_url:
                 connect_url = f"https://api.exotel.com/v1/Accounts/{exotel_sid}/Calls/connect.json"
                 payload = {
                     "From": patient.contact_no,
                     "CallerId": exotel_caller_id,
-                    "Url": exoml_url,
+                    "Url": exotel_flow_url,  # Points to Exotel App Flow ID 1256480
                     "CallType": "trans",
                     "TimeOut": 30,
+                    "StatusCallback": f"{public_url}/api/voicebot/exotel-status/" if public_url else "",
                 }
 
                 try:
@@ -99,7 +99,6 @@ class TriggerTestReminderView(APIView):
                 "patient_name": patient.patient_name,
                 "target_camp_number": upcoming_camp.number,
                 "audio_url": audio_url,
-                "exoml_url": exoml_url,
                 "exotel_status": call_status
             }, status=status.HTTP_200_OK)
 
@@ -113,8 +112,8 @@ class TriggerTestReminderView(APIView):
 
 class ExotelPlayXMLView(APIView):
     """
-    ExoML endpoint — Exotel calls this when the patient picks up the outbound call.
-    Returns XML with <Play> so Exotel downloads and plays the WAV file directly on the call.
+    ExoML endpoint — used only if connecting using custom XML.
+    Returns XML with <Play> so Exotel downloads and plays the WAV file directly.
     """
     authentication_classes = []
     permission_classes = []
@@ -156,36 +155,55 @@ class ExotelPlayXMLView(APIView):
 
 class ExotelCallbackView(APIView):
     """
-    Inbound call handler — when someone calls the Exotel number directly.
-    Returns ExoML to play the latest camp reminder audio.
+    Callback endpoint for Exotel Greeting applet (set to 'Read from URL' / 'Read Text').
+    Returns the raw audio URL in plain text format so Exotel can download and play it.
     """
     authentication_classes = []
     permission_classes = []
 
     def get(self, request):
-        public_url = os.getenv("PUBLIC_URL", "").strip().rstrip('/')
+        patient_phone = request.GET.get('From', '')
+        
+        # Normalize/clean phone number to match database
+        clean_phone = patient_phone
+        if clean_phone.startswith('+91'):
+            clean_phone = clean_phone[3:]
+        elif clean_phone.startswith('91') and len(clean_phone) > 10:
+            clean_phone = clean_phone[2:]
+            
         try:
-            reminder = CampVoiceReminder.objects.order_by('-id').first()
-            if reminder and reminder.audio_file:
+            # Try to find the patient and their upcoming camp voice reminder
+            if clean_phone:
+                patient = Patient.objects.filter(contact_no__contains=clean_phone).first()
+                if patient:
+                    upcoming_camp = MedicalCamp.objects.all().order_by('-id').first()
+                    if upcoming_camp:
+                        reminder = CampVoiceReminder.objects.filter(camp=upcoming_camp).first()
+                        if reminder and reminder.audio_file:
+                            public_url = os.getenv("PUBLIC_URL", "").strip().rstrip('/')
+                            if public_url:
+                                audio_url = public_url + reminder.audio_file.url
+                            else:
+                                audio_url = request.build_absolute_uri(reminder.audio_file.url)
+                            print(f"[Exotel Callback] Serving patient-specific audio: {audio_url}")
+                            return HttpResponse(audio_url, content_type='text/plain')
+
+            # Fallback to latest audio reminder generated
+            latest_reminder = CampVoiceReminder.objects.order_by('-id').first()
+            if latest_reminder and latest_reminder.audio_file:
+                public_url = os.getenv("PUBLIC_URL", "").strip().rstrip('/')
                 if public_url:
-                    audio_url = public_url + reminder.audio_file.url
+                    audio_url = public_url + latest_reminder.audio_file.url
                 else:
-                    audio_url = request.build_absolute_uri(reminder.audio_file.url)
-
-                xml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-    <Play>{audio_url}</Play>
-    <Hangup/>
-</Response>"""
-                return HttpResponse(xml, content_type='text/xml')
+                    audio_url = request.build_absolute_uri(latest_reminder.audio_file.url)
+                print(f"[Exotel Callback] Serving latest fallback audio: {audio_url}")
+                return HttpResponse(audio_url, content_type='text/plain')
+                
+            return HttpResponse("Error: No reminders generated", content_type='text/plain', status=404)
+            
         except Exception as e:
-            print(f"[Callback] Error: {e}")
-
-        xml = """<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-    <Hangup/>
-</Response>"""
-        return HttpResponse(xml, content_type='text/xml')
+            print(f"[Exotel Callback] Error: {e}")
+            return HttpResponse(f"Error: {str(e)}", content_type='text/plain', status=500)
 
 
 class ExotelStatusView(APIView):
