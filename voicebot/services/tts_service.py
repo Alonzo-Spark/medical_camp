@@ -69,9 +69,9 @@ class SarvamTTSService:
         # Correct payload schema for Sarvam AI Bulbul v3 API
         payload = {
             "text": text,
-            "speaker": "neha",  # Female voice option (excellent for Telugu reminders)
+            "speaker": "shreya",  # Female voice option (excellent for Telugu reminders)
             "target_language_code": "te-IN",
-            "pace": 1.50,
+            "pace": 1.00,
             "model": "bulbul:v3"
         }
 
