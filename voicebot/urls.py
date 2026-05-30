@@ -5,6 +5,7 @@ from voicebot.views import (
     ExotelCallbackView,
     ExotelPlayXMLView,
     ExotelStatusView,
+    SmartStartView,
     # Phase 2 — Lab Test Follow-up Voicebot
     TriggerFollowupCallView,
     FollowupStartView,
@@ -19,6 +20,7 @@ urlpatterns = [
     path('exotel-callback/',  ExotelCallbackView.as_view(),      name='exotel_callback'),
     path('exotel-play/',      ExotelPlayXMLView.as_view(),       name='exotel_play'),
     path('exotel-status/',    ExotelStatusView.as_view(),        name='exotel_status'),
+    path('smart-start/',      SmartStartView.as_view(),          name='smart_start'),
 
     # ── Phase 2: Lab Test Follow-up Voicebot ─────────────────────────────────
     path('trigger-followup/',    TriggerFollowupCallView.as_view(), name='trigger_followup'),

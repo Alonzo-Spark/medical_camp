@@ -206,6 +206,99 @@ class ExotelCallbackView(APIView):
             return HttpResponse(f"Error: {str(e)}", content_type='text/plain', status=500)
 
 
+class SmartStartView(APIView):
+    """
+    GET /api/voicebot/smart-start/
+
+    Unified ExoML webhook — configure this as the Exotel App Builder 'Passthru' URL.
+
+    When any outbound call connects, Exotel hits this endpoint.
+    We detect whether this is a Phase 2 follow-up call (by looking up a
+    pending VoiceCall for that phone number) and return the correct ExoML.
+
+    Phase 2 (follow-up call pending) → returns interactive Q1 ExoML
+    Phase 1 (camp reminder)          → returns Play + Hangup ExoML
+    """
+    authentication_classes = []
+    permission_classes = []
+
+    def _normalize_phone(self, phone: str) -> str:
+        """Strip country codes so we can match against DB contact_no."""
+        phone = phone.strip()
+        if phone.startswith('+91'):
+            phone = phone[3:]
+        elif phone.startswith('91') and len(phone) > 10:
+            phone = phone[2:]
+        return phone
+
+    def get(self, request):
+        from voicebot.models import VoiceCall
+        from voicebot.services.followup_service import FollowupCallService
+
+        # Exotel sends the patient's phone as 'From'
+        raw_phone   = request.GET.get('From', '')
+        clean_phone = self._normalize_phone(raw_phone)
+        public_url  = os.getenv("PUBLIC_URL", "").strip().rstrip('/')
+
+        print(f"[SmartStart] Incoming call from: {raw_phone} (cleaned: {clean_phone})")
+
+        # ── Check for a pending Phase 2 VoiceCall for this phone ─────────────
+        pending_call = None
+        if clean_phone:
+            try:
+                patient = Patient.objects.filter(
+                    contact_no__contains=clean_phone
+                ).first()
+                if patient:
+                    pending_call = VoiceCall.objects.filter(
+                        patient=patient,
+                        status='in_progress'
+                    ).order_by('-started_at').first()
+            except Exception as e:
+                print(f"[SmartStart] Error looking up VoiceCall: {e}")
+
+        # ── Phase 2: return interactive follow-up ExoML ───────────────────────
+        if pending_call:
+            print(f"[SmartStart] Phase 2 call detected — VoiceCall id={pending_call.id}")
+            service = FollowupCallService()
+            xml = service.get_start_exoml(pending_call.id)
+            return HttpResponse(xml, content_type='text/xml')
+
+        # ── Phase 1: return camp reminder play + hangup ExoML ─────────────────
+        print(f"[SmartStart] Phase 1 call — serving camp reminder audio")
+        try:
+            reminder = None
+            if clean_phone:
+                patient = Patient.objects.filter(contact_no__contains=clean_phone).first()
+                if patient:
+                    upcoming_camp = MedicalCamp.objects.all().order_by('-id').first()
+                    if upcoming_camp:
+                        reminder = CampVoiceReminder.objects.filter(camp=upcoming_camp).first()
+
+            if not reminder:
+                reminder = CampVoiceReminder.objects.order_by('-id').first()
+
+            if reminder and reminder.audio_file:
+                audio_url = (public_url + reminder.audio_file.url
+                             if public_url
+                             else request.build_absolute_uri(reminder.audio_file.url))
+                xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Play>{audio_url}</Play>
+    <Hangup/>
+</Response>"""
+                return HttpResponse(xml, content_type='text/xml')
+
+        except Exception as e:
+            print(f"[SmartStart] Phase 1 fallback error: {e}")
+
+        # Final fallback — just hang up gracefully
+        return HttpResponse(
+            '<?xml version="1.0" encoding="UTF-8"?><Response><Hangup/></Response>',
+            content_type='text/xml'
+        )
+
+
 class ExotelStatusView(APIView):
     """Receives call status updates from Exotel (completed, failed, busy, etc.)."""
     authentication_classes = []
@@ -391,15 +484,11 @@ class FollowupStatusView(APIView):
                 voice_call = VoiceCall.objects.get(id=call_id)
 
                 if call_status in ("no-answer", "busy", "failed", "canceled"):
-                    voice_call.status = "unanswered" if call_status == "no-answer" else "failed"
+                    voice_call.status = "failed" if call_status == "failed" else "unanswered"
                     voice_call.completed_at = timezone.now()
                     voice_call.save()
-                elif call_status == "completed" and voice_call.status == "in_progress":
-                    # Mark as completed only if the state machine hasn't already done so
-                    voice_call.status = "completed"
-                    voice_call.completed_at = timezone.now()
-                    voice_call.save()
-
+                # Do NOT mark it completed here. The state machine (handle_response)
+                # will set the status to 'completed' when the Q&A ends.
             except VoiceCall.DoesNotExist:
                 pass
 
