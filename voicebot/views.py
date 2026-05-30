@@ -216,3 +216,234 @@ class ExotelStatusView(APIView):
         call_status = request.data.get('Status', 'unknown')
         print(f"[Exotel Status] CallSid={call_sid} Status={call_status}")
         return HttpResponse('OK', content_type='text/plain')
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase 2 — Lab Test Follow-up Voicebot Views
+# ─────────────────────────────────────────────────────────────────────────────
+
+from inventory.models import TestIssue
+from voicebot.models import VoiceCall, VoiceResponse
+from voicebot.services.followup_service import FollowupCallService
+from voicebot.services.stt_service import SarvamSTTService
+
+
+class TriggerFollowupCallView(APIView):
+    """
+    POST /api/voicebot/trigger-followup/
+    Body: { "test_issue_id": 5 }
+
+    Initiates a lab test follow-up call for a specific TestIssue record.
+    Creates a VoiceCall, pre-generates all audio prompts, then places the call.
+    """
+
+    def post(self, request):
+        test_issue_id = request.data.get("test_issue_id")
+        if not test_issue_id:
+            return Response({"error": "test_issue_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            test_issue = TestIssue.objects.select_related("test", "camp").get(id=test_issue_id)
+        except TestIssue.DoesNotExist:
+            return Response({"error": "TestIssue not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Look up the Patient object using the integer patient_id stored on TestIssue
+        try:
+            from inventory.models import Patient
+            patient = Patient.objects.get(patient_id=test_issue.patient_id)
+        except Patient.DoesNotExist:
+            return Response({"error": "Patient not found for this TestIssue."}, status=status.HTTP_404_NOT_FOUND)
+
+        if not patient.contact_no:
+            return Response({"error": "Patient has no contact number."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Create the VoiceCall record
+        voice_call = VoiceCall.objects.create(
+            patient    = patient,
+            test_issue = test_issue,
+            call_type  = "lab_followup",
+            status     = "pending",
+        )
+
+        service = FollowupCallService()
+
+        # Pre-generate all audio prompts (cached to disk for speed)
+        try:
+            service.ensure_audio_files()
+        except Exception as e:
+            print(f"[TriggerFollowup] Audio generation warning: {e}")
+
+        # Place the Exotel call
+        result = service.trigger_followup_call(voice_call)
+
+        if result["success"]:
+            return Response({
+                "status":        "success",
+                "voice_call_id": voice_call.id,
+                "call_sid":      result.get("call_sid"),
+                "patient_name":  patient.patient_name,
+                "test_name":     test_issue.test.name,
+                "message":       result["message"],
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                "status":  "error",
+                "message": result["message"],
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class FollowupStartView(APIView):
+    """
+    GET /api/voicebot/followup-start/?call_id=<id>
+
+    Exotel calls this URL the moment the patient picks up.
+    Returns ExoML that plays Question 1 and starts recording the response.
+    """
+    authentication_classes = []
+    permission_classes = []
+
+    def get(self, request):
+        call_id = request.GET.get("call_id")
+        if not call_id:
+            return HttpResponse("<Response><Hangup/></Response>", content_type="text/xml")
+
+        try:
+            voice_call = VoiceCall.objects.get(id=call_id)
+        except VoiceCall.DoesNotExist:
+            return HttpResponse("<Response><Hangup/></Response>", content_type="text/xml")
+
+        service = FollowupCallService()
+        xml = service.get_start_exoml(voice_call.id)
+        return HttpResponse(xml, content_type="text/xml")
+
+
+class FollowupResponseView(APIView):
+    """
+    POST /api/voicebot/followup-response/
+         ?call_id=<id>&question=<Q1_TESTS_DONE|Q2_REPORT_RECEIVED>&attempt=<1-3>
+
+    Exotel POSTs here after recording the patient's spoken response.
+    We download the recording, run STT, classify the intent, save to DB,
+    then return the next ExoML instruction for the call to continue.
+    """
+    authentication_classes = []
+    permission_classes = []
+
+    def post(self, request):
+        call_id      = request.GET.get("call_id")
+        question_key = request.GET.get("question", "Q1_TESTS_DONE")
+        attempt      = int(request.GET.get("attempt", 1))
+
+        # Exotel sends the recording URL in the POST body as 'RecordingUrl'
+        recording_url = request.POST.get("RecordingUrl", "")
+
+        print(f"[FollowupResponse] call_id={call_id}, Q={question_key}, attempt={attempt}")
+        print(f"[FollowupResponse] RecordingUrl={recording_url}")
+
+        # Fallback XML in case anything goes wrong
+        hangup_xml = "<Response><Hangup/></Response>"
+
+        if not call_id:
+            return HttpResponse(hangup_xml, content_type="text/xml")
+
+        try:
+            voice_call = VoiceCall.objects.get(id=call_id)
+        except VoiceCall.DoesNotExist:
+            return HttpResponse(hangup_xml, content_type="text/xml")
+
+        # Step 1: Convert recorded audio to Telugu text via Sarvam STT
+        transcript = ""
+        if recording_url:
+            stt = SarvamSTTService()
+            transcript = stt.transcribe_from_url(recording_url)
+
+        # Step 2: Run state machine (classify intent, save, decide next step)
+        service = FollowupCallService()
+        xml = service.handle_response(
+            voice_call_id = voice_call.id,
+            question_key  = question_key,
+            attempt       = attempt,
+            transcript    = transcript,
+        )
+        return HttpResponse(xml, content_type="text/xml")
+
+
+class FollowupStatusView(APIView):
+    """
+    POST /api/voicebot/followup-status/?call_id=<id>
+
+    Exotel calls this webhook when the overall call status changes
+    (e.g. completed, no-answer, busy, failed).
+    We update the VoiceCall status accordingly.
+    """
+    authentication_classes = []
+    permission_classes = []
+
+    def post(self, request):
+        call_id     = request.GET.get("call_id")
+        call_status = request.POST.get("Status", "").lower()
+        call_sid    = request.POST.get("CallSid", "")
+
+        print(f"[FollowupStatus] call_id={call_id}, Status={call_status}, SID={call_sid}")
+
+        if call_id:
+            try:
+                voice_call = VoiceCall.objects.get(id=call_id)
+
+                if call_status in ("no-answer", "busy", "failed", "canceled"):
+                    voice_call.status = "unanswered" if call_status == "no-answer" else "failed"
+                    voice_call.completed_at = timezone.now()
+                    voice_call.save()
+                elif call_status == "completed" and voice_call.status == "in_progress":
+                    # Mark as completed only if the state machine hasn't already done so
+                    voice_call.status = "completed"
+                    voice_call.completed_at = timezone.now()
+                    voice_call.save()
+
+            except VoiceCall.DoesNotExist:
+                pass
+
+        return HttpResponse("OK", content_type="text/plain")
+
+
+class GetPendingFollowupsView(APIView):
+    """
+    GET /api/voicebot/pending-followups/
+
+    Returns a list of patients who have pending lab tests (reports_issued=False).
+    Used by the frontend to show which patients need a follow-up call.
+    """
+
+    def get(self, request):
+        pending = TestIssue.objects.filter(
+            reports_issued=False
+        ).select_related("test", "camp")
+
+        data = []
+        for ti in pending:
+            # Attempt to get patient info
+            from inventory.models import Patient
+            try:
+                patient = Patient.objects.get(patient_id=ti.patient_id)
+                patient_name   = patient.patient_name or "Unknown"
+                patient_phone  = patient.contact_no or ""
+            except Patient.DoesNotExist:
+                patient_name  = "Unknown"
+                patient_phone = ""
+
+            # Check if a follow-up call has already been placed
+            last_call = VoiceCall.objects.filter(test_issue=ti).order_by("-started_at").first()
+
+            data.append({
+                "test_issue_id":  ti.id,
+                "patient_id":     ti.patient_id,
+                "patient_name":   patient_name,
+                "patient_phone":  patient_phone,
+                "test_name":      ti.test.name,
+                "camp_number":    ti.camp.number,
+                "last_call_status": last_call.status if last_call else None,
+                "last_call_id":     last_call.id if last_call else None,
+            })
+
+        return Response({"pending_followups": data, "total": len(data)})
+
