@@ -67,7 +67,7 @@ class TriggerTestReminderView(APIView):
                 payload = {
                     "From": patient.contact_no,
                     "CallerId": exotel_caller_id,
-                    "Url": smart_start_url,  # Points directly to dynamic smart-start ExoML
+                    "Url": exotel_flow_url,  # Points to Exotel App Builder Flow
                     "CallType": "trans",
                     "TimeOut": 30,
                     "StatusCallback": f"{public_url}/api/voicebot/exotel-status/" if public_url else "",
