@@ -91,7 +91,7 @@ Agent.md
 
 ## Current Loop
 
-**Status**: Project Loop — initialisation in progress.
+**Status**: Project Loop — Complete. Ready and waiting for the next Feature Loop or developer request.
 
 ---
 

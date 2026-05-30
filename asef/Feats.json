@@ -1,53 +1,53 @@
 {
   "features": [
     {
-      "id": "feat-001-unified-asgi",
-      "name": "Unified ASGI Server (FastAPI + Django)",
+      "id": "feat-001-django-backend-clinical-inventory",
+      "name": "Django Backend & Clinical Inventory APIs",
       "status": "complete",
       "depends_on": [],
       "rollback_ref": null,
-      "created_at": "2026-05-27T06:00:00Z",
-      "completed_at": "2026-05-28T12:00:00Z",
+      "created_at": "2026-05-06T12:00:00Z",
+      "completed_at": "2026-05-07T18:00:00Z",
       "edits": []
     },
     {
-      "id": "feat-002-exotel-websocket-streaming",
-      "name": "Exotel StreamUrl Integration",
+      "id": "feat-002-gemini-ocr-service",
+      "name": "Google Gemini Medical OCR Service",
       "status": "complete",
-      "depends_on": ["feat-001-unified-asgi"],
+      "depends_on": ["feat-001-django-backend-clinical-inventory"],
       "rollback_ref": null,
-      "created_at": "2026-05-28T13:00:00Z",
+      "created_at": "2026-05-18T09:00:00Z",
+      "completed_at": "2026-05-20T17:00:00Z",
+      "edits": []
+    },
+    {
+      "id": "feat-003-sarvam-tts-exotel-reminders",
+      "name": "Sarvam AI TTS & Exotel Outbound Reminders",
+      "status": "complete",
+      "depends_on": ["feat-001-django-backend-clinical-inventory"],
+      "rollback_ref": null,
+      "created_at": "2026-05-25T08:00:00Z",
+      "completed_at": "2026-05-28T16:00:00Z",
+      "edits": []
+    },
+    {
+      "id": "feat-004-phonetic-telugu-translation",
+      "name": "Phonetic Telugu Acronym & Date Translation",
+      "status": "complete",
+      "depends_on": ["feat-003-sarvam-tts-exotel-reminders"],
+      "rollback_ref": null,
+      "created_at": "2026-05-28T16:00:00Z",
       "completed_at": "2026-05-29T04:00:00Z",
       "edits": []
     },
     {
-      "id": "feat-003-sarvam-ai-integration",
-      "name": "Sarvam ASR & TTS Integration",
+      "id": "feat-005-native-python-resampler",
+      "name": "Native Python Audio Resampling (8kHz WAV)",
       "status": "complete",
-      "depends_on": ["feat-002-exotel-websocket-streaming"],
+      "depends_on": ["feat-003-sarvam-tts-exotel-reminders"],
       "rollback_ref": null,
       "created_at": "2026-05-29T04:00:00Z",
-      "completed_at": "2026-05-29T05:00:00Z",
-      "edits": []
-    },
-    {
-      "id": "feat-004-voicebot-speed-config",
-      "name": "Voicebot Config Settings",
-      "status": "complete",
-      "depends_on": ["feat-003-sarvam-ai-integration"],
-      "rollback_ref": null,
-      "created_at": "2026-05-29T05:00:00Z",
-      "completed_at": "2026-05-29T05:22:00Z",
-      "edits": []
-    },
-    {
-      "id": "feat-005-background-retry-loop",
-      "name": "Background Exotel Retry Task",
-      "status": "complete",
-      "depends_on": ["feat-001-unified-asgi"],
-      "rollback_ref": null,
-      "created_at": "2026-05-29T05:25:00Z",
-      "completed_at": "2026-05-29T05:27:00Z",
+      "completed_at": "2026-05-29T05:30:00Z",
       "edits": []
     }
   ]

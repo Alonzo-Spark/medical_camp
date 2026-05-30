@@ -45,7 +45,7 @@
 
 ```bash
 # All events for a feature
-grep '"feat-003"' asef/Logger.ndjson | jq
+grep '"feat-003-sarvam-ai-integration"' asef/Logger.ndjson | jq
 
 # All test failures
 jq 'select(.event == "test_fail")' asef/Logger.ndjson
@@ -54,7 +54,7 @@ jq 'select(.event == "test_fail")' asef/Logger.ndjson
 jq 'select(.event == "developer_reject")' asef/Logger.ndjson
 
 # Full timeline of a single edit
-jq 'select(.feat == "feat-003" and .edit == "edit-002")' asef/Logger.ndjson
+jq 'select(.feat == "feat-003-sarvam-ai-integration" and .edit == "edit-001")' asef/Logger.ndjson
 
 # All escalations
 jq 'select(.event == "escalation")' asef/Logger.ndjson

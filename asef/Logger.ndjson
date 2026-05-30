@@ -1,8 +1,11 @@
-{"ts":"2026-05-27T06:00:00Z","loop":"project","feat":null,"edit":null,"event":"loop_open","detail":"Project loop initialised — Medical Camp System & Telugu Voicebot boilerplate ready."}
-{"ts":"2026-05-28T12:00:00Z","loop":"project","feat":null,"edit":null,"event":"loop_close","detail":"Completed unified ASGI Server setup."}
-{"ts":"2026-05-29T04:00:00Z","loop":"feature","feat":"feat-002-exotel-websocket-streaming","edit":null,"event":"loop_open","detail":"Completed Exotel StreamUrl integration."}
-{"ts":"2026-05-29T05:00:00Z","loop":"feature","feat":"feat-003-sarvam-ai-integration","edit":null,"event":"loop_close","detail":"Upgraded sarvamai client and integrated ASR/TTS streams."}
-{"ts":"2026-05-29T05:22:00Z","loop":"feature","feat":"feat-004-voicebot-speed-config","edit":null,"event":"loop_close","detail":"Implemented configurable voicebot settings and greeting WAV stream."}
-{"ts":"2026-05-29T05:27:00Z","loop":"feature","feat":"feat-005-background-retry-loop","edit":null,"event":"loop_close","detail":"Resolved NameError in exotel background retry task loop."}
-{"ts":"2026-05-29T06:12:00Z","loop":"project","feat":null,"edit":null,"event":"loop_close","detail":"Merged git branch resolving conflicts in favor of local changes."}
-{"ts":"2026-05-29T06:59:00Z","loop":"project","feat":null,"edit":null,"event":"loop_close","detail":"Updated asef documentation to reflect the Medical Camp project."}
+{"ts":"2026-05-06T12:00:00Z","loop":"project","feat":null,"edit":null,"event":"loop_open","detail":"Project loop initialized — Medical Camp System & Telugu Voice Reminders boilerplate ready."}
+{"ts":"2026-05-07T18:00:00Z","loop":"project","feat":null,"edit":null,"event":"loop_close","detail":"Completed core Django web application setup, database models, and inventory management endpoints."}
+{"ts":"2026-05-18T09:00:00Z","loop":"feature","feat":"feat-002-gemini-ocr-service","edit":null,"event":"loop_open","detail":"Started integration of Gemini Vision OCR service for report and sheet parsing."}
+{"ts":"2026-05-20T17:00:00Z","loop":"feature","feat":"feat-002-gemini-ocr-service","edit":null,"event":"loop_close","detail":"Completed Gemini Vision OCR service integration, supporting report parsing and test-to-id mapping."}
+{"ts":"2026-05-25T08:00:00Z","loop":"feature","feat":"feat-003-sarvam-tts-exotel-reminders","edit":null,"event":"loop_open","detail":"Started Exotel telephony callback integration and Sarvam TTS reminder service."}
+{"ts":"2026-05-28T16:00:00Z","loop":"feature","feat":"feat-003-sarvam-tts-exotel-reminders","edit":null,"event":"loop_close","detail":"Completed Exotel Outbound Calls and playback callbacks playing generated reminder voice files."}
+{"ts":"2026-05-28T16:00:00Z","loop":"feature","feat":"feat-004-phonetic-telugu-translation","edit":null,"event":"loop_open","detail":"Started developing Telugu phonetic translation for abbreviations and dates."}
+{"ts":"2026-05-29T04:00:00Z","loop":"feature","feat":"feat-004-phonetic-telugu-translation","edit":null,"event":"loop_close","detail":"Completed Telugu phonetic mappings for English acronyms and dates to guarantee correct TTS pronunciations."}
+{"ts":"2026-05-29T04:00:00Z","loop":"feature","feat":"feat-005-native-python-resampler","edit":null,"event":"loop_open","detail":"Started audio resampler optimization."}
+{"ts":"2026-05-29T05:30:00Z","loop":"feature","feat":"feat-005-native-python-resampler","edit":null,"event":"loop_close","detail":"Completed audio resampler using native audioop rate conversion to generate 8kHz telephony compatible WAV files."}
+{"ts":"2026-05-29T06:59:00Z","loop":"project","feat":null,"edit":null,"event":"loop_close","detail":"Updated asef documentation files (Project, Architecture, FlowDiagram, Knowledge, Logging) to match actual project features."}
