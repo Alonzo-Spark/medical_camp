@@ -170,6 +170,8 @@ class ExotelCallbackView(APIView):
             clean_phone = clean_phone[3:]
         elif clean_phone.startswith('91') and len(clean_phone) > 10:
             clean_phone = clean_phone[2:]
+        if clean_phone.startswith('0') and len(clean_phone) > 10:
+            clean_phone = clean_phone[1:]
             
         try:
             # Try to find the patient and their upcoming camp voice reminder
@@ -223,12 +225,14 @@ class SmartStartView(APIView):
     permission_classes = []
 
     def _normalize_phone(self, phone: str) -> str:
-        """Strip country codes so we can match against DB contact_no."""
+        """Strip country codes and leading zeroes to match DB contact_no."""
         phone = phone.strip()
         if phone.startswith('+91'):
             phone = phone[3:]
         elif phone.startswith('91') and len(phone) > 10:
             phone = phone[2:]
+        if phone.startswith('0') and len(phone) > 10:
+            phone = phone[1:]
         return phone
 
     def get(self, request):
