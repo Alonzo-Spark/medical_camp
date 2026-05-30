@@ -188,8 +188,6 @@ class ExotelCallbackView(APIView):
                                  audio_url = public_url + reminder.audio_file.url
                              else:
                                  audio_url = request.build_absolute_uri(reminder.audio_file.url)
-                             import time
-                             audio_url = f"{audio_url}?t={int(time.time())}"
                              print(f"[Exotel Callback] Serving patient-specific audio: {audio_url}")
                              return HttpResponse(audio_url, content_type='text/plain')
 
@@ -201,8 +199,6 @@ class ExotelCallbackView(APIView):
                     audio_url = public_url + latest_reminder.audio_file.url
                 else:
                     audio_url = request.build_absolute_uri(latest_reminder.audio_file.url)
-                import time
-                audio_url = f"{audio_url}?t={int(time.time())}"
                 print(f"[Exotel Callback] Serving latest fallback audio: {audio_url}")
                 return HttpResponse(audio_url, content_type='text/plain')
                 
@@ -291,8 +287,6 @@ class SmartStartView(APIView):
                 audio_url = (public_url + reminder.audio_file.url
                              if public_url
                              else request.build_absolute_uri(reminder.audio_file.url))
-                import time
-                audio_url = f"{audio_url}?t={int(time.time())}"
                 xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Play>{audio_url}</Play>
