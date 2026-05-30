@@ -58,15 +58,16 @@ class TriggerTestReminderView(APIView):
             exotel_token = os.getenv("EXOTEL_API_TOKEN", "").strip()
             exotel_caller_id = os.getenv("EXOTEL_CALLER_ID", "").strip()
             exotel_flow_url = os.getenv("EXOTEL_FLOW_URL", "").strip()
+            smart_start_url = f"{public_url}/api/voicebot/smart-start/" if public_url else request.build_absolute_uri("/api/voicebot/smart-start/")
 
             call_status = "Audio generated. Exotel credentials not configured in .env"
 
-            if exotel_sid and exotel_key and exotel_token and exotel_caller_id and exotel_flow_url:
+            if exotel_sid and exotel_key and exotel_token and exotel_caller_id:
                 connect_url = f"https://api.exotel.com/v1/Accounts/{exotel_sid}/Calls/connect.json"
                 payload = {
                     "From": patient.contact_no,
                     "CallerId": exotel_caller_id,
-                    "Url": exotel_flow_url,  # Points to Exotel App Flow ID 1256480
+                    "Url": smart_start_url,  # Points directly to dynamic smart-start ExoML
                     "CallType": "trans",
                     "TimeOut": 30,
                     "StatusCallback": f"{public_url}/api/voicebot/exotel-status/" if public_url else "",
