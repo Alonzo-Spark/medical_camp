@@ -14,15 +14,48 @@ LETTER_PHONETICS = {
 def format_acronyms_to_telugu(text: str) -> str:
     """
     Converts English uppercase acronyms (like KPHB, CCC) into their phonetic Telugu spellings.
+    Utilizes a predefined dictionary for known medical tests to ensure natural pronunciation.
     """
+    normalized = " ".join(text.strip().upper().split())
+    
+    test_pronunciations = {
+        "CBP": "సీ బీ పీ",
+        "ESR": "ఈ ఎస్ ఆర్",
+        "LFT": "ఎల్‌ ఎఫ్‌ టీ",
+        "LIPID PROFILE": "లిపిడ్ ప్రొఫైల్",
+        "ECG": "ఈ సీ జీ",
+        "CHEST X RAY DIGITAL": "చెస్ట్ ఎక్స్ రే డిజిటల్",
+        "URINE EXAMINATION": "యూరిన్ ఎగ్జామినేషన్",
+        "HBA 1C": "హెచ్ బి ఏ వన్ సీ",
+        "THYROID PROFILE": "థైరాయిడ్ ప్రొఫైల్",
+        "URIC ACID": "యూరిక్ యాసిడ్",
+        "VIDAL": "వైడల్",
+        "MALARIA": "మలేరియా",
+        "CALCIUM": "కాల్షియం",
+        "CRP": "సీ ఆర్ పీ",
+        "RA FACTOR": "ఆర్ ఏ ఫ్యాక్టర్",
+        "KFT": "కే ఎఫ్ టీ",
+        "VITAMIN D": "విటమిన్ డీ",
+        "B 12": "బీ ట్వెల్వ్",
+        "SCAN": "స్కాన్",
+        "2D ECHO": "టూ డీ ఎకో",
+        "IRON PROFILE": "ఐరన్ ప్రొఫైల్",
+        "X RAY 2 VIEW": "ఎక్స్ రే టూ వ్యూ"
+    }
+    
+    if normalized in test_pronunciations:
+        return test_pronunciations[normalized]
+
     words = text.split()
     formatted_words = []
     for word in words:
-        # Clean word from punctuation for checking
         clean_word = "".join(c for c in word if c.isalnum())
         if clean_word.isupper() and clean_word.isalpha() and len(clean_word) > 1:
-            translated_letters = [LETTER_PHONETICS.get(char, char) for char in clean_word]
-            formatted_words.append(" ".join(translated_letters))
+            if len(clean_word) <= 4:
+                translated_letters = [LETTER_PHONETICS.get(char, char) for char in clean_word]
+                formatted_words.append(" ".join(translated_letters))
+            else:
+                formatted_words.append(word)
         else:
             formatted_words.append(word)
     return " ".join(formatted_words)
