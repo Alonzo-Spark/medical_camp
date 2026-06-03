@@ -2625,13 +2625,11 @@ def api_bulk_add_patients(request):
         data = request.data
         patients = data.get('patients', [])
         camp_num = data.get('camp_number')
-        default_camp_num = data.get('default_camp_number', 15)
         
         if not camp_num:
             return Response({'status': 'error', 'message': 'Target camp number is required'}, status=400)
             
         target_camp = get_object_or_404(MedicalCamp, number=int(camp_num))
-        default_camp = MedicalCamp.objects.filter(number=int(default_camp_num)).first()
         
         created_count = 0
         updated_count = 0
@@ -2660,36 +2658,41 @@ def api_bulk_add_patients(request):
             old_or_new_val = p.get('old_or_new') or 'New'
             is_new = 'old' not in old_or_new_val.lower()
             
-            patient_camp_num = camp_num if is_new else default_camp_num
-            
-            if not reg_date:
-                if is_new:
-                    reg_date = target_camp.date
-                else:
-                    reg_date = default_camp.date if default_camp else target_camp.date
-            
             # Check if patient exists
-            patient_exists = Patient.objects.filter(patient_id=pid).exists()
+            # pyrefly: ignore [missing-attribute]
+            existing_patient = Patient.objects.filter(patient_id=pid).first()
             
-            patient, created = Patient.objects.update_or_create(
-                patient_id=pid,
-                defaults={
-                    'patient_name': name,
-                    'patient_age': age,
-                    'patient_gender': gender,
-                    'contact_no': contact_no,
-                    'patient_addr': address,
-                    'registered_date': reg_date,
-                    'camp_session': int(patient_camp_num)
-                }
-            )
-            
-            if created:
-                created_count += 1
-            else:
-                updated_count += 1
+            if existing_patient:
+                # Update demographic info only, preserving original registration date and camp session
+                existing_patient.patient_name = name
+                existing_patient.patient_age = age
+                existing_patient.patient_gender = gender
+                existing_patient.patient_addr = address
+                existing_patient.contact_no = contact_no
+                existing_patient.save()
                 
-            # Create a patient visit record for the current camp session
+                patient = existing_patient
+                updated_count += 1
+            else:
+                # Create a new patient record. For old patients registered digitally for the first time, keep registration details blank.
+                reg_date = target_camp.date if is_new else None
+                camp_session_val = target_camp.number if is_new else None
+                
+                # pyrefly: ignore [missing-attribute]
+                patient = Patient.objects.create(
+                    patient_id=pid,
+                    patient_name=name,
+                    patient_age=age,
+                    patient_gender=gender,
+                    patient_addr=address,
+                    contact_no=contact_no,
+                    registered_date=reg_date,
+                    camp_session=camp_session_val
+                )
+                created_count += 1
+                
+            # Create/update a patient visit record for the targeted camp session
+            # pyrefly: ignore [missing-attribute]
             PatientCampVisit.objects.update_or_create(
                 patient=patient,
                 camp=target_camp,

@@ -19,6 +19,7 @@ thankyou_text = "ధన్యవాదములు, ఆరోగ్యంగా 
 
 svc = SarvamTTSService()
 
+# pyrefly: ignore [no-matching-overload]
 prompts_dir = os.path.join(django.conf.settings.MEDIA_ROOT, 'voicebot_prompts')
 os.makedirs(prompts_dir, exist_ok=True)
 
