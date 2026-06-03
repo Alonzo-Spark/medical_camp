@@ -13,7 +13,6 @@ const API_BASE = import.meta.env.VITE_API_BASE || `http://${window.location.host
 function AddingPatients() {
   const [camps, setCamps] = useState([]);
   const [targetCampId, setTargetCampId] = useState('');
-  const [defaultCampId, setDefaultCampId] = useState('15');
 
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -98,18 +97,6 @@ function AddingPatients() {
     }, 2000);
   };
 
-  const getCampDate = (campNum) => {
-    const camp = camps.find(c => c.number === parseInt(campNum));
-    if (camp && camp.date) {
-      if (camp.date.includes('-')) {
-        const [y, m, d] = camp.date.split('-');
-        return `${d}/${m}/${y}`;
-      }
-      return camp.date;
-    }
-    return '';
-  };
-
   // Trigger custom Patient List OCR processing
   const triggerOcrProcessing = async (sessionId) => {
     setOcrLoading(true);
@@ -118,20 +105,10 @@ function AddingPatients() {
       const res = await axios.post(`${API_BASE}/ocr_patient_list`, { session_id: sessionId });
       if (res.data.status === 'success') {
         const parsedPatients = res.data.patients.map(p => {
-          // Format Date to YYYY-MM-DD or DD/MM/YYYY for user editing
-          let formattedDate = p.reg_date ? String(p.reg_date) : '';
-          if (formattedDate && typeof formattedDate === 'string' && formattedDate.includes('-')) {
-            const [y, m, d] = formattedDate.split('-');
-            formattedDate = `${d}/${m}/${y}`;
-          }
           const oldNew = p.old_or_new || (p.exists_in_db ? 'Old' : 'New');
-          if (!formattedDate) {
-            formattedDate = oldNew === 'New' ? getCampDate(targetCampId) : getCampDate(defaultCampId);
-          }
           return {
             ...p,
-            old_or_new: oldNew,
-            reg_date: formattedDate
+            old_or_new: oldNew
           };
         });
         setPatients(parsedPatients);
@@ -183,35 +160,11 @@ function AddingPatients() {
   const handleTypeChange = (index, value) => {
     const updated = [...patients];
     updated[index].old_or_new = value;
-    const isNew = value === 'New';
-    updated[index].reg_date = getCampDate(isNew ? targetCampId : defaultCampId);
     setPatients(updated);
   };
 
   const handleTargetCampChange = (newCampId) => {
     setTargetCampId(newCampId);
-    const formatted = getCampDate(newCampId);
-    if (formatted) {
-      setPatients(prev => prev.map(p => {
-        if (p.old_or_new === 'New') {
-          return { ...p, reg_date: formatted };
-        }
-        return p;
-      }));
-    }
-  };
-
-  const handleDefaultCampChange = (newCampId) => {
-    setDefaultCampId(newCampId);
-    const formatted = getCampDate(newCampId);
-    if (formatted) {
-      setPatients(prev => prev.map(p => {
-        if (p.old_or_new === 'Old') {
-          return { ...p, reg_date: formatted };
-        }
-        return p;
-      }));
-    }
   };
 
   // Check ID existence in database
@@ -240,7 +193,6 @@ function AddingPatients() {
         address: '',
         contact_no: '',
         old_or_new: 'New',
-        reg_date: getCampDate(targetCampId),
         exists_in_db: false
       }
     ]);
@@ -267,8 +219,7 @@ function AddingPatients() {
     try {
       const res = await axios.post(`${API_BASE}/bulk_add_patients`, {
         patients: patients,
-        camp_number: targetCampId,
-        default_camp_number: defaultCampId
+        camp_number: targetCampId
       });
 
       if (res.data.status === 'success') {
@@ -306,7 +257,7 @@ function AddingPatients() {
         {/* Camp Settings Selector */}
         <div className="flex flex-wrap items-center gap-4 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
           <div>
-            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1.5">Target Camp (New Patients)</label>
+            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1.5">Target Camp</label>
             <select
               value={targetCampId}
               onChange={(e) => handleTargetCampChange(e.target.value)}
@@ -314,21 +265,6 @@ function AddingPatients() {
             >
               {camps.map(camp => (
                 <option key={camp.id} value={camp.number}>Camp {camp.number} - {camp.venue}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="w-px h-8 bg-slate-200 hidden sm:block" />
-
-          <div>
-            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1.5">Default Camp (Old Patients)</label>
-            <select
-              value={defaultCampId}
-              onChange={(e) => handleDefaultCampChange(e.target.value)}
-              className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500"
-            >
-              {camps.map(camp => (
-                <option key={camp.id} value={camp.number}>Camp {camp.number}</option>
               ))}
             </select>
           </div>
@@ -399,7 +335,6 @@ function AddingPatients() {
                   <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Name *</th>
                   <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest w-20">Age *</th>
                   <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest w-28">Gender</th>
-                  <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest w-36">Reg. Date *</th>
                   <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest w-36">Contact No</th>
                   <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Address</th>
                 </tr>
@@ -490,17 +425,6 @@ function AddingPatients() {
                         <option value="Female">Female</option>
                         <option value="Other">Other</option>
                       </select>
-                    </td>
-
-                    {/* Reg Date */}
-                    <td className="px-4 py-2">
-                      <input
-                        type="text"
-                        value={p.reg_date}
-                        onChange={(e) => handleCellChange(idx, 'reg_date', e.target.value)}
-                        className={inputClass}
-                        placeholder="DD/MM/YYYY"
-                      />
                     </td>
 
                     {/* Contact Number */}

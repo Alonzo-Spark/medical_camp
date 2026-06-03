@@ -26,6 +26,8 @@ const MedicineEntry = () => {
   const [campUnitCosts, setCampUnitCosts] = useState({});
   const [editingUqid, setEditingUqid] = useState(null);
   const [tempAltName, setTempAltName] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
 
   // Category management state
   const [categories, setCategories] = useState([]);
@@ -466,15 +468,21 @@ const MedicineEntry = () => {
     window.location.href = `http://localhost:8000/export_camp_stock/${selectedCamp}`;
   };
 
-  const filteredMeds = medicines.filter(m =>
-    m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    m.uqid.toString().includes(searchTerm)
-  ).sort((a, b) => Number(a.uqid) - Number(b.uqid));
+  const filteredMeds = medicines.filter(m => {
+    const searchTerms = searchTerm.toLowerCase().trim().split(/\s+/);
+    const searchableText = `${m.name} ${m.formulation || ''} ${m.category || ''} ${m.uqid}`.toLowerCase();
+    const matchesSearch = searchTerms.length === 0 || searchTerms.every(term => searchableText.includes(term));
+    const matchesCategory = selectedCategory ? m.category === selectedCategory : true;
+    return matchesSearch && matchesCategory;
+  }).sort((a, b) => Number(a.uqid) - Number(b.uqid));
 
-  const filteredCampStocks = campStocks.filter(s =>
-    s.medication.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.uqid.toString().includes(searchTerm)
-  ).sort((a, b) => Number(a.uqid) - Number(b.uqid));
+  const filteredCampStocks = campStocks.filter(s => {
+    const searchTerms = searchTerm.toLowerCase().trim().split(/\s+/);
+    const searchableText = `${s.medication} ${s.formulation || ''} ${s.category || ''} ${s.uqid}`.toLowerCase();
+    const matchesSearch = searchTerms.length === 0 || searchTerms.every(term => searchableText.includes(term));
+    const matchesCategory = selectedCategory ? s.category === selectedCategory : true;
+    return matchesSearch && matchesCategory;
+  }).sort((a, b) => Number(a.uqid) - Number(b.uqid));
 
   const getCategoryOrderKey = (catName) => {
     const rangeMatch = catName.match(/\((\d+)/);
@@ -483,6 +491,14 @@ const MedicineEntry = () => {
     if (letterMatch) return letterMatch[1].charCodeAt(0);
     return 9999;
   };
+
+  const availableCategories = Array.from(new Set(medicines.map(m => m.category).filter(Boolean)));
+  const sortedFilterCategories = [...availableCategories].sort((a, b) => {
+    const keyA = getCategoryOrderKey(a);
+    const keyB = getCategoryOrderKey(b);
+    if (keyA !== keyB) return keyA - keyB;
+    return a.localeCompare(b);
+  });
 
   const groupedTotalMeds = filteredMeds.reduce((acc, med) => {
     const cat = med.category || 'Uncategorized';
@@ -626,10 +642,20 @@ const MedicineEntry = () => {
             <input
               type="text"
               placeholder={`Search ${viewMode === 'total' ? 'main inventory' : 'camp stocks'} by name or UQID...`}
-              className="w-full bg-white border border-slate-200 rounded-2xl pl-14 pr-6 py-4 text-slate-800 placeholder:text-slate-300 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 outline-none transition-all font-bold shadow-sm"
+              className="w-full bg-white border border-slate-200 rounded-2xl pl-14 pr-12 py-4 text-slate-800 placeholder:text-slate-300 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 outline-none transition-all font-bold shadow-sm"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
             />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <div className="bg-slate-100 rounded-full p-1">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </div>
+              </button>
+            )}
           </div>
           <div className="flex gap-2">
             {viewMode === 'total' && (
@@ -657,9 +683,69 @@ const MedicineEntry = () => {
                 </button>
               </>
             )}
-            <button onClick={() => { fetchMedicines(); fetchCampStocks(); }} className="p-4 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-teal-600 hover:border-teal-200 transition-all shadow-sm">
-              <Filter size={20} strokeWidth={2.5} />
-            </button>
+            
+            <div className="relative">
+              <button
+                onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+                className={`p-4 rounded-2xl border transition-all flex items-center gap-2 ${
+                  selectedCategory
+                    ? 'bg-teal-50 border-teal-300 text-teal-600 font-bold'
+                    : 'bg-white border-slate-200 text-slate-400 hover:text-teal-600 hover:border-teal-200'
+                } shadow-sm`}
+              >
+                <Filter size={20} strokeWidth={2.5} />
+                {selectedCategory && (
+                  <span className="text-[10px] uppercase tracking-wider font-extrabold truncate max-w-[150px] text-teal-700 bg-teal-100/50 px-2.5 py-1 rounded border border-teal-200">
+                    {selectedCategory.split(' - ')[0]}
+                  </span>
+                )}
+              </button>
+
+              {showFilterDropdown && (
+                <>
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setShowFilterDropdown(false)}
+                  />
+                  <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200 rounded-2xl shadow-xl z-20 py-2 animate-fade-in max-h-[400px] overflow-y-auto">
+                    <div className="px-4 py-2 border-b border-slate-100 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                      Filter by Category
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSelectedCategory(null);
+                        setShowFilterDropdown(false);
+                      }}
+                      className={`w-full text-left px-4 py-3 text-xs font-bold transition-all border-l-2 flex justify-between items-center ${
+                        selectedCategory === null
+                          ? 'bg-teal-50 border-teal-500 text-teal-700'
+                          : 'border-transparent text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span>All Categories</span>
+                      {selectedCategory === null && <Check size={14} strokeWidth={3} className="text-teal-500" />}
+                    </button>
+                    {sortedFilterCategories.map(cat => (
+                      <button
+                        key={cat}
+                        onClick={() => {
+                          setSelectedCategory(cat);
+                          setShowFilterDropdown(false);
+                        }}
+                        className={`w-full text-left px-4 py-3 text-xs font-bold transition-all border-l-2 flex justify-between items-center ${
+                          selectedCategory === cat
+                            ? 'bg-teal-50/50 border-teal-500 text-teal-700'
+                            : 'border-transparent text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        <span className="truncate">{cat}</span>
+                        {selectedCategory === cat && <Check size={14} strokeWidth={3} className="text-teal-500" />}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
