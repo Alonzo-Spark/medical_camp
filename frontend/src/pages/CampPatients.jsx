@@ -230,13 +230,13 @@ const CampPatients = () => {
                     <div className="px-5 pb-5 pt-1 border-t border-slate-100">
                       
                       {/* Patient Info Row */}
-                      <div className="flex items-center justify-between mt-3 mb-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                        <div className="flex gap-6 text-xs font-bold text-slate-600">
+                      <div className="flex flex-col gap-4 md:flex-row md:items-center justify-between mt-3 mb-2 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap gap-4 md:gap-6 text-xs font-bold text-slate-600 w-full">
                           <div><span className="text-slate-400 uppercase tracking-wider text-[10px] block mb-0.5">Age</span>{pat.age || '—'}</div>
                           <div><span className="text-slate-400 uppercase tracking-wider text-[10px] block mb-0.5">Gender</span>{pat.gender || '—'}</div>
-                          <div>
+                          <div className="col-span-2 sm:col-span-1">
                             <span className="text-slate-400 uppercase tracking-wider text-[10px] block mb-0.5">Contact</span>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <span>{pat.contact || '—'}</span>
                               {pat.contact && (
                                 <button
@@ -263,7 +263,7 @@ const CampPatients = () => {
                             )}
                           </div>
                           <div><span className="text-slate-400 uppercase tracking-wider text-[10px] block mb-0.5">Reg Date</span>{pat.registered_date || '—'}</div>
-                          <div><span className="text-slate-400 uppercase tracking-wider text-[10px] block mb-0.5">Address</span>{pat.address || '—'}</div>
+                          <div className="col-span-2 sm:col-span-1"><span className="text-slate-400 uppercase tracking-wider text-[10px] block mb-0.5">Address</span>{pat.address || '—'}</div>
                         </div>
                       </div>
 
