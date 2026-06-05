@@ -551,7 +551,7 @@ const PatientProfile = () => {
             ) : (
               <>
                 <Search size={18} strokeWidth={3} />
-                Fetch Dossier
+                Search Patient
               </>
             )}
           </button>

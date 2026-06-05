@@ -59,13 +59,15 @@ class FollowupCallService:
                 reports_issued=False
             )
             
-            if not test_issues.exists():
-                print(f"[Dynamic Prompt] No pending tests for Patient {patient.patient_id}. Using static fallback prompts.")
-                return
-                
             test_names = []
-            for ti in test_issues:
-                name_clean = ti.test.name.strip()
+            if test_issues.exists():
+                for ti in test_issues:
+                    name_clean = ti.test.name.strip()
+                    telugu_name = format_acronyms_to_telugu(name_clean)
+                    test_names.append(telugu_name)
+            else:
+                # Fallback to the specific triggering test
+                name_clean = voice_call.test_issue.test.name.strip()
                 telugu_name = format_acronyms_to_telugu(name_clean)
                 test_names.append(telugu_name)
                 
@@ -79,7 +81,6 @@ class FollowupCallService:
                 
             # Formulate sentences
             q1_text = f"నమస్కారం, మేము సీ సీ సీ మెడికల్ క్యాంప్ నుండి మాట్లాడుతున్నాము. మీకు సూచించిన {tests_phrase} ల్యాబ్ పరీక్షలు చేయించుకున్నారా?"
-            q2_text = f"మీరు చేయించుకున్న {tests_phrase} పరీక్షల రిపోర్ట్స్ తీసుకున్నారా?"
             
             os.makedirs("media/voicebot_prompts/dynamic", exist_ok=True)
             
@@ -91,13 +92,8 @@ class FollowupCallService:
             with open(q1_path, "wb") as f:
                 f.write(q1_file.read())
             print(f"[Dynamic Prompt] Generated Q1 audio file for VoiceCall {voice_call.id}: {q1_text}")
-            
-            # Generate and save Q2
-            q2_file = tts.synthesize_telugu(q2_text)
-            q2_path = f"media/voicebot_prompts/dynamic/q2_{voice_call.id}.wav"
-            with open(q2_path, "wb") as f:
-                f.write(q2_file.read())
-            print(f"[Dynamic Prompt] Generated Q2 audio file for VoiceCall {voice_call.id}: {q2_text}")
+
+
             
         except Exception as err:
             print(f"[Dynamic Prompt] Error pre-generating dynamic prompts: {err}")

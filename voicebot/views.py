@@ -1,7 +1,7 @@
 import os
 import requests
 from django.utils import timezone
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseRedirect
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -383,6 +383,15 @@ class BaseLabTestWebhookView(APIView):
                     voice_call.save(update_fields=["call_sid"])
                 return voice_call
 
+        # 4. Final fallback: find the most recent in-progress/pending VoiceCall
+        voice_call = VoiceCall.objects.filter(status__in=["in_progress", "pending"]).order_by('-started_at').first()
+        if voice_call:
+            print(f"[Webhook] Found VoiceCall by active in_progress fallback: {voice_call.id}")
+            if call_sid and not voice_call.call_sid:
+                voice_call.call_sid = call_sid
+                voice_call.save(update_fields=["call_sid"])
+            return voice_call
+
         print("[Webhook] Could not find any VoiceCall.")
         return None
 
@@ -391,30 +400,40 @@ class BaseLabTestWebhookView(APIView):
 class LabTestQuestion1View(BaseLabTestWebhookView):
     """
     GET /api/voicebot/lab-test/question1/
-    Returns 200 immediately so Exotel continues to Q2.
-    Processes the recording asynchronously after Exotel finishes encoding (~5 min).
+    Processes the recording in a background thread to prevent Exotel timeout/hangup.
     """
     def post(self, request):
         voice_call = self._get_voice_call(request)
         if not voice_call:
-            print("[Q1] VoiceCall not found — returning 200 anyway to keep call alive.")
-            return HttpResponse("", content_type="text/plain", status=200)
+            print("[Q1] VoiceCall not found — returning OK anyway to keep call alive.")
+            return HttpResponse("OK", content_type="text/plain", status=200)
 
         recording_url = request.POST.get("RecordingUrl") or request.GET.get("RecordingUrl") or ""
-        print(f"[Q1] URL={recording_url} — queuing background STT in 5.5 min.")
+        print(f"[Q1] URL={recording_url} — starting background check.")
+
+        # Update status to in_progress (do not mark completed yet!)
+        voice_call.status = "in_progress"
+        voice_call.save(update_fields=["status"])
 
         import threading
-        def _process(vc_id, url):
-            _wait_for_recording_ready(url)
-            try:
-                import django
-                from voicebot.models import VoiceCall, VoiceResponse
-                from voicebot.services.stt_service import SarvamSTTService
-                from voicebot.services.intent_service import IntentService
-                from inventory.models import TestIssue
-                
-                # pyrefly: ignore [missing-attribute]
-                vc = VoiceCall.objects.get(id=vc_id)
+        threading.Thread(
+            target=self._process_q1_bg,
+            args=(voice_call.id, recording_url),
+            daemon=True
+        ).start()
+
+        return HttpResponse("OK", content_type="text/plain", status=200)
+
+    def _process_q1_bg(self, voice_call_id, recording_url):
+        try:
+            from voicebot.models import VoiceCall, VoiceResponse
+            from voicebot.services.stt_service import SarvamSTTService
+            from voicebot.services.intent_service import IntentService
+            from inventory.models import TestIssue
+            
+            vc = VoiceCall.objects.get(id=voice_call_id)
+            is_ready = _wait_for_recording_ready(recording_url)
+            if is_ready:
                 patient = vc.patient
                 
                 # pyrefly: ignore [missing-attribute]
@@ -425,7 +444,7 @@ class LabTestQuestion1View(BaseLabTestWebhookView):
                 )
                 test_names = [ti.test.name for ti in test_issues]
                 
-                transcript = SarvamSTTService().transcribe_from_url(url) if url else ""
+                transcript = SarvamSTTService().transcribe_from_url(recording_url)
                 test_statuses = IntentService().classify_multi_test_q1(transcript, test_names)
                 
                 if not test_statuses:
@@ -437,6 +456,14 @@ class LabTestQuestion1View(BaseLabTestWebhookView):
                 else:
                     intent = "NO"
                 
+                # Update all test statuses based on classification
+                for ti in test_issues:
+                    ti_name = ti.test.name
+                    status_done = test_statuses.get(ti_name, False)
+                    ti.test_done = status_done
+                    ti.save(update_fields=["test_done"])
+                    print(f"[Q1 BG] Set test_done={status_done} for TestIssue {ti.id} ({ti_name})")
+                
                 # pyrefly: ignore [missing-attribute]
                 VoiceResponse.objects.create(
                     voice_call=vc, question="Q1_TESTS_DONE",
@@ -444,11 +471,11 @@ class LabTestQuestion1View(BaseLabTestWebhookView):
                     intent=intent, confidence_score=0.85
                 )
                 print(f"[Q1 BG] Saved — intent={intent} transcript='{transcript}' statuses={test_statuses}")
-            except Exception as ex:
-                print(f"[Q1 BG] Error: {ex}")
-
-        threading.Thread(target=_process, args=(voice_call.id, recording_url), daemon=True).start()
-        return HttpResponse("", content_type="text/plain", status=200)
+            else:
+                print(f"[Q1 BG] Recording was not ready within timeout. Skipping transcription.")
+            
+        except Exception as ex:
+            print(f"[Q1 BG] Error: {ex}")
 
 
 class LabTestQuestion2View(BaseLabTestWebhookView):
@@ -459,7 +486,7 @@ class LabTestQuestion2View(BaseLabTestWebhookView):
     def post(self, request):
         voice_call = self._get_voice_call(request)
         if not voice_call:
-            return HttpResponse("", content_type="text/plain", status=200)
+            return HttpResponse("OK", content_type="text/plain", status=200)
 
         recording_url = request.POST.get("RecordingUrl") or request.GET.get("RecordingUrl") or ""
         print(f"[Q2] URL={recording_url} — queuing background STT in 5.5 min.")
@@ -506,13 +533,14 @@ class LabTestQuestion2View(BaseLabTestWebhookView):
                 )
                 print(f"[Q2 BG] Saved — intent={intent} transcript='{transcript}' statuses={test_statuses}")
                 
-                # Check off only the reports that were received
+                # Check off only the reports that were received (which also implies tests are done)
                 for ti in test_issues:
                     ti_name = ti.test.name
                     if test_statuses.get(ti_name, False):
                         ti.reports_issued = True
-                        ti.save(update_fields=["reports_issued"])
-                        print(f"[Q2 BG] Auto-checked reports_issued for TestIssue {ti.id} ({ti_name})")
+                        ti.test_done = True
+                        ti.save(update_fields=["reports_issued", "test_done"])
+                        print(f"[Q2 BG] Auto-checked reports_issued & test_done for TestIssue {ti.id} ({ti_name})")
                         
                 vc.status = "completed"
                 vc.completed_at = timezone.now()
@@ -521,7 +549,7 @@ class LabTestQuestion2View(BaseLabTestWebhookView):
                 print(f"[Q2 BG] Error: {ex}")
 
         threading.Thread(target=_process, args=(voice_call.id, recording_url), daemon=True).start()
-        return HttpResponse("", content_type="text/plain", status=200)
+        return HttpResponse("OK", content_type="text/plain", status=200)
 
 
 class CallStatusView(APIView):
@@ -573,30 +601,98 @@ class AskQ1View(APIView):
             
         if custom_field.isdigit():
             dynamic_file = f"media/voicebot_prompts/dynamic/q1_{custom_field}.wav"
-            if os.path.exists(dynamic_file):
+            if os.path.exists(dynamic_file) and os.path.getsize(dynamic_file) > 0:
                 print(f"[Ask Q1] Serving dynamic audio: {dynamic_file}")
                 return HttpResponse(f"{public_url}/{dynamic_file}", content_type="text/plain")
                 
-        audio_url = f"{public_url}/media/voicebot_prompts/followup_q1.wav"
+        audio_path = "media/voicebot_prompts/followup_q1.wav"
+        if not os.path.exists(audio_path) or os.path.getsize(audio_path) == 0:
+            try:
+                from voicebot.services.tts_service import SarvamTTSService
+                tts = SarvamTTSService()
+                q1_fallback_text = "నమస్కారం, మేము సీ సీ సీ మెడికల్ క్యాంప్ నుండి మాట్లాడుతున్నాము. మీకు సూచించిన ల్యాబ్ పరీక్షలు చేయించుకున్నారా?"
+                audio_file = tts.synthesize_telugu(q1_fallback_text)
+                os.makedirs(os.path.dirname(audio_path), exist_ok=True)
+                with open(audio_path, "wb") as f:
+                    f.write(audio_file.read())
+                print(f"[Ask Q1] Successfully pre-generated fallback {audio_path}")
+            except Exception as e:
+                print(f"[Ask Q1] Fallback audio generation failed: {e}")
+
+        audio_url = f"{public_url}/{audio_path}"
         return HttpResponse(audio_url, content_type="text/plain")
 
-class AskQ2View(APIView):
-    authentication_classes = []
-    permission_classes = []
+class AskQ2View(BaseLabTestWebhookView):
     def get(self, request):
-        custom_field = request.GET.get("CustomField") or request.POST.get("CustomField") or ""
+        voice_call = self._get_voice_call(request)
         public_url = os.getenv("PUBLIC_URL", "").rstrip('/')
         if not public_url:
             public_url = request.build_absolute_uri('/')[:-1]
-            
-        if custom_field.isdigit():
-            dynamic_file = f"media/voicebot_prompts/dynamic/q2_{custom_field}.wav"
-            if os.path.exists(dynamic_file):
-                print(f"[Ask Q2] Serving dynamic audio: {dynamic_file}")
-                return HttpResponse(f"{public_url}/{dynamic_file}", content_type="text/plain")
+
+        os.makedirs("media/voicebot_prompts", exist_ok=True)
+        s1_path = "media/voicebot_prompts/scenario1.wav"
+        s2_path = "media/voicebot_prompts/scenario2.wav"
+        s3_path = "media/voicebot_prompts/scenario3.wav"
+
+        # Check all tests status for this voice call
+        completed_all = False
+        completed_none = False
+        if voice_call:
+            # Wait for the background thread to finish updating the database for Q1 (max 6s)
+            import time
+            from voicebot.models import VoiceResponse
+            start_wait = time.time()
+            while time.time() - start_wait < 6.0:
+                if VoiceResponse.objects.filter(voice_call=voice_call, question="Q1_TESTS_DONE").exists():
+                    break
+                time.sleep(0.5)
+
+            from inventory.models import TestIssue
+            # Check if all issued tests are done
+            # pyrefly: ignore [missing-attribute]
+            test_issues = TestIssue.objects.filter(
+                patient_id=voice_call.patient.patient_id,
+                camp=voice_call.test_issue.camp
+            )
+            total_tests = test_issues.count()
+            completed_tests = test_issues.filter(test_done=True).count()
+            if total_tests > 0:
+                if completed_tests == total_tests:
+                    completed_all = True
+                elif completed_tests == 0:
+                    completed_none = True
+
+        if completed_all:
+            target_file = s2_path
+        elif completed_none:
+            target_file = s3_path
+        else:
+            target_file = s1_path
+        
+        # One-time generation if the file doesn't exist yet or is empty
+        if not os.path.exists(target_file) or os.path.getsize(target_file) == 0:
+            try:
+                from voicebot.services.tts_service import SarvamTTSService
+                tts = SarvamTTSService()
+                if completed_all:
+                    s2_text = "వచ్చే నెల మొదటి ఆదివారం జరిగే తదుపరి క్యాంప్‌లో పరీక్షల రిపోర్టులను తీసుకోండి."
+                    audio_file = tts.synthesize_telugu(s2_text)
+                elif completed_none:
+                    s3_text = "దయచేసి వచ్చే నెల మొదటి ఆదివారం జరిగే తదుపరి క్యాంప్‌లో పరీక్షలు చేయించుకోండి."
+                    audio_file = tts.synthesize_telugu(s3_text)
+                else:
+                    s1_text = "దయచేసి వచ్చే నెల మొదటి ఆదివారం జరిగే తదుపరి క్యాంప్‌లో మిగిలిన పరీక్షలు చేయించుకోండి."
+                    audio_file = tts.synthesize_telugu(s1_text)
                 
-        audio_url = f"{public_url}/media/voicebot_prompts/followup_q2.wav"
-        return HttpResponse(audio_url, content_type="text/plain")
+                with open(target_file, "wb") as f:
+                    f.write(audio_file.read())
+                print(f"[Ask Q2] Successfully performed one-time generation for {target_file}")
+            except Exception as e:
+                print(f"[Ask Q2] Failed one-time generation: {e}")
+                # Fallback to general thank you
+                return HttpResponseRedirect(f"{public_url}/media/voicebot_prompts/followup_thankyou.wav")
+
+        return HttpResponseRedirect(f"{public_url}/{target_file}")
 
 class ThankYouView(APIView):
     authentication_classes = []
@@ -605,8 +701,22 @@ class ThankYouView(APIView):
         public_url = os.getenv("PUBLIC_URL", "").rstrip('/')
         if not public_url:
             public_url = request.build_absolute_uri('/')[:-1]
-        audio_url = f"{public_url}/media/voicebot_prompts/followup_thankyou.wav"
-        return HttpResponse(audio_url, content_type="text/plain")
+        
+        audio_path = "media/voicebot_prompts/followup_thankyou.wav"
+        if not os.path.exists(audio_path) or os.path.getsize(audio_path) == 0:
+            try:
+                from voicebot.services.tts_service import SarvamTTSService
+                tts = SarvamTTSService()
+                thankyou_text = "ధన్యవాదాలు."
+                audio_file = tts.synthesize_telugu(thankyou_text)
+                os.makedirs(os.path.dirname(audio_path), exist_ok=True)
+                with open(audio_path, "wb") as f:
+                    f.write(audio_file.read())
+                print(f"[Thank You] Successfully generated {audio_path}")
+            except Exception as e:
+                print(f"[Thank You] Audio generation failed: {e}")
+
+        return HttpResponseRedirect(f"{public_url}/{audio_path}")
 
 class TriggerFollowupCallView(APIView):
     authentication_classes = []
@@ -634,14 +744,9 @@ class TriggerFollowupCallView(APIView):
                 status="pending"
             )
             
-            # Pre-generate personalized dynamic audio prompts in background
-            import threading
+            # Pre-generate personalized dynamic audio prompts synchronously to prevent race conditions
             svc = FollowupCallService()
-            threading.Thread(
-                target=svc.generate_dynamic_prompts,
-                args=(voice_call,),
-                daemon=True
-            ).start()
+            svc.generate_dynamic_prompts(voice_call)
             
             result = svc.trigger_followup_call(voice_call)
             

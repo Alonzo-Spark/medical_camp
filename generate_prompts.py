@@ -38,4 +38,22 @@ thankyou_audio = svc.synthesize_telugu(thankyou_text)
 with open(os.path.join(prompts_dir, 'followup_thankyou.wav'), 'wb') as f:
     f.write(thankyou_audio.read())
 
+print("Generating Scenario 1...")
+s1_text = "దయచేసి వచ్చే నెల మొదటి ఆదివారం జరిగే తదుపరి క్యాంప్‌లో మిగిలిన పరీక్షలు చేయించుకోండి."
+s1_audio = svc.synthesize_telugu(s1_text)
+with open(os.path.join(prompts_dir, 'scenario1.wav'), 'wb') as f:
+    f.write(s1_audio.read())
+
+print("Generating Scenario 2...")
+s2_text = "వచ్చే నెల మొదటి ఆదివారం జరిగే తదుపరి క్యాంప్‌లో పరీక్షల రిపోర్టులను తీసుకోండి."
+s2_audio = svc.synthesize_telugu(s2_text)
+with open(os.path.join(prompts_dir, 'scenario2.wav'), 'wb') as f:
+    f.write(s2_audio.read())
+
+print("Generating Scenario 3...")
+s3_text = "దయచేసి వచ్చే నెల మొదటి ఆదివారం జరిగే తదుపరి క్యాంప్‌లో పరీక్షలు చేయించుకోండి."
+s3_audio = svc.synthesize_telugu(s3_text)
+with open(os.path.join(prompts_dir, 'scenario3.wav'), 'wb') as f:
+    f.write(s3_audio.read())
+
 print("Done generating audio files!")

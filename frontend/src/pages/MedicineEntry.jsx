@@ -250,7 +250,7 @@ const MedicineEntry = () => {
 
   const handleReturnAll = async () => {
     if (!selectedCamp) return;
-    
+
     const stocksToReturn = campStocks.filter(s => s.remaining_stock > 0);
     if (stocksToReturn.length === 0) {
       alert("No available balance to update for this camp.");
@@ -262,7 +262,7 @@ const MedicineEntry = () => {
     }
 
     setSuccessMsg('Updating all balances...');
-    
+
     try {
       for (const stock of stocksToReturn) {
         await axios.post(`${API_BASE}/return_to_warehouse`, {
@@ -284,7 +284,7 @@ const MedicineEntry = () => {
 
   const handleReturn = async (uqid, medName, remainingStock) => {
     if (!selectedCamp) return;
-    
+
     if (!window.confirm(`Are you sure you want to update the total stock by adding the available balance of ${remainingStock} units for ${medName}?`)) {
       return;
     }
@@ -683,15 +683,14 @@ const MedicineEntry = () => {
                 </button>
               </>
             )}
-            
+
             <div className="relative">
               <button
                 onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-                className={`p-4 rounded-2xl border transition-all flex items-center gap-2 ${
-                  selectedCategory
+                className={`p-4 rounded-2xl border transition-all flex items-center gap-2 ${selectedCategory
                     ? 'bg-teal-50 border-teal-300 text-teal-600 font-bold'
                     : 'bg-white border-slate-200 text-slate-400 hover:text-teal-600 hover:border-teal-200'
-                } shadow-sm`}
+                  } shadow-sm`}
               >
                 <Filter size={20} strokeWidth={2.5} />
                 {selectedCategory && (
@@ -716,11 +715,10 @@ const MedicineEntry = () => {
                         setSelectedCategory(null);
                         setShowFilterDropdown(false);
                       }}
-                      className={`w-full text-left px-4 py-3 text-xs font-bold transition-all border-l-2 flex justify-between items-center ${
-                        selectedCategory === null
+                      className={`w-full text-left px-4 py-3 text-xs font-bold transition-all border-l-2 flex justify-between items-center ${selectedCategory === null
                           ? 'bg-teal-50 border-teal-500 text-teal-700'
                           : 'border-transparent text-slate-600 hover:bg-slate-50'
-                      }`}
+                        }`}
                     >
                       <span>All Categories</span>
                       {selectedCategory === null && <Check size={14} strokeWidth={3} className="text-teal-500" />}
@@ -732,11 +730,10 @@ const MedicineEntry = () => {
                           setSelectedCategory(cat);
                           setShowFilterDropdown(false);
                         }}
-                        className={`w-full text-left px-4 py-3 text-xs font-bold transition-all border-l-2 flex justify-between items-center ${
-                          selectedCategory === cat
+                        className={`w-full text-left px-4 py-3 text-xs font-bold transition-all border-l-2 flex justify-between items-center ${selectedCategory === cat
                             ? 'bg-teal-50/50 border-teal-500 text-teal-700'
                             : 'border-transparent text-slate-600 hover:bg-slate-50'
-                        }`}
+                          }`}
                       >
                         <span className="truncate">{cat}</span>
                         {selectedCategory === cat && <Check size={14} strokeWidth={3} className="text-teal-500" />}
@@ -1123,7 +1120,7 @@ const MedicineEntry = () => {
                                     setTempAltName(stock.alternate_name || '');
                                   }}
                                   className="p-1.5 bg-slate-50 hover:bg-teal-50 text-slate-400 hover:text-teal-600 rounded-lg border border-slate-200 hover:border-teal-200 transition-all ml-2 flex items-center justify-center shadow-sm"
-                                   title="Edit Alternative Name"
+                                  title="Edit Alternative Name"
                                 >
                                   <Edit3 size={14} strokeWidth={2.5} />
                                 </button>
@@ -1284,11 +1281,11 @@ const MedicineEntry = () => {
                       {groupedTotalMeds[categoryName].map((med) => {
                         const formState = detailsForm[med.uqid] || {};
                         const campStock = campStocks.find(s => s.uqid === med.uqid);
-                        const displayCompany = formState.company_name !== undefined 
-                          ? formState.company_name 
+                        const displayCompany = formState.company_name !== undefined
+                          ? formState.company_name
                           : (selectedCamp && campStock ? campStock.company_name : (med.company_name || ''));
-                        const displayExpiry = formState.expiry_date !== undefined 
-                          ? formState.expiry_date 
+                        const displayExpiry = formState.expiry_date !== undefined
+                          ? formState.expiry_date
                           : (selectedCamp && campStock ? campStock.expiry_date : (med.expiry_date || ''));
                         return (
                           <tr key={`details-${med.uqid}`} className="hover:bg-slate-50/40 transition-all group">

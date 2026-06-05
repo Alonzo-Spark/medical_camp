@@ -133,11 +133,12 @@ class TestIssue(models.Model):
     patient_id = models.IntegerField()
     camp = models.ForeignKey(MedicalCamp, on_delete=models.CASCADE, to_field='number')
     test = models.ForeignKey(MedicalTest, on_delete=models.CASCADE)
+    test_done = models.BooleanField(default=False)
     reports_issued = models.BooleanField(default=False)
     vitals_record = models.ForeignKey('PatientVitals', on_delete=models.CASCADE, null=True, blank=True, related_name='issued_tests')
     
     def __str__(self):
-        return f"Patient {self.patient_id}, Camp: {self.camp} issued {self.test} (Reports Issued: {self.reports_issued})"
+        return f"Patient {self.patient_id}, Camp: {self.camp} issued {self.test} (Done: {self.test_done}, Reports Issued: {self.reports_issued})"
 
 class Patient(models.Model):
     class Meta:

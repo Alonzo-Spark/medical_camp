@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Camera, CheckCircle2, AlertCircle, Upload, Loader2 } from 'lucide-react';
 
@@ -7,9 +7,11 @@ const API_BASE = import.meta.env.VITE_API_BASE || `http://${window.location.host
 
 const MobileUpload = () => {
     const { sessionId } = useParams();
+    const navigate = useNavigate();
     const [file, setFile] = useState(null);
     const [preview, setPreview] = useState(null);
     const [uploading, setUploading] = useState(false);
+    const [loadingNewSession, setLoadingNewSession] = useState(false);
     const [status, setStatus] = useState('idle'); // idle, success, error
     const [errorMsg, setErrorMsg] = useState('');
 
@@ -50,6 +52,33 @@ const MobileUpload = () => {
         }
     };
 
+    const handleScanAnother = async () => {
+        setLoadingNewSession(true);
+        try {
+            const res = await axios.post(`${API_BASE}/create_scan_session`, { parent_session_id: sessionId });
+            if (res.data.status === 'success') {
+                const newSessionId = res.data.session_id;
+                setFile(null);
+                setPreview(null);
+                setErrorMsg('');
+                setStatus('idle');
+                navigate(`/mobile-upload/${newSessionId}`);
+            } else {
+                setFile(null);
+                setPreview(null);
+                setStatus('error');
+                setErrorMsg(res.data.message || 'Failed to create new scan session');
+            }
+        } catch (err) {
+            setFile(null);
+            setPreview(null);
+            setStatus('error');
+            setErrorMsg(err.response?.data?.message || 'Server connection error while generating new session');
+        } finally {
+            setLoadingNewSession(false);
+        }
+    };
+
     if (status === 'success') {
         return (
             <div className="min-h-screen bg-emerald-50 flex flex-col items-center justify-center p-6 text-center">
@@ -60,10 +89,18 @@ const MobileUpload = () => {
                     <h2 className="text-2xl font-black text-slate-800 mb-2">Upload Successful</h2>
                     <p className="text-slate-500 font-bold mb-8">The patient report has been securely transmitted to the dashboard.</p>
                     <button 
-                        onClick={() => { setStatus('idle'); setFile(null); setPreview(null); }}
-                        className="w-full bg-slate-800 text-white py-4 rounded-xl font-black uppercase tracking-widest text-xs shadow-lg active:scale-95 transition-all"
+                        onClick={handleScanAnother}
+                        disabled={loadingNewSession}
+                        className="w-full bg-slate-800 text-white py-4 rounded-xl font-black uppercase tracking-widest text-xs shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                     >
-                        Scan Another
+                        {loadingNewSession ? (
+                            <>
+                                <Loader2 className="animate-spin" size={14} />
+                                Creating Session...
+                            </>
+                        ) : (
+                            'Scan Another'
+                        )}
                     </button>
                 </div>
             </div>

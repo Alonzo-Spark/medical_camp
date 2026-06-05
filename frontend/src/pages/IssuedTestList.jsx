@@ -18,15 +18,15 @@ function IssuedTestsList() {
     // callStates keyed by patient_id: null | 'calling' | 'success' | 'error'
     const [callStates, setCallStates] = useState({});
 
-    const fetchIssuedTests = async () => {
-        setLoading(true);
+    const fetchIssuedTests = async (silent = false) => {
+        if (!silent) setLoading(true);
         try {
             const res = await axios.get(`${API_BASE}/issued_tests_list`);
             setData(res.data);
         } catch (err) {
             console.error('Error fetching issued tests', err);
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     };
 
@@ -44,37 +44,70 @@ function IssuedTestsList() {
         fetchCamps();
     }, []);
 
-    // Manual checkbox toggle
-    const handleToggleReportStatus = async (testIssueId, patientId, campSession, newValue) => {
-        try {
-            await axios.post(`${API_BASE}/update_test_record`, {
-                test_issue_id: testIssueId,
-                reports_issued: newValue,
+    // Automatic polling when there are active/pending voice calls
+    useEffect(() => {
+        const hasActiveCalls = data.some(
+            item => item.call_status === 'pending' || item.call_status === 'in_progress'
+        );
+
+        // Reset callStates button loaders for patients whose calls finished
+        setCallStates(prev => {
+            let changed = false;
+            const updated = { ...prev };
+            data.forEach(item => {
+                const state = prev[item.patient_id];
+                if (state && item.call_status !== 'pending' && item.call_status !== 'in_progress') {
+                    delete updated[item.patient_id];
+                    changed = true;
+                }
             });
+            return changed ? updated : prev;
+        });
+
+        if (!hasActiveCalls) return;
+
+        const intervalId = setInterval(() => {
+            fetchIssuedTests(true);
+        }, 5000); // Poll every 5 seconds
+
+        return () => {
+            clearInterval(intervalId);
+        };
+    }, [data]);
+
+    // Toggle Test Done status
+    const handleToggleTestDoneStatus = async (testIssueId, patientId, campSession, newValue) => {
+        try {
+            const res = await axios.post(`${API_BASE}/update_test_record`, {
+                test_issue_id: testIssueId,
+                test_done: newValue,
+            });
+            const { test_done, reports_issued } = res.data;
             setData(prev =>
                 prev.map(item => {
                     if (item.patient_id === patientId && item.camp_session === campSession) {
                         const updatedTests = item.tests.map(t =>
-                            t.test_issue_id === testIssueId ? { ...t, reports_issued: newValue } : t
+                            t.test_issue_id === testIssueId ? { ...t, test_done, reports_issued } : t
                         );
                         return {
                             ...item,
                             tests: updatedTests,
                             all_reports_issued: updatedTests.every(t => t.reports_issued),
+                            all_tests_done: updatedTests.every(t => t.test_done),
                         };
                     }
                     return item;
                 })
             );
         } catch (err) {
-            alert('Error updating report status: ' + (err.response?.data?.message || err.message));
+            alert('Error updating test done status: ' + (err.response?.data?.message || err.message));
         }
     };
 
     // Single follow-up call per patient — uses the first pending test_issue_id
     // The voicebot asks about ALL tests generically in one call
     const handleFollowupCall = async (item) => {
-        const firstPendingTest = item.tests.find(t => !t.reports_issued);
+        const firstPendingTest = item.tests.find(t => !t.test_done);
         if (!firstPendingTest) return;
 
         setCallStates(prev => ({ ...prev, [item.patient_id]: 'calling' }));
@@ -84,6 +117,7 @@ function IssuedTestsList() {
                 { test_issue_id: firstPendingTest.test_issue_id }
             );
             setCallStates(prev => ({ ...prev, [item.patient_id]: 'success' }));
+            fetchIssuedTests(true); // Trigger silent refresh to update call_status to pending/in_progress
         } catch (err) {
             console.error('Follow-up call failed:', err);
             setCallStates(prev => ({ ...prev, [item.patient_id]: 'error' }));
@@ -207,34 +241,43 @@ function IssuedTestsList() {
                                                 </div>
                                             </td>
 
-                                            {/* Test pills — checkboxes only, no per-test call button */}
-                                            <td className="px-6 py-5 max-w-sm">
-                                                <div className="flex flex-row flex-wrap gap-x-4 gap-y-2">
+                                            {/* Test pills with Done checkbox */}
+                                            <td className="px-6 py-5 max-w-md">
+                                                <div className="flex flex-col gap-2">
                                                     {item.tests.map((test) => (
-                                                        <label
+                                                        <div
                                                             key={test.test_issue_id}
-                                                            className="flex items-center gap-2 cursor-pointer group"
+                                                            className="flex items-center justify-between gap-3 bg-slate-50/50 p-2 py-1.5 rounded-xl border border-slate-100/80 hover:bg-slate-50 transition-colors"
                                                         >
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={test.reports_issued || false}
-                                                                onChange={(e) =>
-                                                                    handleToggleReportStatus(
-                                                                        test.test_issue_id,
-                                                                        item.patient_id,
-                                                                        item.camp_session,
-                                                                        e.target.checked
-                                                                    )
-                                                                }
-                                                                className="w-4 h-4 rounded text-teal-600 focus:ring-teal-500 border-slate-300 cursor-pointer"
-                                                            />
-                                                            <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border transition-all ${test.reports_issued
-                                                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                                                                    : 'bg-slate-50 text-slate-600 border-slate-200 group-hover:text-slate-800'
-                                                                }`}>
+                                                            <span className="text-xs font-bold text-slate-700 truncate max-w-[130px]" title={test.test_name}>
                                                                 {test.test_name}
                                                             </span>
-                                                        </label>
+                                                            <div className="flex items-center gap-3">
+                                                                {/* Test Done Checkbox */}
+                                                                <label className="flex items-center gap-1 cursor-pointer group">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={test.test_done || false}
+                                                                        onChange={(e) =>
+                                                                            handleToggleTestDoneStatus(
+                                                                                test.test_issue_id,
+                                                                                item.patient_id,
+                                                                                item.camp_session,
+                                                                                e.target.checked
+                                                                            )
+                                                                        }
+                                                                        className="w-3.5 h-3.5 rounded text-teal-600 focus:ring-teal-500 border-slate-300 cursor-pointer"
+                                                                    />
+                                                                    <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border transition-colors ${
+                                                                        test.test_done
+                                                                            ? 'bg-teal-50 text-teal-700 border-teal-100'
+                                                                            : 'bg-white text-slate-400 border-slate-200 group-hover:text-slate-600'
+                                                                    }`}>
+                                                                        Done
+                                                                    </span>
+                                                                </label>
+                                                            </div>
+                                                        </div>
                                                     ))}
                                                 </div>
                                             </td>
@@ -244,7 +287,7 @@ function IssuedTestsList() {
                                                 <div className="flex flex-col items-center gap-2">
 
                                                     {/* Status badge */}
-                                                    {item.all_reports_issued ? (
+                                                    {item.all_tests_done ? (
                                                         <span className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border border-emerald-100">
                                                             <CheckCircle2 size={12} />
                                                             Completed
@@ -252,12 +295,12 @@ function IssuedTestsList() {
                                                     ) : (
                                                         <span className="flex items-center gap-1.5 bg-amber-50 text-amber-700 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border border-amber-100">
                                                             <AlertCircle size={12} className="text-amber-500" />
-                                                            Pending Reports
+                                                            Pending Tests
                                                         </span>
                                                     )}
 
                                                     {/* Follow-up Call button — ONE per patient, only when pending */}
-                                                    {!item.all_reports_issued && (
+                                                    {!item.all_tests_done && (
                                                         <button
                                                             onClick={() => handleFollowupCall(item)}
                                                             disabled={cs === 'calling' || cs === 'success'}

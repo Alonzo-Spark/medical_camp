@@ -28,6 +28,7 @@ function AddingPatients() {
   const [serverIp, setServerIp] = useState('192.168.0.32');
 
   const pollIntervalRef = useRef(null);
+  const lastProcessedSessionIdRef = useRef(null);
 
   // Load camps
   useEffect(() => {
@@ -62,10 +63,61 @@ function AddingPatients() {
     };
   }, []);
 
+  useEffect(() => {
+    // If the modal is closed and we have a session ID, poll in the background to detect new uploads/sessions
+    if (showScanModal || !scanSessionId) return;
+
+    let isActive = true;
+    const interval = setInterval(async () => {
+      try {
+        const res = await axios.get(`${API_BASE}/check_scan_status/${scanSessionId}`);
+        if (!isActive) return;
+
+        if (res.data.status === 'success') {
+          // If a new session is chained on mobile, follow it!
+          if (res.data.next_session_id) {
+            setScanSessionId(res.data.next_session_id);
+            setScanStatus({ is_completed: false, ocr_status: 'pending' });
+            return;
+          }
+
+          // If the user uploaded an image to the current session on mobile, and we haven't processed this session ID yet, automatically process it!
+          if (scanSessionId !== lastProcessedSessionIdRef.current) {
+            if (res.data.is_completed) {
+              lastProcessedSessionIdRef.current = scanSessionId;
+              setScanStatus({ is_completed: true, ocr_status: 'completed' });
+              triggerOcrProcessing(scanSessionId);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Background polling error", err);
+      }
+    }, 3000);
+
+    return () => {
+      isActive = false;
+      clearInterval(interval);
+    };
+  }, [showScanModal, scanSessionId]);
+
   // Initialize scan session
   const startScanSession = async () => {
     try {
       setErrorMsg('');
+      if (scanSessionId) {
+        // Check if there is a next session already chained from mobile
+        const checkRes = await axios.get(`${API_BASE}/check_scan_status/${scanSessionId}`);
+        if (checkRes.data.status === 'success' && checkRes.data.next_session_id) {
+          const nextId = checkRes.data.next_session_id;
+          setScanSessionId(nextId);
+          setScanStatus({ is_completed: false, ocr_status: 'pending' });
+          setShowScanModal(true);
+          startPolling(nextId);
+          return;
+        }
+      }
+
       const res = await axios.post(`${API_BASE}/create_scan_session`);
       if (res.data.status === 'success') {
         setScanSessionId(res.data.session_id);
@@ -86,10 +138,22 @@ function AddingPatients() {
     pollIntervalRef.current = setInterval(async () => {
       try {
         const res = await axios.get(`${API_BASE}/check_scan_status/${sessionId}`);
-        if (res.data.ocr_status === 'completed' || res.data.is_completed) {
-          clearInterval(pollIntervalRef.current);
-          setScanStatus({ is_completed: true, ocr_status: 'completed' });
-          triggerOcrProcessing(sessionId);
+        if (res.data.status === 'success') {
+          // If a new session is chained on mobile, follow it automatically on desktop!
+          if (res.data.next_session_id) {
+            clearInterval(pollIntervalRef.current);
+            setScanSessionId(res.data.next_session_id);
+            setScanStatus({ is_completed: false, ocr_status: 'pending' });
+            startPolling(res.data.next_session_id);
+            return;
+          }
+
+          if (res.data.ocr_status === 'completed' || res.data.is_completed) {
+            lastProcessedSessionIdRef.current = sessionId;
+            clearInterval(pollIntervalRef.current);
+            setScanStatus({ is_completed: true, ocr_status: 'completed' });
+            triggerOcrProcessing(sessionId);
+          }
         }
       } catch (err) {
         console.error("Polling error:", err);
