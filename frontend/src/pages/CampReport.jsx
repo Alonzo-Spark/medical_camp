@@ -66,7 +66,7 @@ const CampReport = () => {
                     </h1>
                     <p className="text-slate-500 font-medium">Detailed clinical and inventory analytics</p>
                 </div>
-                <div className="flex gap-3 w-full md:w-auto">
+                <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
                     <select
                         value={selectedCamp}
                         onChange={(e) => setSelectedCamp(e.target.value)}

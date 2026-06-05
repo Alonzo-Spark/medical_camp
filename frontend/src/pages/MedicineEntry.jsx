@@ -563,7 +563,7 @@ const MedicineEntry = () => {
 
 
       {/* View Switcher */}
-      <div className="flex gap-4 px-4">
+      <div className="flex flex-col md:flex-row flex-wrap gap-4 px-4">
         <button
           onClick={() => setViewMode('total')}
           className={`flex items-center gap-3 px-8 py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.15em] transition-all duration-300 ${viewMode === 'total'
@@ -596,7 +596,7 @@ const MedicineEntry = () => {
         </button>
 
         {(viewMode === 'camp' || viewMode === 'details') && (
-          <div className="flex flex-1 items-center gap-4 animate-in fade-in slide-in-from-left-4">
+          <div className="flex flex-col sm:flex-row flex-1 w-full md:w-auto items-center gap-4 animate-in fade-in slide-in-from-left-4">
             <select
               className="flex-1 bg-white border border-slate-200 rounded-2xl px-5 py-4 text-xs font-black text-slate-600 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 outline-none transition-all appearance-none cursor-pointer"
               value={selectedCamp}
@@ -611,7 +611,7 @@ const MedicineEntry = () => {
             </select>
 
             {selectedCamp && viewMode === 'camp' && (
-              <div className="flex gap-4 animate-in fade-in zoom-in">
+              <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-4 animate-in fade-in zoom-in">
                 <button
                   onClick={handleReturnAll}
                   className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-6 py-4 rounded-2xl shadow-sm shadow-teal-100 font-black text-[10px] uppercase tracking-widest transition-all"
@@ -657,7 +657,7 @@ const MedicineEntry = () => {
               </button>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 w-full md:w-auto">
             {viewMode === 'total' && (
               <>
                 <button
@@ -833,7 +833,7 @@ const MedicineEntry = () => {
         {viewMode === 'total' ? (
           /* Total Stock View */
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse min-w-[1000px]">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-100 text-[12px] font-black uppercase tracking-wide text-slate-600">
                   <th className="px-4 py-4 max-w-[130px] leading-snug">System Identity (UQID)</th>
@@ -1252,7 +1252,7 @@ const MedicineEntry = () => {
         ) : (
           /* Medicine Details View */
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse min-w-[800px]">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-100 text-xs font-black uppercase tracking-[0.2em] text-slate-400">
                   <th className="px-4 py-4">UQID</th>

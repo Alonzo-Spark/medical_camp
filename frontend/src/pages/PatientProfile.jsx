@@ -648,7 +648,7 @@ const PatientProfile = () => {
             </div>
           </div>
           <div className="overflow-x-auto p-8 pt-0">
-            <table className="w-full text-left">
+            <table className="w-full text-left min-w-[600px]">
               <thead>
                 <tr className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-400 border-b border-slate-100">
                   <th className="py-5">Session Date</th>
@@ -1027,7 +1027,7 @@ const PatientProfile = () => {
                     </div>
 
                     <div className="overflow-x-auto rounded-xl border border-slate-100 shadow-sm">
-                      <table className="w-full text-left">
+                      <table className="w-full text-left min-w-[800px]">
                         <thead className="bg-slate-50 text-[9px] font-black text-slate-400 uppercase tracking-widest">
                           <tr>
                             <th className="px-4 py-3 w-16">M.S.No</th>

@@ -902,7 +902,7 @@ const Vitals = () => {
 
           {/* Medicine Table */}
           <div className="overflow-x-auto rounded-2xl border border-slate-200 shadow-sm">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full min-w-[800px] text-left border-collapse">
               <thead>
                 <tr className="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
                   <th className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] w-20 text-center">M.S.No</th>
@@ -1320,7 +1320,7 @@ const Vitals = () => {
             </div>
 
             {/* Footer */}
-            <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-4">
+            <div className="p-6 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row gap-4">
               <button
                 onClick={() => {
                   setShowVerifyModal(false);

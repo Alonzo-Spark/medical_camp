@@ -281,7 +281,7 @@ const CampPatients = () => {
                             <p className="text-xs text-slate-300 font-bold italic pl-1">No medicines issued</p>
                           ) : (
                             <div className="overflow-x-auto rounded-xl border border-slate-200">
-                              <table className="w-full text-left border-collapse">
+                              <table className="w-full text-left border-collapse min-w-[400px]">
                                 <thead>
                                   <tr className="bg-gradient-to-r from-slate-50 to-emerald-50/30 border-b border-slate-200">
                                     <th className="px-3 py-2.5 text-[9px] font-black text-slate-500 uppercase tracking-[0.15em] w-16 text-center">M.ID</th>
@@ -330,7 +330,7 @@ const CampPatients = () => {
                             <p className="text-xs text-slate-300 font-bold italic pl-1">No tests issued</p>
                           ) : (
                             <div className="overflow-x-auto rounded-xl border border-slate-200">
-                              <table className="w-full text-left border-collapse">
+                              <table className="w-full text-left border-collapse min-w-[400px]">
                                 <thead>
                                   <tr className="bg-gradient-to-r from-slate-50 to-purple-50/30 border-b border-slate-200">
                                     <th className="px-3 py-2.5 text-[9px] font-black text-slate-500 uppercase tracking-[0.15em] w-16 text-center">T.ID</th>

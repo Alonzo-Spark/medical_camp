@@ -198,23 +198,23 @@ function PatientRegistration() {
     return (
         <div className="max-w-5xl mx-auto py-4 space-y-6">
             {/* Tabs */}
-            <div className="flex bg-slate-100/80 p-1.5 rounded-2xl w-fit mx-auto border border-slate-200/60 backdrop-blur-sm shadow-sm">
+            <div className="flex flex-col sm:flex-row bg-slate-100/80 p-1.5 rounded-2xl w-full sm:w-fit mx-auto border border-slate-200/60 backdrop-blur-sm shadow-sm gap-2 sm:gap-0">
                 <button 
                     onClick={() => navigate('/register-old')}
-                    className="flex items-center gap-2 px-8 py-3.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 text-slate-400 hover:text-slate-600 hover:bg-slate-200/50"
+                    className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 w-full sm:w-auto"
                 >
                     <UserCheck size={16} strokeWidth={2.5} />
                     Old Patient Registration
                 </button>
                 <button 
-                    className="flex items-center gap-2 px-8 py-3.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 bg-white text-teal-600 shadow-md shadow-slate-200/50"
+                    className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 bg-white text-teal-600 shadow-md shadow-slate-200/50 w-full sm:w-auto"
                 >
                     <UserPlus size={16} strokeWidth={2.5} />
                     New Patient Registration
                 </button>
             </div>
 
-            <div className="glass-panel-light p-10 relative overflow-hidden">
+            <div className="glass-panel-light p-6 sm:p-10 relative overflow-hidden">
                 <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-teal-500 via-teal-400 to-emerald-400" />
 
                 <div className="mb-6">
@@ -388,11 +388,11 @@ function PatientRegistration() {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-6 pt-4">
+                    <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 pt-4">
                         <button
                             type="submit"
                             disabled={loading || pidChecking || !!errors.pid}
-                            className="flex-1 relative overflow-hidden bg-teal-600 hover:bg-teal-700 text-white h-16 rounded-xl transition-all shadow-lg shadow-teal-100 group disabled:opacity-50 active:scale-[0.98]"
+                            className="flex-1 w-full relative overflow-hidden bg-teal-600 hover:bg-teal-700 text-white h-16 rounded-xl transition-all shadow-lg shadow-teal-100 group disabled:opacity-50 active:scale-[0.98]"
                         >
                             <div className="relative flex items-center justify-center gap-3">
                                 {loading ? (
@@ -409,7 +409,7 @@ function PatientRegistration() {
                         <button
                             type="button"
                             onClick={handleClear}
-                            className="flex items-center justify-center gap-2 px-10 h-16 bg-white border border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all font-black text-xs uppercase tracking-widest"
+                            className="flex items-center justify-center gap-2 px-10 h-16 w-full sm:w-auto bg-white border border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all font-black text-xs uppercase tracking-widest"
                         >
                             <RotateCcw size={18} strokeWidth={2.5} />
                             Reset

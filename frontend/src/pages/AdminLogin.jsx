@@ -54,11 +54,11 @@ function AdminLogin() {
 
             {/* Login Card */}
             <div className="relative w-full max-w-md px-4 animate-fade-in z-10">
-                <div className="glass-panel-light p-10 relative overflow-hidden bg-white/80 backdrop-blur-xl">
+                <div className="glass-panel-light p-6 sm:p-10 relative overflow-hidden bg-white/80 backdrop-blur-xl">
                     <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-teal-500 via-teal-400 to-emerald-400" />
 
                     {/* Header */}
-                    <div className="text-center mb-10">
+                    <div className="text-center mb-8 sm:mb-10">
                         <div className="inline-flex items-center justify-center w-40 h-40 rounded-full bg-white border-4 border-teal-100 shadow-md mb-6 group transition-all duration-500 hover:shadow-lg hover:border-teal-300 overflow-hidden">
                             <img src={cccLogo} alt="CCC Logo" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         </div>

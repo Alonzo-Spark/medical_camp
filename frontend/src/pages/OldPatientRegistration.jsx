@@ -214,16 +214,16 @@ function OldPatientRegistration() {
     return (
         <div className="max-w-5xl mx-auto py-2 space-y-3">
             {/* Tabs */}
-            <div className="flex bg-slate-100/80 p-1 rounded-2xl w-fit mx-auto border border-slate-200/60 backdrop-blur-sm shadow-sm">
+            <div className="flex flex-col sm:flex-row bg-slate-100/80 p-1 rounded-2xl w-full sm:w-fit mx-auto border border-slate-200/60 backdrop-blur-sm shadow-sm gap-2 sm:gap-0">
                 <button 
-                    className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all duration-300 bg-white text-teal-600 shadow-md shadow-slate-200/50"
+                    className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all duration-300 bg-white text-teal-600 shadow-md shadow-slate-200/50 w-full sm:w-auto"
                 >
                     <UserCheck size={14} strokeWidth={2.5} />
                     Old Patient Registration
                 </button>
                 <button 
                     onClick={() => navigate('/register')}
-                    className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all duration-300 text-slate-400 hover:text-slate-600 hover:bg-slate-200/50"
+                    className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all duration-300 text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 w-full sm:w-auto"
                 >
                     <UserPlus size={14} strokeWidth={2.5} />
                     New Patient Registration
@@ -431,11 +431,11 @@ function OldPatientRegistration() {
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex items-center gap-4 pt-2">
+                    <div className="flex flex-col sm:flex-row items-center gap-4 pt-2">
                         <button
                             type="submit"
                             disabled={loading || !patientFound}
-                            className="flex-1 relative overflow-hidden bg-teal-600 hover:bg-teal-700 text-white h-12 rounded-xl transition-all shadow-md shadow-teal-100 group disabled:opacity-50 active:scale-[0.98]"
+                            className="flex-1 w-full relative overflow-hidden bg-teal-600 hover:bg-teal-700 text-white h-12 rounded-xl transition-all shadow-md shadow-teal-100 group disabled:opacity-50 active:scale-[0.98]"
                         >
                             <div className="relative flex items-center justify-center gap-2">
                                 {loading ? (
@@ -452,7 +452,7 @@ function OldPatientRegistration() {
                         <button
                             type="button"
                             onClick={handleClear}
-                            className="flex items-center justify-center gap-2 px-6 h-12 bg-white border border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all font-black text-[11px] uppercase tracking-widest"
+                            className="flex items-center justify-center gap-2 px-6 h-12 w-full sm:w-auto bg-white border border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all font-black text-[11px] uppercase tracking-widest"
                         >
                             <RotateCcw size={14} strokeWidth={2.5} />
                             Reset

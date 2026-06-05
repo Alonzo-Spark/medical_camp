@@ -116,7 +116,7 @@ const DoctorReport = () => {
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm transition-all hover:shadow-md">
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           <div className="p-3 bg-teal-50 rounded-2xl">
             <FileText className="text-teal-600" size={28} strokeWidth={2.5} />
           </div>
@@ -198,7 +198,7 @@ const DoctorReport = () => {
                   </div>
                   
                   <div className="mt-auto space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Patient ID</label>
                         <input

@@ -351,7 +351,7 @@ function AddingPatients() {
       <div className="flex flex-wrap items-center gap-4">
         <button
           onClick={startScanSession}
-          className="flex items-center gap-2.5 px-6 h-12 bg-teal-600 hover:bg-teal-700 text-white rounded-xl transition-all shadow-md shadow-teal-100 font-extrabold text-xs uppercase tracking-wider"
+          className="flex justify-center w-full sm:w-auto items-center gap-2.5 px-6 h-12 bg-teal-600 hover:bg-teal-700 text-white rounded-xl transition-all shadow-md shadow-teal-100 font-extrabold text-xs uppercase tracking-wider"
         >
           <QrCode size={18} />
           Scan Handwritten List
@@ -359,7 +359,7 @@ function AddingPatients() {
 
         <button
           onClick={addRow}
-          className="flex items-center gap-2.5 px-6 h-12 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl transition-all font-extrabold text-xs uppercase tracking-wider"
+          className="flex justify-center w-full sm:w-auto items-center gap-2.5 px-6 h-12 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl transition-all font-extrabold text-xs uppercase tracking-wider"
         >
           <PlusSquare size={18} />
           Add Blank Row
@@ -401,7 +401,7 @@ function AddingPatients() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
+            <table className="w-full border-collapse min-w-[1000px]">
               <thead>
                 <tr className="bg-slate-50/70 border-b border-slate-100 text-left">
                   <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest w-12 text-center">Action</th>
@@ -532,17 +532,17 @@ function AddingPatients() {
           </div>
 
           {/* Submit Actions */}
-          <div className="p-5 border-t border-slate-100 bg-slate-50/50 flex items-center justify-end gap-4">
+          <div className="p-5 border-t border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-end gap-4">
             <button
               onClick={() => setPatients([])}
-              className="px-5 py-2.5 border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700 rounded-xl transition-all font-black text-[11px] uppercase tracking-wider"
+              className="w-full sm:w-auto px-5 py-2.5 border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700 rounded-xl transition-all font-black text-[11px] uppercase tracking-wider"
             >
               Clear Grid
             </button>
             <button
               onClick={handleSubmitBatch}
               disabled={loading}
-              className="flex items-center gap-2 px-6 py-2.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white rounded-xl transition-all font-black text-[11px] uppercase tracking-wider shadow-md shadow-teal-100"
+              className="flex justify-center w-full sm:w-auto items-center gap-2 px-6 py-2.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white rounded-xl transition-all font-black text-[11px] uppercase tracking-wider shadow-md shadow-teal-100"
             >
               {loading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />

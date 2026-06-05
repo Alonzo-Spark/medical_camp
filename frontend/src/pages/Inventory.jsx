@@ -147,7 +147,7 @@ const Inventory = () => {
         </div>
         <button
           onClick={handleExport}
-          className="flex items-center gap-3 bg-white hover:bg-slate-50 text-slate-700 px-8 py-4 rounded-xl border border-slate-200 hover:border-teal-200 transition-all shadow-sm font-bold text-sm"
+          className="flex justify-center w-full md:w-auto items-center gap-3 bg-white hover:bg-slate-50 text-slate-700 px-8 py-4 rounded-xl border border-slate-200 hover:border-teal-200 transition-all shadow-sm font-bold text-sm"
         >
           <Download size={20} className="text-teal-500" strokeWidth={2.5} />
           Download Stock Audit (.CSV)
@@ -246,7 +246,7 @@ const Inventory = () => {
 
         {/* Table */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
+          <table className="w-full text-left min-w-[800px]">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-500">
                 <th className="px-8 py-5">Identity (UQID)</th>

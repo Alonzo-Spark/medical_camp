@@ -103,7 +103,7 @@ const CampRegistration = () => {
         </div>
 
         {/* Success / Error badges */}
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           {success && (
             <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 px-5 py-3 rounded-xl border border-emerald-200 shadow-sm animate-bounce">
               <CheckCircle2 size={18} strokeWidth={3} />

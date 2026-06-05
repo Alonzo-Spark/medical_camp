@@ -251,7 +251,7 @@ const DoctorsList = () => {
         </div>
       </div>
 
-      <div className="flex border-b border-slate-200">
+      <div className="flex flex-wrap border-b border-slate-200">
         <button
           className={`py-3 px-6 text-sm font-bold border-b-2 transition-colors ${activeTab === 'doctorsList'
             ? 'border-teal-500 text-teal-600'
@@ -292,7 +292,7 @@ const DoctorsList = () => {
           ) : (
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+                <table className="w-full text-left border-collapse min-w-[800px]">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 text-[11px] font-black uppercase tracking-wider">
                       <th className="p-4 pl-6">Doctor ID</th>
@@ -453,7 +453,7 @@ const DoctorsList = () => {
 
                    {/* Patients Table */}
                    <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse">
+                      <table className="w-full text-left border-collapse min-w-[600px]">
                         <thead>
                            <tr className="bg-slate-50/30 border-b border-slate-100 text-slate-400 text-[10px] font-black uppercase tracking-wider">
                               <th className="p-4 pl-6 w-1/4">Patient Name</th>
