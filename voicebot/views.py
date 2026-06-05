@@ -681,7 +681,7 @@ class AskQ2View(BaseLabTestWebhookView):
                     s3_text = "దయచేసి వచ్చే నెల మొదటి ఆదివారం జరిగే తదుపరి క్యాంప్‌లో పరీక్షలు చేయించుకోండి."
                     audio_file = tts.synthesize_telugu(s3_text)
                 else:
-                    s1_text = "దయచేసి వచ్చే నెల మొదటి ఆదివారం జరిగే తదుపరి క్యాంప్‌లో మిగిలిన పరీక్షలు చేయించుకోండి."
+                    s1_text = "దయచేసి వచ్చే నెల మొదటి ఆదివారం జరిగే తదుపరి క్యాంప్ ముందే మిగిలిన పరీక్షలు చేయించుకోండి."
                     audio_file = tts.synthesize_telugu(s1_text)
                 
                 with open(target_file, "wb") as f:

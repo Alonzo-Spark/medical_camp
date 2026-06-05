@@ -39,7 +39,7 @@ with open(os.path.join(prompts_dir, 'followup_thankyou.wav'), 'wb') as f:
     f.write(thankyou_audio.read())
 
 print("Generating Scenario 1...")
-s1_text = "దయచేసి వచ్చే నెల మొదటి ఆదివారం జరిగే తదుపరి క్యాంప్‌లో మిగిలిన పరీక్షలు చేయించుకోండి."
+s1_text = "దయచేసి వచ్చే నెల మొదటి ఆదివారం జరిగే తదుపరి క్యాంప్ ముందే మిగిలిన పరీక్షలు చేయించుకోండి."
 s1_audio = svc.synthesize_telugu(s1_text)
 with open(os.path.join(prompts_dir, 'scenario1.wav'), 'wb') as f:
     f.write(s1_audio.read())
