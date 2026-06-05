@@ -379,6 +379,7 @@ def export_camp_report(request, camp_id):
     test_ids = TestIssue.objects.filter(camp=camp).values_list('patient_id', flat=True)
 
     from .models import ManualPatientRecord
+    # pyrefly: ignore [missing-attribute]
     manual_records = ManualPatientRecord.objects.filter(camp=camp)
     manual_patient_ids = []
     for mr in manual_records:
@@ -391,7 +392,9 @@ def export_camp_report(request, camp_id):
 
     # Check registered camp visits
     from .models import PatientCampVisit
+    # pyrefly: ignore [missing-attribute]
     visit_pids = PatientCampVisit.objects.filter(camp=camp).values_list('patient_id', flat=True)
+    # pyrefly: ignore [missing-attribute]
     registered_pids = Patient.objects.filter(camp_session=camp.number).values_list('patient_id', flat=True)
     
     all_pids_summary = set(vitals_ids) | set(medicine_ids) | set(test_ids) | set(visit_pids) | set(registered_pids) | set(manual_patient_ids)
@@ -399,6 +402,7 @@ def export_camp_report(request, camp_id):
     
     visit_status_map = {
         v.patient_id: v.is_new
+        # pyrefly: ignore [missing-attribute]
         for v in PatientCampVisit.objects.filter(camp=camp)
     }
     
@@ -407,6 +411,7 @@ def export_camp_report(request, camp_id):
     for pid in all_pids_summary:
         is_new_val = visit_status_map.get(pid)
         if is_new_val is None:
+            # pyrefly: ignore [missing-attribute]
             p_obj = Patient.objects.filter(patient_id=pid).first()
             if p_obj and p_obj.registered_date:
                 if p_obj.registered_date < camp.date:
@@ -422,6 +427,7 @@ def export_camp_report(request, camp_id):
             old_patients += 1
 
     # Doctors who attended
+    # pyrefly: ignore [missing-attribute]
     doctors_query = PatientVitals.objects.filter(camp=camp).values('dr_id', 'dr_name').distinct()
     unique_doctors = {}
     for d in doctors_query:
@@ -440,13 +446,16 @@ def export_camp_report(request, camp_id):
     total_doctors = len(unique_doctors)
 
     # Stock
+    # pyrefly: ignore [missing-attribute]
     stock_data = CampWiseStock.objects.filter(camp=camp)
     total_allocated = sum(s.allocated_stock for s in stock_data)
     total_used = sum(s.used_stock for s in stock_data)
     remaining_stock = max(0, total_allocated - total_used)
     total_cost = sum(s.used_stock * float(s.unit_cost if s.unit_cost is not None else (s.medicine.cost or 0)) for s in stock_data)
 
+    # pyrefly: ignore [missing-attribute]
     total_tests = TestIssue.objects.filter(camp=camp).count()
+    # pyrefly: ignore [missing-attribute]
     total_reports_issued = TestIssue.objects.filter(camp=camp, reports_issued=True).count()
 
     response = HttpResponse(content_type='text/csv')
@@ -480,23 +489,32 @@ def export_camp_report(request, camp_id):
     ])
 
     # Get all patient IDs registered, visited or with entries for this camp
+    # pyrefly: ignore [missing-attribute]
     vitals_pids = PatientVitals.objects.filter(camp=camp).values_list('patient_id', flat=True)
+    # pyrefly: ignore [missing-attribute]
     issue_pids = PatientMedicineIssue.objects.filter(camp=camp).values_list('patient_id', flat=True)
+    # pyrefly: ignore [missing-attribute]
     test_pids = TestIssue.objects.filter(camp=camp).values_list('patient_id', flat=True)
     
     from .models import PatientCampVisit
+    # pyrefly: ignore [missing-attribute]
     visit_pids = PatientCampVisit.objects.filter(camp=camp).values_list('patient_id', flat=True)
+    # pyrefly: ignore [missing-attribute]
     registered_pids = Patient.objects.filter(camp_session=camp.number).values_list('patient_id', flat=True)
     
     all_pids = set(vitals_pids) | set(issue_pids) | set(test_pids) | set(visit_pids) | set(registered_pids) | set(manual_patient_ids)
 
     for pid in sorted(all_pids):
+        # pyrefly: ignore [missing-attribute]
         p = Patient.objects.filter(patient_id=pid).first()
+        # pyrefly: ignore [missing-attribute]
         v = PatientVitals.objects.filter(patient_id=pid, camp=camp).first()
         
+        # pyrefly: ignore [missing-attribute]
         meds = PatientMedicineIssue.objects.filter(patient_id=pid, camp=camp).select_related('medicine')
         med_list = ", ".join([f"{m.medicine.name} ({m.qty})" for m in meds])
         
+        # pyrefly: ignore [missing-attribute]
         tests = TestIssue.objects.filter(patient_id=pid, camp=camp).select_related('test')
         test_list = ", ".join([t.test.name for t in tests])
 
@@ -587,6 +605,7 @@ def api_update_camp_medicine_details(request):
         camp = get_object_or_404(MedicalCamp, id=camp_id)
         medicine = get_object_or_404(Medicine, uqid=uqid)
         
+        # pyrefly: ignore [missing-attribute]
         camp_stock, created = CampWiseStock.objects.get_or_create(
             camp=camp,
             medicine=medicine,
@@ -1365,11 +1384,14 @@ def api_update_visit_details(request, vitals_id):
             )
 
         # 3. Update Tests
+        # pyrefly: ignore [missing-attribute]
         TestIssue.objects.filter(vitals_record=v).delete()
         selected_tests = data.get('selected_tests', [])
         for tid in selected_tests:
+            # pyrefly: ignore [missing-attribute]
             test = MedicalTest.objects.filter(test_id=tid).first()
             if test:
+                # pyrefly: ignore [missing-attribute]
                 TestIssue.objects.create(patient_id=v.patient_id, camp=camp, test=test, vitals_record=v)
 
         return Response({'status': 'success', 'message': 'Visit details updated successfully'})
@@ -1509,6 +1531,7 @@ def api_login(request):
 
 @api_view(['GET'])
 def api_check_patient_id(request, pid):
+    # pyrefly: ignore [missing-attribute]
     patient = Patient.objects.filter(patient_id=pid).first()
     if patient:
         # A patient is a skeleton record if they lack a contact number (which is required during registration)
@@ -1797,6 +1820,7 @@ def api_register_camp(request):
         venue_name = data.get('venue_name')
         camp_date = data.get('date')
         
+        # pyrefly: ignore [missing-attribute]
         if MedicalCamp.objects.filter(number=camp_number).exists():
             return Response({'status': 'error', 'message': f'Camp number {camp_number} already exists.'}, status=400)
         # pyrefly: ignore [missing-attribute]
@@ -1810,8 +1834,10 @@ def api_register_camp(request):
         camp.refresh_from_db()
         
         # Populate CampWiseDoctor with all doctors set to active=True
+        # pyrefly: ignore [missing-attribute]
         doctors = Doctor.objects.all()
         for doc in doctors:
+            # pyrefly: ignore [missing-attribute]
             CampWiseDoctor.objects.get_or_create(camp=camp, doctor=doc, defaults={'is_active': True})
             
         serializer = MedicalCampSerializer(camp)
@@ -2134,8 +2160,10 @@ def api_add_doctor(request):
         )
         
         # Add the new doctor to all existing camps as active
+        # pyrefly: ignore [missing-attribute]
         camps = MedicalCamp.objects.all()
         for camp in camps:
+            # pyrefly: ignore [missing-attribute]
             CampWiseDoctor.objects.get_or_create(camp=camp, doctor=doctor, defaults={'is_active': True})
             
         return Response({
@@ -2199,13 +2227,17 @@ def api_toggle_doctor_status(request, doctor_id):
 
 @api_view(['GET'])
 def api_get_camp_doctors(request, camp_id):
+    # pyrefly: ignore [missing-attribute]
     camp = MedicalCamp.objects.filter(number=camp_id).first()
     if not camp:
+        # pyrefly: ignore [missing-attribute]
         camp = MedicalCamp.objects.filter(id=camp_id).first()
     if not camp:
         return Response({'status': 'error', 'message': 'Camp not found'}, status=404)
     
+    # pyrefly: ignore [missing-attribute]
     doctors = Doctor.objects.all().order_by('id')
+    # pyrefly: ignore [missing-attribute]
     camp_wise_docs = CampWiseDoctor.objects.filter(camp=camp)
     camp_wise_map = {cwd.doctor_id: cwd.is_active for cwd in camp_wise_docs}
     
@@ -2228,14 +2260,17 @@ def api_toggle_camp_doctor_status(request):
     if not camp_id or not doctor_id:
         return Response({'status': 'error', 'message': 'camp_id and doctor_id are required'}, status=400)
     
+    # pyrefly: ignore [missing-attribute]
     camp = MedicalCamp.objects.filter(number=camp_id).first()
     if not camp:
+        # pyrefly: ignore [missing-attribute]
         camp = MedicalCamp.objects.filter(id=camp_id).first()
     if not camp:
         return Response({'status': 'error', 'message': 'Camp not found'}, status=404)
         
     doctor = get_object_or_404(Doctor, id=doctor_id)
     
+    # pyrefly: ignore [missing-attribute]
     cwd_qs = CampWiseDoctor.objects.filter(camp=camp, doctor=doctor)
     if cwd_qs.exists():
         # If record exists, the doctor is currently active.
@@ -2245,6 +2280,7 @@ def api_toggle_camp_doctor_status(request):
     else:
         # If record does not exist, the doctor is currently inactive (default).
         # Toggling makes them active, so we create/keep the record in the table.
+        # pyrefly: ignore [missing-attribute]
         CampWiseDoctor.objects.create(camp=camp, doctor=doctor, is_active=True)
         is_active = True
     
@@ -2278,8 +2314,10 @@ def api_get_camp_details(request, camp_id):
     from .models import ManualPatientRecord
     
     # Try to find by ID first, then by number as fallback
+    # pyrefly: ignore [missing-attribute]
     camp = MedicalCamp.objects.filter(id=camp_id).first()
     if not camp:
+        # pyrefly: ignore [missing-attribute]
         camp = MedicalCamp.objects.filter(number=camp_id).first()
     
     if not camp:
@@ -2321,6 +2359,7 @@ def api_get_camp_details(request, camp_id):
             })
 
     # Fetch manually entered records
+    # pyrefly: ignore [missing-attribute]
     manual_records = ManualPatientRecord.objects.filter(camp=camp)
     for mr in manual_records:
         dr_key = mr.doctor_name or (mr.doctor.name if mr.doctor else "Unknown Doctor")
@@ -2338,7 +2377,9 @@ def api_get_camp_details(request, camp_id):
             # Fetch meds/tests for this patient if they exist in standard tables
             try:
                 p_id_int = int(mr.patient_id_string)
+                # pyrefly: ignore [missing-attribute]
                 meds = PatientMedicineIssue.objects.filter(patient_id=p_id_int, camp=camp.number).values_list('medicine__name', flat=True)
+                # pyrefly: ignore [missing-attribute]
                 tests = TestIssue.objects.filter(patient_id=p_id_int, camp=camp.number).values_list('test__name', flat=True)
             except ValueError:
                 meds = []
@@ -2379,24 +2420,30 @@ def api_get_camp_report(request,camp_id):
     try:
 
         # Try to find by number first, then by ID as fallback
+        # pyrefly: ignore [missing-attribute]
         camp = MedicalCamp.objects.filter(number=camp_id).first()
         if not camp:
+            # pyrefly: ignore [missing-attribute]
             camp = MedicalCamp.objects.filter(id=camp_id).first()
             
         if not camp:
             return Response({'status': 'error', 'message': 'Camp not found'}, status=404)
         
         # 1. Get IDs from Vitals
+        # pyrefly: ignore [missing-attribute]
         vitals_ids = PatientVitals.objects.filter(camp=camp).values_list('patient_id', flat=True)
 
         # 2. Get IDs from Medicine Issue
+        # pyrefly: ignore [missing-attribute]
         medicine_ids = PatientMedicineIssue.objects.filter(camp=camp).values_list('patient_id', flat=True)
 
         # 3. Get IDs from Test Issue
+        # pyrefly: ignore [missing-attribute]
         test_ids = TestIssue.objects.filter(camp=camp).values_list('patient_id', flat=True)
 
         # Get manually entered patients
         from .models import ManualPatientRecord
+        # pyrefly: ignore [missing-attribute]
         manual_records = ManualPatientRecord.objects.filter(camp=camp)
         manual_patient_ids = []
         for mr in manual_records:
@@ -2411,7 +2458,9 @@ def api_get_camp_report(request,camp_id):
 
         # Check if we have registered camp visits in the PatientCampVisit model
         from .models import PatientCampVisit
+        # pyrefly: ignore [missing-attribute]
         visit_pids = PatientCampVisit.objects.filter(camp=camp).values_list('patient_id', flat=True)
+        # pyrefly: ignore [missing-attribute]
         registered_pids = Patient.objects.filter(camp_session=camp.number).values_list('patient_id', flat=True)
         
         all_pids = set(vitals_ids) | set(medicine_ids) | set(test_ids) | set(visit_pids) | set(registered_pids) | set(manual_patient_ids)
@@ -2419,6 +2468,7 @@ def api_get_camp_report(request,camp_id):
         
         visit_status_map = {
             v.patient_id: v.is_new
+            # pyrefly: ignore [missing-attribute]
             for v in PatientCampVisit.objects.filter(camp=camp)
         }
         
@@ -2427,6 +2477,7 @@ def api_get_camp_report(request,camp_id):
         for pid in all_pids:
             is_new_val = visit_status_map.get(pid)
             if is_new_val is None:
+                # pyrefly: ignore [missing-attribute]
                 p_obj = Patient.objects.filter(patient_id=pid).first()
                 if p_obj and p_obj.registered_date:
                     if p_obj.registered_date < camp.date:
@@ -2442,6 +2493,7 @@ def api_get_camp_report(request,camp_id):
                 old_patients += 1
 
         # 4. Get Doctors who attended (Unique by dr_id)
+        # pyrefly: ignore [missing-attribute]
         doctors_query = PatientVitals.objects.filter(camp=camp).values('dr_id', 'dr_name').distinct()
         
         unique_doctors = {}
@@ -2461,6 +2513,7 @@ def api_get_camp_report(request,camp_id):
         doctor_names = list(unique_doctors.values())
         total_doctors = len(unique_doctors)
 
+        # pyrefly: ignore [missing-attribute]
         stock_data=CampWiseStock.objects.filter(camp=camp)
 
         total_allocated = sum(s.allocated_stock for s in stock_data)
@@ -2471,7 +2524,9 @@ def api_get_camp_report(request,camp_id):
 
         total_cost = sum(s.used_stock * float(s.unit_cost if s.unit_cost is not None else (s.medicine.cost or 0)) for s in stock_data)
 
+        # pyrefly: ignore [missing-attribute]
         total_tests= TestIssue.objects.filter(camp=camp).count()
+        # pyrefly: ignore [missing-attribute]
         total_reports_issued = TestIssue.objects.filter(camp=camp, reports_issued=True).count()
 
         report_data = {
@@ -2503,6 +2558,7 @@ def api_get_camp_report(request,camp_id):
 
         return Response(report_data)
         
+    # pyrefly: ignore [missing-attribute]
     except MedicalCamp.DoesNotExist:
         return Response({"error": "Camp not found"}, status=404)
 
@@ -2510,6 +2566,7 @@ def api_get_camp_report(request,camp_id):
 def api_get_doctor_report(request, camp_id):
     try:
         from .models import ManualPatientRecord
+        # pyrefly: ignore [missing-attribute]
         records = ManualPatientRecord.objects.filter(camp__id=camp_id)
         data = [{
             'id': r.id,
@@ -2534,10 +2591,13 @@ def api_save_doctor_report(request):
         patient_id_string = request.data.get('patientId')
         patient_name = request.data.get('patientName')
         
+        # pyrefly: ignore [missing-attribute]
         camp = MedicalCamp.objects.get(id=camp_id)
+        # pyrefly: ignore [missing-attribute]
         doctor = Doctor.objects.get(id=doctor_id) if doctor_id else None
         
         if record_id and not str(record_id).startswith('tmp_'): # If it's a real DB id
+            # pyrefly: ignore [missing-attribute]
             record = ManualPatientRecord.objects.get(id=record_id)
             record.doctor = doctor
             record.doctor_name = doctor_name
@@ -2545,6 +2605,7 @@ def api_save_doctor_report(request):
             record.patient_name = patient_name
             record.save()
         else:
+            # pyrefly: ignore [missing-attribute]
             record = ManualPatientRecord.objects.create(
                 camp=camp,
                 doctor=doctor,
@@ -2571,6 +2632,7 @@ def api_save_doctor_report(request):
 def api_delete_doctor_report(request, record_id):
     try:
         from .models import ManualPatientRecord
+        # pyrefly: ignore [missing-attribute]
         ManualPatientRecord.objects.filter(id=record_id).delete()
         return Response({'status': 'success'})
     except Exception as e:
@@ -2607,6 +2669,7 @@ def api_edit_doctor_patient_assignment(request):
             vitals.save()
             
             # Also update the patient's name in the Patient table if they edited it
+            # pyrefly: ignore [missing-attribute]
             Patient.objects.filter(patient_id=vitals.patient_id).update(patient_name=patient_name)
             
         return Response({'status': 'success', 'message': 'Record updated successfully'})
@@ -2624,6 +2687,7 @@ def api_get_patients_with_tests(request):
 
         patient_ids = list(issues.values_list('patient_id', flat=True).distinct())
 
+        # pyrefly: ignore [missing-attribute]
         patients = Patient.objects.filter(patient_id__in=patient_ids)
 
         patient_map = {p.patient_id: p for p in patients}
@@ -2698,6 +2762,7 @@ def api_ocr_patient_list(request):
         if not session_id:
             return Response({'status': 'error', 'message': 'No session_id provided'}, status=400)
             
+        # pyrefly: ignore [missing-attribute]
         session = ScanSession.objects.filter(session_id=session_id).first()
         if not session:
             return Response({'status': 'error', 'message': 'Invalid session_id'}, status=404)

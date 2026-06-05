@@ -627,7 +627,7 @@ const Vitals = () => {
     <div className="max-w-7xl mx-auto py-6 space-y-8">
       {/* Centered Error Modal */}
       {error && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full text-center border border-slate-100 flex flex-col items-center animate-in zoom-in-95 duration-300">
             <div className="w-16 h-16 rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-500 mb-5 shadow-inner">
               <AlertCircle size={32} strokeWidth={2.5} />
@@ -827,8 +827,8 @@ const Vitals = () => {
                   <label
                     key={test.id}
                     className={`relative flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all select-none group ${isChecked
-                        ? 'bg-purple-50 border-purple-300 shadow-sm shadow-purple-100'
-                        : 'bg-white border-slate-200 hover:border-purple-200 hover:bg-purple-50/30'
+                      ? 'bg-purple-50 border-purple-300 shadow-sm shadow-purple-100'
+                      : 'bg-white border-slate-200 hover:border-purple-200 hover:bg-purple-50/30'
                       }`}
                   >
                     <input
@@ -845,8 +845,8 @@ const Vitals = () => {
                     />
                     {/* Custom checkbox */}
                     <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${isChecked
-                        ? 'bg-purple-600 border-purple-600'
-                        : 'border-slate-300 group-hover:border-purple-400'
+                      ? 'bg-purple-600 border-purple-600'
+                      : 'border-slate-300 group-hover:border-purple-400'
                       }`}>
                       {isChecked && (
                         <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}>
@@ -858,8 +858,8 @@ const Vitals = () => {
                     {/* Test ID badge + name */}
                     <div className="flex items-center gap-2 min-w-0">
                       <span className={`flex-shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-black ${isChecked
-                          ? 'bg-purple-600 text-white'
-                          : 'bg-slate-100 text-slate-500'
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-slate-100 text-slate-500'
                         }`}>
                         {test.id}
                       </span>

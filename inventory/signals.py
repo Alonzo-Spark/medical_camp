@@ -7,8 +7,10 @@ from .models import MedicalCamp, Medicine, CampWiseStock, PatientMedicineIssue
 @receiver(post_save, sender=MedicalCamp)
 def create_camp_stock(sender, instance, created, **kwargs):
     if created:
+        # pyrefly: ignore [missing-attribute]
         medicines = Medicine.objects.all()
         for medicine in medicines:
+            # pyrefly: ignore [missing-attribute]
             CampWiseStock.objects.get_or_create(
                 camp=instance,
                 medicine=medicine,
@@ -18,6 +20,7 @@ def create_camp_stock(sender, instance, created, **kwargs):
 def recalculate_camp_medicine_stock(camp, medicine):
     """Recalculates the used_stock field in CampWiseStock based on actual database entries."""
     # Sum the quantities of all PatientMedicineIssue for this camp and medicine
+    # pyrefly: ignore [missing-attribute]
     total_used = PatientMedicineIssue.objects.filter(camp=camp, medicine=medicine).aggregate(
         total=Sum('qty')
     )['total'] or 0
