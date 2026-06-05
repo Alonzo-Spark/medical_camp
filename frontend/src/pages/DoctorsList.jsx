@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserCircle, Search, Users, Activity, Edit2, Save, X, Trash2, CheckCircle2, XCircle } from 'lucide-react';
+import { UserCircle, Search, Users, Activity, Edit2, Save, X, Trash2, CheckCircle2, XCircle, Download } from 'lucide-react';
 
 const DoctorsList = () => {
 
@@ -168,6 +168,26 @@ const DoctorsList = () => {
     (doc.dr_id && doc.dr_id.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
+  const downloadCSV = () => {
+    const headers = ['Doctor ID', 'Doctor Name', 'Specialization', 'Status'];
+    const rows = filteredDoctors.map(doc => [
+      doc.dr_id || '-',
+      doc.dr_name,
+      doc.specialization || 'Not Specified',
+      doc.is_active ? 'Active' : 'Inactive'
+    ]);
+    const csvContent = [headers, ...rows]
+      .map(row => row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `doctors_list_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleEditClick = (doc) => {
     setEditingId(doc.dr_id || doc.dr_name); // use dr_id or name as unique key for this view
     setEditForm({
@@ -248,6 +268,15 @@ const DoctorsList = () => {
               className="bg-slate-50 border border-slate-200 rounded-xl py-3 pl-11 pr-4 text-sm font-semibold focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none w-full md:w-72 transition-all placeholder:text-slate-400"
             />
           </div>
+
+          <button
+            onClick={downloadCSV}
+            className="inline-flex items-center gap-2 px-4 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm shadow-teal-200 whitespace-nowrap"
+            title="Download doctors list as CSV"
+          >
+            <Download size={15} strokeWidth={2.5} />
+            Download CSV
+          </button>
         </div>
       </div>
 

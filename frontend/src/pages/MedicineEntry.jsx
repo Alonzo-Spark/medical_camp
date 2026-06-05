@@ -969,6 +969,14 @@ const MedicineEntry = () => {
                                 />
                               </div>
                               <div className="flex flex-col gap-1 min-w-[50px]">
+                                <button
+                                  onClick={() => handleUpdate(med.uqid)}
+                                  disabled={!updateQtys[med.uqid] || updateQtys[med.uqid] <= 0}
+                                  className="px-3 py-1 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-100 disabled:text-slate-300 text-white rounded-lg transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
+                                  title="Add to existing stock"
+                                >
+                                  Add
+                                </button>
                                 {editingMedId === med.uqid ? (
                                   <button
                                     onClick={() => handleSaveEdit(med.uqid)}
@@ -995,22 +1003,6 @@ const MedicineEntry = () => {
                                   title="Delete Medicine"
                                 >
                                   Delete
-                                </button>
-                                <button
-                                  onClick={() => handleUpdate(med.uqid)}
-                                  disabled={!updateQtys[med.uqid] || updateQtys[med.uqid] <= 0}
-                                  className="px-3 py-1 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-100 disabled:text-slate-300 text-white rounded-lg transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
-                                  title="Add to existing stock"
-                                >
-                                  Add
-                                </button>
-                                <button
-                                  onClick={() => handleSetStock(med.uqid)}
-                                  disabled={updateQtys[med.uqid] === undefined || updateQtys[med.uqid] === '' || updateQtys[med.uqid] < 0}
-                                  className="px-3 py-1 bg-slate-700 hover:bg-slate-800 disabled:bg-slate-100 disabled:text-slate-300 text-white rounded-lg transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
-                                  title="Set absolute stock value"
-                                >
-                                  Set
                                 </button>
                               </div>
                             </div>
