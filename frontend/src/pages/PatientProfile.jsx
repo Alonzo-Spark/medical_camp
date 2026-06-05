@@ -568,8 +568,9 @@ const PatientProfile = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-12 gap-8 animate-fade-in">
-        {/* Identity Card */}
+      {data && (
+        <div className="grid grid-cols-12 gap-8 animate-fade-in">
+          {/* Identity Card */}
         <div className="col-span-12 flex flex-col gap-6 md:flex-row md:items-center justify-between bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
             <div className="h-16 w-16 rounded-2xl bg-teal-600 flex items-center justify-center text-3xl font-black text-white shadow-lg shadow-teal-200 flex-shrink-0">
@@ -815,7 +816,7 @@ const PatientProfile = () => {
           </div>
         </div>
       </div>
-      ){'}'}
+      )}
 
       {!data && !error && !loading && (
         <div className="flex flex-col items-center justify-center py-24 animate-fade-in">

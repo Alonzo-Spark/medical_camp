@@ -205,7 +205,7 @@ class CampWiseStock(models.Model):
         return max(0, self.available_stock)
 
     def save(self, *args, **kwargs):
-        # pyrefly: ignore [unsupported-operation]
+        # pyrefly: ignore [bad-assignment, unsupported-operation]
         self.available_stock = max(0, self.allocated_stock - self.used_stock - self.returned_stock)
         super().save(*args, **kwargs)
 
