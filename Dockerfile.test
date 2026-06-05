@@ -1,0 +1,16 @@
+FROM mcr.microsoft.com/playwright/python:v1.60.0-jammy
+
+WORKDIR /app
+
+# Install only the test dependencies to avoid Python version conflicts with Django
+RUN pip install --no-cache-dir pytest pytest-playwright playwright pytest-reportportal reportportal-client reportlab
+
+# Copy the entire project
+COPY . .
+
+# Set default env variables for host docker internal
+ENV FRONTEND_URL="http://host.docker.internal:5173"
+ENV BACKEND_URL="http://host.docker.internal:8000"
+
+# Command to run tests
+CMD ["pytest", "--reportportal"]

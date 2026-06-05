@@ -1,0 +1,154 @@
+## ReportPortal common variables
+##
+
+## @section Deployment Profiles
+##
+## The following profiles can be used to control which services are launched:
+##
+## - core: Essential services required for a standard ReportPortal deployment
+## - infra: Infrastructure dependencies (e.g., database, message broker, gateway)
+## - "": Default profile, typically used for optional or internal services (e.g., analyzers)
+##
+
+## @section Logging configuration
+## @param x-logging Shared logging configuration for all services
+## - Uses json-file logging driver with rotation
+##
+x-logging: &logging
+  driver: "json-file"
+  options:
+    max-size: 100m
+    max-file: "5"
+
+## @section Database configuration
+## @param x-database Shared database connection settings used across services
+## @param db_host Internal hostname of the database container (e.g., "postgres")
+## @param db_port Port used to connect to the database (default: 5432)
+## @param db_user Username for service-level access to the database
+## @param db_password Password for the specified DB user
+## @param db_name Logical database name used by services
+##
+x-database:
+  db_host: &db_host postgres
+  db_port: &db_port 5432
+  db_user: &db_user ${POSTGRES_USER-rpuser}
+  db_password: &db_password ${POSTGRES_PASSWORD-rppass}
+  db_name: &db_name ${POSTGRES_DB-reportportal}
+
+## @section AMQP (RabbitMQ) configuration
+## @param x-amqp Shared message broker settings used for internal service communication
+## @param rabbitmq_host Hostname of the RabbitMQ container (Docker internal DNS)
+## @param rabbitmq_port Port for AMQP protocol communication (default: 5672)
+## @param rabbitmq_apiport Port to access RabbitMQ web UI (default: 15672)
+## @param rabbitmq_user Username for authenticating RabbitMQ clients
+## @param rabbitmq_password Password for the RabbitMQ user
+##
+x-amqp:
+  rabbitmq_host: &rabbitmq_host rabbitmq
+  rabbitmq_port: &rabbitmq_port 5672
+  rabbitmq_apiport: &rabbitmq_apiport 15672
+  rabbitmq_user: &rabbitmq_user ${RABBITMQ_DEFAULT_USER-rabbitmq}
+  rabbitmq_password: &rabbitmq_password ${RABBITMQ_DEFAULT_PASS-rabbitmq}
+
+## @section Common environment variables
+## @param x-environment Environment values used by services for database, AMQP and storage connectivity
+##
+x-environment: &common-environment
+  RP_DB_HOST: *db_host
+  RP_DB_PORT: *db_port
+  RP_DB_USER: *db_user
+  RP_DB_PASS: *db_password
+  RP_DB_NAME: *db_name
+  RP_AMQP_HOST: *rabbitmq_host
+  RP_AMQP_PORT: *rabbitmq_port
+  RP_AMQP_APIPORT: *rabbitmq_apiport
+  RP_AMQP_USER: *rabbitmq_user
+  RP_AMQP_PASS: *rabbitmq_password
+  RP_AMQP_APIUSER: *rabbitmq_user
+  RP_AMQP_APIPASS: *rabbitmq_password
+  RP_AMQP_ANALYZER-VHOST: analyzer
+  DATASTORE_TYPE: filesystem # Change to 's3' to use aws S3 storage
+  ## For S3 storage, also set the following variables in addition to @env DATASTORE_TYPE: s3
+  ## Ref.: https://reportportal.io/docs/installation-steps-advanced/file-storage-options/S3CloudStorage/
+  # RP_FEATURE_FLAGS: singleBucket
+  # DATASTORE_REGION: "us-standard"
+  ## @env DATASTORE_ACCESSKEY and DATASTORE_SECRETSKEY must be empty for AIM Role-based access
+  # DATASTORE_ACCESSKEY: ""
+  # DATASTORE_SECRETSKEY: ""
+  # DATASTORE_DEFAULTBUCKETNAME: my-rp-docker-bucket
+
+## @section Analyzer service environment
+## @param x-analyzer-environment Environment variables specific to analyzer services (e.g., auto-analyzer)
+##
+x-analyzer-environment: &common-analyzer-environment
+  LOGGING_LEVEL: info
+  AMQP_EXCHANGE_NAME: analyzer-default
+  AMQP_VIRTUAL_HOST: analyzer
+  AMQP_URL: amqp://${RABBITMQ_DEFAULT_USER-rabbitmq}:${RABBITMQ_DEFAULT_PASS-rabbitmq}@rabbitmq:5672
+  ES_HOSTS: http://opensearch:9200
+  ANALYZER_BINARYSTORE_TYPE: filesystem
+  DATASTORE_TYPE: filesystem # Change to 'minio' or 's3' for object storage
+  ## For filesystem storage, set path where analyzer data will be stored
+  FILESYSTEM_DEFAULT_PATH: /data/storage/analyzer
+  ## For MinIO storage, set DATASTORE_TYPE: minio and configure:
+  # DATASTORE_ENDPOINT: http://minio:9000
+  # DATASTORE_ACCESSKEY: ${STORAGE_ACCESSKEY-rpuser}
+  # DATASTORE_SECRETKEY: ${STORAGE_SECRETKEY-miniopassword}
+  # DATASTORE_BUCKETPREFIX: prj-
+  # DATASTORE_BUCKETPOSTFIX: ""
+  # DATASTORE_DEFAULTBUCKETNAME: rp-bucket/analyzer
+  ## For S3 storage, set DATASTORE_TYPE: s3 and configure:
+  # DATASTORE_REGION: us-east-1
+  # DATASTORE_ACCESSKEY: ""  # Leave empty for IAM Role-based access
+  # DATASTORE_SECRETKEY: ""  # Leave empty for IAM Role-based access
+  # DATASTORE_BUCKETPREFIX: prj-
+  # DATASTORE_BUCKETPOSTFIX: ""
+  # DATASTORE_DEFAULTBUCKETNAME: my-rp-bucket/analyzer
+
+services:
+  ##
+  ## ReportPortal dependencies
+  ## @section ReportPortal dependencies
+  ##
+
+  ## @param gateway Reverse proxy and entry point for ReportPortal
+  ## - Port 8080: exposes the ReportPortal UI
+  ## - Port 8081: exposes the Traefik dashboard
+  ## - Uses Docker labels to auto-discover services
+  ##
+  gateway:
+    image: traefik:v2.11.46
+    logging:
+      <<: *logging
+    ports:
+      - "8080:8080"  ## ReportPortal UI 
+      - "8081:8081"  ## Traefik dashboard
+      - "443:443"    ## HTTPS
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      ## SSL cert configs
+      # - ./certs:/certs:ro  ## Mount directory containing SSL certificates
+      # - ./acme.json:/acme.json  ## Let's Encrypt ACME challenge file
+    command:
+      - --providers.docker=true
+      - --providers.docker.constraints=Label(`traefik.expose`, `true`)
+      - --entrypoints.web.address=:8080
+      - --entrypoints.traefik.address=:8081
+      - --entrypoints.websecure.address=:443
+      ## SSL cert configs
+      - --entrypoints.websecure.http.tls=true
+      # - --certificatesresolvers.letsencrypt.acme.email=your-email@example.com
+      # - --certificatesresolvers.letsencrypt.acme.storage=/acme.json
+      # - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+      # - --certificatesresolvers.letsencrypt.acme.tlschallenge=true
+      # - --certificatesresolvers.filecerts.acme.certificatespath=/certs
+      - --api.dashboard=true
+      - --api.insecure=true
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/api/http/routers || wget -q --spider http://localhost:8081/api/http/routers || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - reportpor
