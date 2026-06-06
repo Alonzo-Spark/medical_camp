@@ -63,10 +63,9 @@ function AdminLogin() {
                             <img src={cccLogo} alt="CCC Logo" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         </div>
                         <div className="flex items-center justify-center gap-2 mb-1">
-                            <Heart size={14} className="text-teal-500" />
-                            <h1 className="text-3xl font-black text-slate-800 tracking-tight">SWASTH</h1>
+                            <Heart size={16} className="text-teal-500" />
+                            <h1 className="text-2xl font-black text-slate-800 tracking-tight uppercase">CCC Medical Camp</h1>
                         </div>
-                        <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.3em]">MEDICAL CAMP MANAGEMENT SYSTEM</p>
                     </div>
 
                     {/* Form */}

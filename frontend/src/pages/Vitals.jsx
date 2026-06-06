@@ -659,7 +659,7 @@ const Vitals = () => {
             <div className="p-2.5 bg-teal-50 rounded-xl border border-teal-200">
               <Activity className="text-teal-600" size={24} strokeWidth={2.5} />
             </div>
-            <h3 className="text-3xl font-black text-slate-800 tracking-tight">Patient Vitals</h3>
+            <h3 className="text-3xl font-black text-slate-800 tracking-tight">Patient Diagnosis Sheet</h3>
           </div>
           <p className="text-slate-400 text-sm font-bold ml-[52px]">Comprehensive health baseline and diagnostics</p>
         </div>

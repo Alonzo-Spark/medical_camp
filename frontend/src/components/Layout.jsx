@@ -142,7 +142,7 @@ const Layout = () => {
             <SidebarLink to="/camp-patients" icon={Users} label="Camp Patient List" active={location.pathname === '/camp-patients'} />
             <SidebarLink to="/adding-patients" icon={UserPlus} label="Adding Patients" active={location.pathname === '/adding-patients'} />
 
-            <SidebarLink to="/vitals" icon={Activity} label="Log Vitals" active={location.pathname === '/vitals'} />
+            <SidebarLink to="/vitals" icon={Activity} label="Patient Diagnosis Sheet" active={location.pathname === '/vitals'} />
             <SidebarLink to="/doctors" icon={UserCircle} label="Doctors List" active={location.pathname === '/doctors'} />
             <SidebarLink to="/doctor-consultation-log" icon={FileText} label="Doctor Consultation Log" active={location.pathname === '/doctor-consultation-log'} />
             <SidebarLink to="/issued-tests" icon={FlaskConical} label="Issued Tests Tracker" active={location.pathname === '/issued-tests'} />
