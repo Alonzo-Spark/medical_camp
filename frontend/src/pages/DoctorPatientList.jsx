@@ -210,12 +210,13 @@ const DoctorPatientList = () => {
               if (dbData && dbData.doctors) {
                 dbData.doctors.forEach(dr => {
                   const key = dr.dr_id ? dr.dr_id.toString() : dr.dr_name;
+                  const vitalsPatients = dr.patients.filter(p => p.source !== 'Manually Added');
                   doctorsMap.set(key, {
                     dr_id: dr.dr_id,
                     dr_name: dr.dr_name,
-                    dbPatientsCount: dr.patients.length,
+                    dbPatientsCount: vitalsPatients.length,
                     manualPatientsCount: 0,
-                    patients: dr.patients.map(p => ({ ...p, isManual: false }))
+                    patients: vitalsPatients.map(p => ({ ...p, isManual: false }))
                   });
                 });
               }

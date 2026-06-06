@@ -1,4 +1,5 @@
 import os
+import time
 import requests
 from django.utils import timezone
 from django.http import HttpResponse, HttpResponseRedirect
@@ -6,288 +7,9 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from inventory.models import Patient, MedicalCamp
-from voicebot.models import CallSchedule, CampVoiceReminder
-from voicebot.services.reminder_service import ReminderService
 
 
-class TriggerTestReminderView(APIView):
-    def post(self, request):
-        """
-        Trigger Telugu voice reminder generation and place outbound call via Exotel.
-        Uses Exotel's App Builder Flow URL — passes EXOTEL_FLOW_URL as the call URL,
-        which executes the Exotel dashboard flow (which calls our exotel-callback/ to play audio).
-        """
-        patient_id = request.data.get("patient_id")
-
-        if not patient_id:
-            return Response(
-                {"error": "patient_id is required."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        try:
-            patient = Patient.objects.get(patient_id=patient_id)
-            upcoming_camp = MedicalCamp.objects.all().order_by('-id').first()
-            if not upcoming_camp:
-                return Response(
-                    {"error": "No registered medical camps found. Please register a camp first."},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-        except Patient.DoesNotExist:
-            return Response({"error": "Patient not found."}, status=status.HTTP_404_NOT_FOUND)
-
-        schedule = CallSchedule.objects.create(
-            patient=patient,
-            camp=upcoming_camp,
-            scheduled_time=timezone.now(),
-            status='pending'
-        )
-
-        service = ReminderService()
-        try:
-            updated_schedule = service.process_and_generate_audio(schedule.id)
-
-            public_url = os.getenv("PUBLIC_URL", "").strip().rstrip('/')
-            if public_url:
-                audio_url = public_url + updated_schedule.audio_file.url
-            else:
-                audio_url = request.build_absolute_uri(updated_schedule.audio_file.url)
-
-            exotel_sid = os.getenv("EXOTEL_ACCOUNT_SID", "").strip()
-            exotel_key = os.getenv("EXOTEL_API_KEY", "").strip()
-            exotel_token = os.getenv("EXOTEL_API_TOKEN", "").strip()
-            exotel_caller_id = os.getenv("EXOTEL_CALLER_ID", "").strip()
-            exotel_flow_url = (os.getenv("EXOTEL_REMINDER_FLOW_URL") or os.getenv("EXOTEL_FLOW_URL", "")).strip()
-            smart_start_url = f"{public_url}/api/voicebot/smart-start/" if public_url else request.build_absolute_uri("/api/voicebot/smart-start/")
-
-            call_status = "Audio generated. Exotel credentials not configured in .env"
-
-            if exotel_sid and exotel_key and exotel_token and exotel_caller_id:
-                connect_url = f"https://api.exotel.com/v1/Accounts/{exotel_sid}/Calls/connect.json"
-                payload = {
-                    "From": patient.contact_no,
-                    "CallerId": exotel_caller_id,
-                    "Url": exotel_flow_url,  # Points to Exotel App Builder Flow
-                    "CallType": "trans",
-                    "TimeOut": 30,
-                    "StatusCallback": f"{public_url}/api/voicebot/exotel-status/" if public_url else "",
-                }
-
-                try:
-                    response = requests.post(
-                        connect_url,
-                        auth=(exotel_key, exotel_token),
-                        data=payload,
-                        timeout=10
-                    )
-                    if response.status_code == 200:
-                        call_status = "Exotel call triggered successfully!"
-                        updated_schedule.status = 'triggered'
-                        updated_schedule.save()
-                    else:
-                        call_status = f"Exotel API error {response.status_code}: {response.text}"
-                        updated_schedule.status = 'failed'
-                        updated_schedule.save()
-                except Exception as call_err:
-                    call_status = f"Failed to connect to Exotel: {str(call_err)}"
-                    updated_schedule.status = 'failed'
-                    updated_schedule.save()
-
-            return Response({
-                "status": "success",
-                "message": f"Reminder processed for Camp {upcoming_camp.number}. Status: {call_status}",
-                "schedule_id": updated_schedule.id,
-                "patient_name": patient.patient_name,
-                "target_camp_number": upcoming_camp.number,
-                "audio_url": audio_url,
-                "exotel_status": call_status
-            }, status=status.HTTP_200_OK)
-
-        except Exception as e:
-            return Response({
-                "status": "error",
-                "message": f"Failed to process reminder: {str(e)}",
-                "schedule_id": schedule.id
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-class ExotelPlayXMLView(APIView):
-    """
-    ExoML endpoint — used only if connecting using custom XML.
-    Returns XML with <Play> so Exotel downloads and plays the WAV file directly.
-    """
-    authentication_classes = []
-    permission_classes = []
-
-    def get(self, request):
-        camp_id = request.GET.get('camp_id')
-        public_url = os.getenv("PUBLIC_URL", "").strip().rstrip('/')
-
-        try:
-            reminder = None
-            if camp_id:
-                reminder = CampVoiceReminder.objects.filter(camp__id=camp_id).first()
-            if not reminder or not reminder.audio_file:
-                reminder = CampVoiceReminder.objects.order_by('-id').first()
-
-            if reminder and reminder.audio_file:
-                if public_url:
-                    audio_url = public_url + reminder.audio_file.url
-                else:
-                    audio_url = request.build_absolute_uri(reminder.audio_file.url)
-
-                print(f"[ExoML Play] Serving audio: {audio_url}")
-                xml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-    <Play>{audio_url}</Play>
-    <Hangup/>
-</Response>"""
-                return HttpResponse(xml, content_type='text/xml')
-
-        except Exception as e:
-            print(f"[ExoML Play] Error: {e}")
-
-        xml = """<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-    <Hangup/>
-</Response>"""
-        return HttpResponse(xml, content_type='text/xml')
-
-
-class ExotelCallbackView(APIView):
-    """
-    Callback endpoint for Exotel Greeting applet (set to 'Read from URL' / 'Read Text').
-    Returns the raw audio URL in plain text format so Exotel can download and play it.
-    """
-    authentication_classes = []
-    permission_classes = []
-
-    def get(self, request):
-        patient_phone = request.GET.get('From', '')
-        
-        # Normalize/clean phone number to match database
-        clean_phone = patient_phone
-        if clean_phone.startswith('+91'):
-            clean_phone = clean_phone[3:]
-        elif clean_phone.startswith('91') and len(clean_phone) > 10:
-            clean_phone = clean_phone[2:]
-        if clean_phone.startswith('0') and len(clean_phone) > 10:
-            clean_phone = clean_phone[1:]
-            
-        try:
-            # Try to find the patient and their upcoming camp voice reminder
-            if clean_phone:
-                patient = Patient.objects.filter(contact_no__contains=clean_phone).first()
-                if patient:
-                    upcoming_camp = MedicalCamp.objects.all().order_by('-id').first()
-                    if upcoming_camp:
-                        reminder = CampVoiceReminder.objects.filter(camp=upcoming_camp).first()
-                        if reminder and reminder.audio_file:
-                             public_url = os.getenv("PUBLIC_URL", "").strip().rstrip('/')
-                             if public_url:
-                                 audio_url = public_url + reminder.audio_file.url
-                             else:
-                                 audio_url = request.build_absolute_uri(reminder.audio_file.url)
-                             print(f"[Exotel Callback] Serving patient-specific audio: {audio_url}")
-                             return HttpResponse(audio_url, content_type='text/plain')
-
-            # Fallback to latest audio reminder generated
-            latest_reminder = CampVoiceReminder.objects.order_by('-id').first()
-            if latest_reminder and latest_reminder.audio_file:
-                public_url = os.getenv("PUBLIC_URL", "").strip().rstrip('/')
-                if public_url:
-                    audio_url = public_url + latest_reminder.audio_file.url
-                else:
-                    audio_url = request.build_absolute_uri(latest_reminder.audio_file.url)
-                print(f"[Exotel Callback] Serving latest fallback audio: {audio_url}")
-                return HttpResponse(audio_url, content_type='text/plain')
-                
-            return HttpResponse("Error: No reminders generated", content_type='text/plain', status=404)
-            
-        except Exception as e:
-            print(f"[Exotel Callback] Error: {e}")
-            return HttpResponse(f"Error: {str(e)}", content_type='text/plain', status=500)
-
-
-class SmartStartView(APIView):
-    """
-    GET /api/voicebot/smart-start/
-
-    Unified ExoML webhook — configure this as the Exotel App Builder 'Passthru' URL.
-
-    Phase 1 (camp reminder) → returns Play + Hangup ExoML
-    """
-    authentication_classes = []
-    permission_classes = []
-
-    def _normalize_phone(self, phone: str) -> str:
-        """Strip country codes and leading zeroes to match DB contact_no."""
-        phone = phone.strip()
-        if phone.startswith('+91'):
-            phone = phone[3:]
-        elif phone.startswith('91') and len(phone) > 10:
-            phone = phone[2:]
-        if phone.startswith('0') and len(phone) > 10:
-            phone = phone[1:]
-        return phone
-
-    def post(self, request):
-        return self.get(request)
-
-    def get(self, request):
-        # Exotel sends the patient's phone as 'From' or 'CallFrom'
-        raw_phone   = request.GET.get('From') or request.GET.get('CallFrom') or request.POST.get('From') or request.POST.get('CallFrom') or ''
-        call_sid    = request.GET.get('CallSid') or request.POST.get('CallSid')
-        clean_phone = self._normalize_phone(raw_phone)
-        public_url  = os.getenv("PUBLIC_URL", "").strip().rstrip('/')
-
-        print(f"[SmartStart] Incoming call sid={call_sid} from: {raw_phone} (cleaned: {clean_phone})")
-
-        # ── Phase 1: return camp reminder play + hangup ExoML ─────────────────
-        print(f"[SmartStart] Phase 1 call — serving camp reminder audio")
-        try:
-            reminder = None
-            if clean_phone:
-                patient = Patient.objects.filter(contact_no__contains=clean_phone).first()
-                if patient:
-                    upcoming_camp = MedicalCamp.objects.all().order_by('-id').first()
-                    if upcoming_camp:
-                        reminder = CampVoiceReminder.objects.filter(camp=upcoming_camp).first()
-
-            if not reminder:
-                reminder = CampVoiceReminder.objects.order_by('-id').first()
-
-            if reminder and reminder.audio_file:
-                audio_url = (public_url + reminder.audio_file.url
-                             if public_url
-                             else request.build_absolute_uri(reminder.audio_file.url))
-                xml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-    <Play>{audio_url}</Play>
-    <Hangup/>
-</Response>"""
-                return HttpResponse(xml, content_type='text/xml')
-
-        except Exception as e:
-            print(f"[SmartStart] Phase 1 fallback error: {e}")
-
-        # Final fallback — just hang up gracefully
-        return HttpResponse(
-            '<?xml version="1.0" encoding="UTF-8"?><Response><Hangup/></Response>',
-            content_type='text/xml'
-        )
-
-
-class ExotelStatusView(APIView):
-    """Receives call status updates from Exotel (completed, failed, busy, etc.)."""
-    authentication_classes = []
-    permission_classes = []
-
-    def post(self, request):
-        call_sid = request.data.get('CallSid', 'unknown')
-        call_status = request.data.get('Status', 'unknown')
-        print(f"[Exotel Status] CallSid={call_sid} Status={call_status}")
-        return HttpResponse('OK', content_type='text/plain')
+# Phase 1 views removed as per client request.
 
 
 
@@ -299,10 +21,49 @@ from voicebot.services.stt_service import SarvamSTTService
 from voicebot.services.intent_service import IntentService
 from django.utils import timezone
 
+def _get_param(request, key):
+    val = request.POST.get(key) or request.GET.get(key)
+    if not val and hasattr(request, "data") and isinstance(request.data, dict):
+        val = request.data.get(key)
+    return val
+
+def _log_request(endpoint, request, voice_call=None, extra=None):
+    try:
+        import json, datetime, os
+        log_dir = "media"
+        os.makedirs(log_dir, exist_ok=True)
+        log_file = os.path.join(log_dir, "voicebot_requests.log")
+        
+        get_params = dict(request.GET.items())
+        post_params = dict(request.POST.items())
+        data_params = {}
+        if hasattr(request, "data") and isinstance(request.data, dict):
+            # Convert QueryDict or dict keys/vals to string/serializable format
+            for k, v in request.data.items():
+                data_params[str(k)] = str(v)
+            
+        log_data = {
+            "timestamp": datetime.datetime.now().isoformat(),
+            "endpoint": endpoint,
+            "method": request.method,
+            "GET": get_params,
+            "POST": post_params,
+            "data": data_params,
+            "voice_call_id": voice_call.id if voice_call else None,
+            "voice_call_lang": voice_call.language if voice_call else None,
+            "voice_call_sid": voice_call.call_sid if voice_call else None,
+            "extra": extra
+        }
+        
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(json.dumps(log_data) + "\n")
+    except Exception as e:
+        print(f"Failed to log request: {e}")
+
 def _wait_for_recording_ready(url, max_wait_seconds=300):
     """
     Polls the Exotel recording URL until it is ready (returns HTTP 200 with audio content).
-    Checks every 5 seconds, up to max_wait_seconds.
+    Checks frequently (every 0.5s) to minimize latency.
     """
     import time
     import requests
@@ -312,20 +73,36 @@ def _wait_for_recording_ready(url, max_wait_seconds=300):
     exotel_key = os.getenv("EXOTEL_API_KEY")
     exotel_token = os.getenv("EXOTEL_API_TOKEN")
     start_time = time.time()
+    
+    # Try immediately first
+    try:
+        resp = requests.get(url, auth=(exotel_key, exotel_token), timeout=2, stream=True)
+        if resp.status_code == 200:
+            content_length = int(resp.headers.get('Content-Length', 0))
+            content_type = resp.headers.get('Content-Type', '')
+            if 'audio' in content_type.lower() or content_length > 1000:
+                resp.close()
+                time.sleep(0.3)
+                return True
+        resp.close()
+    except Exception:
+        pass
+
     while time.time() - start_time < max_wait_seconds:
+        time.sleep(0.5)
         try:
-            resp = requests.get(url, auth=(exotel_key, exotel_token), timeout=5, stream=True)
+            # pyrefly: ignore [bad-argument-type]
+            resp = requests.get(url, auth=(exotel_key, exotel_token), timeout=2, stream=True)
             if resp.status_code == 200:
                 content_length = int(resp.headers.get('Content-Length', 0))
                 content_type = resp.headers.get('Content-Type', '')
                 if 'audio' in content_type.lower() or content_length > 1000:
                     resp.close()
-                    time.sleep(3)  # extra safety delay to make sure file is flushed
+                    time.sleep(0.3)
                     return True
             resp.close()
         except Exception:
             pass
-        time.sleep(5)
     return False
 
 
@@ -338,9 +115,9 @@ class BaseLabTestWebhookView(APIView):
         
     def _get_voice_call(self, request):
         # CustomField = VoiceCall.id — most reliable identifier Exotel sends
-        custom_field = request.POST.get("CustomField") or request.GET.get("CustomField")
-        call_sid     = request.POST.get("CallSid")     or request.GET.get("CallSid")
-        raw_phone    = request.POST.get("From")        or request.GET.get("From") or ""
+        custom_field = _get_param(request, "CustomField")
+        call_sid     = _get_param(request, "CallSid")
+        raw_phone    = _get_param(request, "From") or ""
 
         print(f"[Webhook] CustomField={custom_field} CallSid={call_sid} From={raw_phone}")
 
@@ -350,50 +127,67 @@ class BaseLabTestWebhookView(APIView):
         if custom_field:
             try:
                 voice_call = VoiceCall.objects.get(id=int(custom_field))
-                print(f"[Webhook] Found VoiceCall by CustomField: {voice_call.id}")
-                # Update call_sid if not set yet (Exotel uses a different SID in webhooks)
-                if call_sid and not voice_call.call_sid:
+                print(f"[Webhook] Found VoiceCall by CustomField: {voice_call.id} (lang={voice_call.language})")
+                # ALWAYS update call_sid from webhook — Exotel's leg SID differs from the
+                # parent SID saved during trigger_followup_call, so we must overwrite it
+                # every time CustomField is present to keep lookup-by-SID working.
+                if call_sid and voice_call.call_sid != call_sid:
+                    print(f"[Webhook] Updating call_sid from {voice_call.call_sid} -> {call_sid}")
                     voice_call.call_sid = call_sid
                     voice_call.save(update_fields=["call_sid"])
-                return voice_call
             except (VoiceCall.DoesNotExist, ValueError):
                 print(f"[Webhook] No VoiceCall found for CustomField={custom_field}")
 
         # 2. Try by call_sid
-        if call_sid:
+        if not voice_call and call_sid:
             voice_call = VoiceCall.objects.filter(call_sid=call_sid).first()
             if voice_call:
-                print(f"[Webhook] Found VoiceCall by CallSid")
-                return voice_call
+                print(f"[Webhook] Found VoiceCall by CallSid: {voice_call.id} (lang={voice_call.language})")
 
-        # 3. Fallback: most recent pending/in-progress call for this phone
-        clean_phone = raw_phone.strip()
-        if clean_phone.startswith('+91'):   clean_phone = clean_phone[3:]
-        elif clean_phone.startswith('91') and len(clean_phone) > 10: clean_phone = clean_phone[2:]
-        if clean_phone.startswith('0') and len(clean_phone) > 10: clean_phone = clean_phone[1:]
+        # 3. Fallback: most recent in-progress/pending call for this phone
+        if not voice_call:
+            clean_phone = raw_phone.strip()
+            if clean_phone.startswith('+91'):   clean_phone = clean_phone[3:]
+            elif clean_phone.startswith('91') and len(clean_phone) > 10: clean_phone = clean_phone[2:]
+            if clean_phone.startswith('0') and len(clean_phone) > 10: clean_phone = clean_phone[1:]
 
-        if clean_phone:
-            voice_call = VoiceCall.objects.filter(
-                patient__contact_no__contains=clean_phone,
-            ).order_by('-started_at').first()
-            if voice_call:
-                print(f"[Webhook] Found VoiceCall by phone fallback: {voice_call.id}")
-                if call_sid and not voice_call.call_sid:
-                    voice_call.call_sid = call_sid
-                    voice_call.save(update_fields=["call_sid"])
-                return voice_call
+            if clean_phone:
+                voice_call = VoiceCall.objects.filter(
+                    patient__contact_no__contains=clean_phone,
+                    status__in=["in_progress", "pending"],
+                ).order_by('-started_at').first()
+                if voice_call:
+                    print(f"[Webhook] Found VoiceCall by phone+status fallback: {voice_call.id} (lang={voice_call.language})")
+                    if call_sid and voice_call.call_sid != call_sid:
+                        voice_call.call_sid = call_sid
+                        voice_call.save(update_fields=["call_sid"])
 
         # 4. Final fallback: find the most recent in-progress/pending VoiceCall
-        voice_call = VoiceCall.objects.filter(status__in=["in_progress", "pending"]).order_by('-started_at').first()
-        if voice_call:
-            print(f"[Webhook] Found VoiceCall by active in_progress fallback: {voice_call.id}")
-            if call_sid and not voice_call.call_sid:
-                voice_call.call_sid = call_sid
-                voice_call.save(update_fields=["call_sid"])
-            return voice_call
+        if not voice_call:
+            voice_call = VoiceCall.objects.filter(status__in=["in_progress", "pending"]).order_by('-started_at').first()
+            if voice_call:
+                print(f"[Webhook] Found VoiceCall by active status fallback: {voice_call.id} (lang={voice_call.language})")
+                if call_sid and voice_call.call_sid != call_sid:
+                    voice_call.call_sid = call_sid
+                    voice_call.save(update_fields=["call_sid"])
 
-        print("[Webhook] Could not find any VoiceCall.")
-        return None
+        if voice_call:
+            _log_request("get_voice_call", request, voice_call, extra={
+                "custom_field": custom_field,
+                "call_sid": call_sid,
+                "raw_phone": raw_phone,
+                "path": request.path
+            })
+        else:
+            print("[Webhook] Could not find any VoiceCall.")
+            _log_request("get_voice_call", request, None, extra={
+                "custom_field": custom_field,
+                "call_sid": call_sid,
+                "raw_phone": raw_phone,
+                "path": request.path
+            })
+
+        return voice_call
 
 
 
@@ -408,7 +202,7 @@ class LabTestQuestion1View(BaseLabTestWebhookView):
             print("[Q1] VoiceCall not found — returning OK anyway to keep call alive.")
             return HttpResponse("OK", content_type="text/plain", status=200)
 
-        recording_url = request.POST.get("RecordingUrl") or request.GET.get("RecordingUrl") or ""
+        recording_url = _get_param(request, "RecordingUrl") or ""
         print(f"[Q1] URL={recording_url} — starting background check.")
 
         # Update status to in_progress (do not mark completed yet!)
@@ -440,12 +234,14 @@ class LabTestQuestion1View(BaseLabTestWebhookView):
                 test_issues = TestIssue.objects.filter(
                     patient_id=patient.patient_id,
                     camp=vc.test_issue.camp,
-                    reports_issued=False
+                    test_done=False
                 )
                 test_names = [ti.test.name for ti in test_issues]
                 
-                transcript = SarvamSTTService().transcribe_from_url(recording_url)
-                test_statuses = IntentService().classify_multi_test_q1(transcript, test_names)
+                lang = vc.language
+                lang_code = "hi-IN" if lang == "hi" else "te-IN"
+                transcript = SarvamSTTService().transcribe_from_url(recording_url, language_code=lang_code)
+                test_statuses = IntentService().classify_multi_test_q1(transcript, test_names, language=lang)
                 
                 if not test_statuses:
                     intent = "UNCLEAR"
@@ -488,7 +284,7 @@ class LabTestQuestion2View(BaseLabTestWebhookView):
         if not voice_call:
             return HttpResponse("OK", content_type="text/plain", status=200)
 
-        recording_url = request.POST.get("RecordingUrl") or request.GET.get("RecordingUrl") or ""
+        recording_url = _get_param(request, "RecordingUrl") or ""
         print(f"[Q2] URL={recording_url} — queuing background STT in 5.5 min.")
 
         import threading
@@ -501,7 +297,6 @@ class LabTestQuestion2View(BaseLabTestWebhookView):
                 from inventory.models import TestIssue
                 from django.utils import timezone
                 
-                # pyrefly: ignore [missing-attribute]
                 vc = VoiceCall.objects.get(id=vc_id)
                 patient = vc.patient
                 
@@ -509,12 +304,14 @@ class LabTestQuestion2View(BaseLabTestWebhookView):
                 test_issues = TestIssue.objects.filter(
                     patient_id=patient.patient_id,
                     camp=vc.test_issue.camp,
-                    reports_issued=False
+                    test_done=False
                 )
                 test_names = [ti.test.name for ti in test_issues]
                 
-                transcript = SarvamSTTService().transcribe_from_url(url) if url else ""
-                test_statuses = IntentService().classify_multi_test_q2(transcript, test_names)
+                lang = vc.language
+                lang_code = "hi-IN" if lang == "hi" else "te-IN"
+                transcript = SarvamSTTService().transcribe_from_url(url, language_code=lang_code) if url else ""
+                test_statuses = IntentService().classify_multi_test_q2(transcript, test_names, language=lang)
                 
                 if not test_statuses:
                     intent = "UNCLEAR"
@@ -533,14 +330,12 @@ class LabTestQuestion2View(BaseLabTestWebhookView):
                 )
                 print(f"[Q2 BG] Saved — intent={intent} transcript='{transcript}' statuses={test_statuses}")
                 
-                # Check off only the reports that were received (which also implies tests are done)
                 for ti in test_issues:
                     ti_name = ti.test.name
                     if test_statuses.get(ti_name, False):
-                        ti.reports_issued = True
                         ti.test_done = True
-                        ti.save(update_fields=["reports_issued", "test_done"])
-                        print(f"[Q2 BG] Auto-checked reports_issued & test_done for TestIssue {ti.id} ({ti_name})")
+                        ti.save(update_fields=["test_done"])
+                        print(f"[Q2 BG] Auto-checked test_done for TestIssue {ti.id} ({ti_name})")
                         
                 vc.status = "completed"
                 vc.completed_at = timezone.now()
@@ -564,9 +359,9 @@ class CallStatusView(APIView):
         return self.post(request)
 
     def post(self, request):
-        call_sid     = request.POST.get("CallSid")     or request.GET.get("CallSid")     or ""
-        custom_field = request.POST.get("CustomField") or request.GET.get("CustomField") or ""
-        status_val   = (request.POST.get("Status") or request.GET.get("Status") or "").lower()
+        call_sid     = _get_param(request, "CallSid") or ""
+        custom_field = _get_param(request, "CustomField") or ""
+        status_val   = (_get_param(request, "Status") or "").lower()
 
         voice_call = None
         # Prefer CustomField (VoiceCall.id) lookup
@@ -590,51 +385,81 @@ class CallStatusView(APIView):
 
         return HttpResponse("OK", content_type="text/plain")
 
-class AskQ1View(APIView):
-    authentication_classes = []
-    permission_classes = []
-    def get(self, request):
-        custom_field = request.GET.get("CustomField") or request.POST.get("CustomField") or ""
+class AskQ1View(BaseLabTestWebhookView):
+    def post(self, request):
+        voice_call = self._get_voice_call(request)
+        custom_field = _get_param(request, "CustomField") or ""
+        call_sid = _get_param(request, "CallSid") or ""
         public_url = os.getenv("PUBLIC_URL", "").rstrip('/')
         if not public_url:
             public_url = request.build_absolute_uri('/')[:-1]
-            
-        if custom_field.isdigit():
-            dynamic_file = f"media/voicebot_prompts/dynamic/q1_{custom_field}.wav"
-            if os.path.exists(dynamic_file) and os.path.getsize(dynamic_file) > 0:
-                print(f"[Ask Q1] Serving dynamic audio: {dynamic_file}")
-                return HttpResponse(f"{public_url}/{dynamic_file}", content_type="text/plain")
-                
-        audio_path = "media/voicebot_prompts/followup_q1.wav"
-        if not os.path.exists(audio_path) or os.path.getsize(audio_path) == 0:
-            try:
-                from voicebot.services.tts_service import SarvamTTSService
-                tts = SarvamTTSService()
-                q1_fallback_text = "నమస్కారం, మేము సీ సీ సీ మెడికల్ క్యాంప్ నుండి మాట్లాడుతున్నాము. మీకు సూచించిన ల్యాబ్ పరీక్షలు చేయించుకున్నారా?"
-                audio_file = tts.synthesize_telugu(q1_fallback_text)
-                os.makedirs(os.path.dirname(audio_path), exist_ok=True)
-                with open(audio_path, "wb") as f:
-                    f.write(audio_file.read())
-                print(f"[Ask Q1] Successfully pre-generated fallback {audio_path}")
-            except Exception as e:
-                print(f"[Ask Q1] Fallback audio generation failed: {e}")
 
+        # Check if language is Hindi
+        is_hindi = False
+        if voice_call:
+            if call_sid and voice_call.call_sid != call_sid:
+                voice_call.call_sid = call_sid
+                voice_call.save(update_fields=["call_sid"])
+                print(f"[AskQ1View] Saved leg call_sid {call_sid} for VoiceCall {voice_call.id}")
+            if voice_call.language == 'hi':
+                is_hindi = True
+        elif custom_field.isdigit():
+            try:
+                from voicebot.models import VoiceCall
+                vc = VoiceCall.objects.get(id=int(custom_field))
+                if call_sid and vc.call_sid != call_sid:
+                    vc.call_sid = call_sid
+                    vc.save(update_fields=["call_sid"])
+                    print(f"[AskQ1View] Saved leg call_sid {call_sid} for VoiceCall {vc.id}")
+                if vc.language == 'hi':
+                    is_hindi = True
+            except Exception as e:
+                print(f"[AskQ1View] Error looking up/saving call: {e}")
+
+        call_id = custom_field or (str(voice_call.id) if voice_call else str(int(time.time())))
+
+        if is_hindi:
+            audio_path = "media/voicebot_prompts/followup_q1_hindi.wav"
+            audio_url = f"{public_url}/{audio_path}"
+            return HttpResponse(audio_url, content_type="text/plain")
+
+        # Telugu fallback/dynamic logic
+        dynamic_file = f"media/voicebot_prompts/dynamic/q1_{call_id}.wav"
+        if os.path.exists(dynamic_file) and os.path.getsize(dynamic_file) > 0:
+            print(f"[Ask Q1] Serving dynamic audio: {dynamic_file}")
+            return HttpResponse(f"{public_url}/{dynamic_file}", content_type="text/plain")
+        # Static fallback for Telugu
+        audio_path = "media/voicebot_prompts/followup_q1.wav"
         audio_url = f"{public_url}/{audio_path}"
         return HttpResponse(audio_url, content_type="text/plain")
 
 class AskQ2View(BaseLabTestWebhookView):
-    def get(self, request):
+    def post(self, request):
         voice_call = self._get_voice_call(request)
         public_url = os.getenv("PUBLIC_URL", "").rstrip('/')
         if not public_url:
             public_url = request.build_absolute_uri('/')[:-1]
 
-        os.makedirs("media/voicebot_prompts", exist_ok=True)
-        s1_path = "media/voicebot_prompts/scenario1.wav"
-        s2_path = "media/voicebot_prompts/scenario2.wav"
-        s3_path = "media/voicebot_prompts/scenario3.wav"
+        os.makedirs("media/voicebot_prompts/dynamic", exist_ok=True)
+        
+        is_hindi = False
+        if voice_call and voice_call.language == 'hi':
+            is_hindi = True
 
-        # Check all tests status for this voice call
+        print(f"[Ask Q2] voice_call={voice_call.id if voice_call else None}, lang={voice_call.language if voice_call else None}, is_hindi={is_hindi}")
+
+        call_id = str(voice_call.id) if voice_call else str(int(time.time()))
+
+        if is_hindi:
+            s1_path = "media/voicebot_prompts/scenario1_hindi.wav"
+            s2_path = "media/voicebot_prompts/scenario2_hindi.wav"
+            s3_path = "media/voicebot_prompts/scenario3_hindi.wav"
+        else:
+            s1_path = "media/voicebot_prompts/scenario1.wav"
+            s2_path = "media/voicebot_prompts/scenario2.wav"
+            s3_path = "media/voicebot_prompts/scenario3.wav"
+
+        # Check all tests status for this voice call using Q1 response intent
         completed_all = False
         completed_none = False
         if voice_call:
@@ -642,25 +467,42 @@ class AskQ2View(BaseLabTestWebhookView):
             import time
             from voicebot.models import VoiceResponse
             start_wait = time.time()
-            while time.time() - start_wait < 6.0:
-                if VoiceResponse.objects.filter(voice_call=voice_call, question="Q1_TESTS_DONE").exists():
+            q1_response = None
+            while time.time() - start_wait < 4.0:
+                # pyrefly: ignore [missing-attribute]
+                q1_response = VoiceResponse.objects.filter(voice_call=voice_call, question="Q1_TESTS_DONE").first()
+                if q1_response:
                     break
-                time.sleep(0.5)
+                time.sleep(0.1)
 
-            from inventory.models import TestIssue
-            # Check if all issued tests are done
-            # pyrefly: ignore [missing-attribute]
-            test_issues = TestIssue.objects.filter(
-                patient_id=voice_call.patient.patient_id,
-                camp=voice_call.test_issue.camp
-            )
-            total_tests = test_issues.count()
-            completed_tests = test_issues.filter(test_done=True).count()
-            if total_tests > 0:
-                if completed_tests == total_tests:
-                    completed_all = True
-                elif completed_tests == 0:
+            wait_elapsed = time.time() - start_wait
+            print(f"[Ask Q2] Q1 poll waited {wait_elapsed:.1f}s, found={'yes' if q1_response else 'no'}")
+
+            if q1_response:
+                print(f"[Ask Q2] Q1 intent={q1_response.intent}, transcript={q1_response.transcript[:80]}")
+                if q1_response.intent == "NO":
                     completed_none = True
+                elif q1_response.intent == "YES":
+                    from inventory.models import TestIssue
+                    # Check if there are any remaining pending tests in the database
+                    # pyrefly: ignore [missing-attribute]
+                    pending_count = TestIssue.objects.filter(
+                        patient_id=voice_call.patient.patient_id,
+                        camp=voice_call.test_issue.camp,
+                        test_done=False
+                    ).count()
+                    print(f"[Ask Q2] YES intent — pending_count={pending_count}")
+                    if pending_count == 0:
+                        completed_all = True
+                    else:
+                        # Some tests completed but some are still pending
+                        pass
+                else:
+                    # Fallback for UNCLEAR / PENDING
+                    completed_none = True
+            else:
+                # Fallback if background task timed out
+                completed_none = True
 
         if completed_all:
             target_file = s2_path
@@ -669,20 +511,33 @@ class AskQ2View(BaseLabTestWebhookView):
         else:
             target_file = s1_path
         
+        print(f"[Ask Q2] Decision: completed_all={completed_all}, completed_none={completed_none} -> target_file={target_file}")
+
         # One-time generation if the file doesn't exist yet or is empty
         if not os.path.exists(target_file) or os.path.getsize(target_file) == 0:
             try:
                 from voicebot.services.tts_service import SarvamTTSService
                 tts = SarvamTTSService()
-                if completed_all:
-                    s2_text = "వచ్చే నెల మొదటి ఆదివారం జరిగే తదుపరి క్యాంప్‌లో పరీక్షల రిపోర్టులను తీసుకోండి."
-                    audio_file = tts.synthesize_telugu(s2_text)
-                elif completed_none:
-                    s3_text = "దయచేసి వచ్చే నెల మొదటి ఆదివారం జరిగే తదుపరి క్యాంప్‌లో పరీక్షలు చేయించుకోండి."
-                    audio_file = tts.synthesize_telugu(s3_text)
+                if is_hindi:
+                    if completed_all:
+                        s2_text = "अगले महीने के first Sunday को होने वाले अगले कैंप में अपने टेस्ट की रिपोर्ट ले लीजिए।"
+                        audio_file = tts.synthesize_hindi(s2_text)
+                    elif completed_none:
+                        s3_text = "कृपया अगले महीने के first Sunday को होने वाले अगले कैंप से पहले अपने टेस्ट करवा लें।"
+                        audio_file = tts.synthesize_hindi(s3_text)
+                    else:
+                        s1_text = "कृपया अगले महीने के first Sunday को होने वाले अगले कैंप से पहले बचे हुए टेस्ट करवा लें।"
+                        audio_file = tts.synthesize_hindi(s1_text)
                 else:
-                    s1_text = "దయచేసి వచ్చే నెల మొదటి ఆదివారం జరిగే తదుపరి క్యాంప్ ముందే మిగిలిన పరీక్షలు చేయించుకోండి."
-                    audio_file = tts.synthesize_telugu(s1_text)
+                    if completed_all:
+                        s2_text = "వచ్చే నెల మొదటి ఆదివారం జరిగే తదుపరి క్యాంప్‌లో పరీక్షల రిపోర్టులను తీసుకోండి."
+                        audio_file = tts.synthesize_telugu(s2_text)
+                    elif completed_none:
+                        s3_text = "దయచేసి వచ్చే నెల మొదటి ఆదివారం జరిగే తదుపరి క్యాంప్ ముందే పరీక్షలు చేయించుకోండి."
+                        audio_file = tts.synthesize_telugu(s3_text)
+                    else:
+                        s1_text = "దయచేసి వచ్చే నెల మొదటి ఆదివారం జరిగే తదుపరి క్యాంప్ ముందే మిగిలిన పరీక్షలు చేయించుకోండి."
+                        audio_file = tts.synthesize_telugu(s1_text)
                 
                 with open(target_file, "wb") as f:
                     f.write(audio_file.read())
@@ -690,33 +545,63 @@ class AskQ2View(BaseLabTestWebhookView):
             except Exception as e:
                 print(f"[Ask Q2] Failed one-time generation: {e}")
                 # Fallback to general thank you
-                return HttpResponseRedirect(f"{public_url}/media/voicebot_prompts/followup_thankyou.wav")
+                fallback_thankyou = f"media/voicebot_prompts/dynamic/thankyou_{'hi' if is_hindi else 'te'}_{call_id}.wav"
+                if not os.path.exists(fallback_thankyou) or os.path.getsize(fallback_thankyou) == 0:
+                    try:
+                        from voicebot.services.tts_service import SarvamTTSService
+                        tts = SarvamTTSService()
+                        if is_hindi:
+                            thankyou_text = "धन्यवाद, स्वस्थ रहें।"
+                            audio_file = tts.synthesize_hindi(thankyou_text)
+                        else:
+                            thankyou_text = "ధన్యవాదములు, ఆరోగ్యంగా ఉండండి."
+                            audio_file = tts.synthesize_telugu(thankyou_text)
+                        with open(fallback_thankyou, "wb") as f:
+                            f.write(audio_file.read())
+                    except Exception as ex:
+                        print(f"[Ask Q2 Fallback] Thank you generation failed: {ex}")
+                return HttpResponse(f"{public_url}/{fallback_thankyou}", content_type="text/plain")
 
-        return HttpResponseRedirect(f"{public_url}/{target_file}")
+        print(f"[Ask Q2] Returning audio URL: {public_url}/{target_file}")
+        return HttpResponse(f"{public_url}/{target_file}", content_type="text/plain")
 
-class ThankYouView(APIView):
-    authentication_classes = []
-    permission_classes = []
-    def get(self, request):
+class ThankYouView(BaseLabTestWebhookView):
+    def post(self, request):
+        voice_call = self._get_voice_call(request)
         public_url = os.getenv("PUBLIC_URL", "").rstrip('/')
         if not public_url:
             public_url = request.build_absolute_uri('/')[:-1]
         
-        audio_path = "media/voicebot_prompts/followup_thankyou.wav"
+        is_hindi = False
+        if voice_call and voice_call.language == 'hi':
+            is_hindi = True
+
+        call_id = str(voice_call.id) if voice_call else str(int(time.time()))
+
+        os.makedirs("media/voicebot_prompts/dynamic", exist_ok=True)
+
+        if is_hindi:
+            audio_path = f"media/voicebot_prompts/dynamic/thankyou_hi_{call_id}.wav"
+        else:
+            audio_path = f"media/voicebot_prompts/dynamic/thankyou_te_{call_id}.wav"
+
         if not os.path.exists(audio_path) or os.path.getsize(audio_path) == 0:
             try:
                 from voicebot.services.tts_service import SarvamTTSService
                 tts = SarvamTTSService()
-                thankyou_text = "ధన్యవాదాలు."
-                audio_file = tts.synthesize_telugu(thankyou_text)
-                os.makedirs(os.path.dirname(audio_path), exist_ok=True)
+                if is_hindi:
+                    thankyou_text = "धन्यवाद, स्वस्थ रहें।"
+                    audio_file = tts.synthesize_hindi(thankyou_text)
+                else:
+                    thankyou_text = "ధన్యవాదములు, ఆరోగ్యంగా ఉండండి."
+                    audio_file = tts.synthesize_telugu(thankyou_text)
                 with open(audio_path, "wb") as f:
                     f.write(audio_file.read())
                 print(f"[Thank You] Successfully generated {audio_path}")
             except Exception as e:
                 print(f"[Thank You] Audio generation failed: {e}")
 
-        return HttpResponseRedirect(f"{public_url}/{audio_path}")
+        return HttpResponse(f"{public_url}/{audio_path}", content_type="text/plain")
 
 class TriggerFollowupCallView(APIView):
     authentication_classes = []
@@ -724,6 +609,7 @@ class TriggerFollowupCallView(APIView):
     
     def post(self, request):
         test_issue_id = request.data.get("test_issue_id")
+        language = request.data.get("language", "te")
         if not test_issue_id:
             return Response({"success": False, "message": "Missing test_issue_id"}, status=400)
             
@@ -741,13 +627,16 @@ class TriggerFollowupCallView(APIView):
                 patient=patient,
                 test_issue=test_issue,
                 call_type="lab_followup",
-                status="pending"
+                status="pending",
+                language=language
             )
             
-            # Pre-generate personalized dynamic audio prompts synchronously to prevent race conditions
-            svc = FollowupCallService()
-            svc.generate_dynamic_prompts(voice_call)
+            # Pre-generate personalized dynamic audio prompt only for Telugu (since Hindi Q1 and all scenarios are static)
+            if language == 'te':
+                svc = FollowupCallService()
+                svc.generate_dynamic_prompts(voice_call)
             
+            svc = FollowupCallService()
             result = svc.trigger_followup_call(voice_call)
             
             if result["success"]:
@@ -759,3 +648,4 @@ class TriggerFollowupCallView(APIView):
                 
         except TestIssue.DoesNotExist:
             return Response({"success": False, "message": "Test issue not found"}, status=404)
+

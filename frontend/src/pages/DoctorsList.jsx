@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserCircle, Search, Users, Activity, Edit2, Save, X, Trash2, CheckCircle2, XCircle } from 'lucide-react';
+import { UserCircle, Search, Users, Activity, Edit2, Save, X, Trash2, CheckCircle2, XCircle, Download } from 'lucide-react';
 
 const DoctorsList = () => {
 
@@ -206,6 +206,28 @@ const DoctorsList = () => {
     }
   };
 
+  const downloadCSV = () => {
+    const headers = ['Doctor ID', 'Doctor Name', 'Specialization', 'Status'];
+    const rows = filteredDoctors.map(doc => [
+      doc.dr_id || '',
+      `"${doc.dr_name || ''}"`,
+      `"${doc.specialization || 'Not Specified'}"`,
+      doc.is_active ? 'Active' : 'Inactive'
+    ]);
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `doctors_list_${selectedCamp ? 'camp_'+selectedCamp : 'global'}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <div className="space-y-6">
@@ -222,6 +244,17 @@ const DoctorsList = () => {
         </div>
 
         <div className="flex flex-col md:flex-row items-center gap-4">
+          {activeTab === 'doctorsList' && (
+            <button
+              onClick={downloadCSV}
+              className="bg-teal-50 hover:bg-teal-100 text-teal-700 px-4 py-3 rounded-xl font-black text-xs uppercase tracking-[0.1em] transition-all flex items-center gap-2 border border-teal-200 shadow-sm"
+              title="Download Doctors List as CSV"
+            >
+              <Download size={16} strokeWidth={2.5} />
+              <span className="hidden md:inline">Download CSV</span>
+            </button>
+          )}
+
           <select
             className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all cursor-pointer min-w-[200px]"
             value={selectedCamp}

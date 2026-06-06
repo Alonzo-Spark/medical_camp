@@ -58,6 +58,7 @@ class VoiceCall(models.Model):
     test_issue  = models.ForeignKey(TestIssue, on_delete=models.CASCADE, related_name='voice_calls', null=True, blank=True)
     call_type   = models.CharField(max_length=50, choices=CALL_TYPE_CHOICES, default='lab_followup')
     status      = models.CharField(max_length=20, choices=STATUS_CHOICES,   default='pending')
+    language    = models.CharField(max_length=10, default='te')  # 'te' or 'hi'
     call_sid    = models.CharField(max_length=200, null=True, blank=True)   # Exotel CallSid
     started_at  = models.DateTimeField(auto_now_add=True)
     completed_at= models.DateTimeField(null=True, blank=True)

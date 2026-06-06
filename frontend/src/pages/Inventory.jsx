@@ -287,7 +287,7 @@ const Inventory = () => {
                           </span>
                         </td>
                         <td className="px-8 py-6">
-                          <div className="flex items-center justify-between gap-6">
+                          <div className="flex flex-wrap items-center gap-2">
                             <span className="font-bold text-slate-800 group-hover:text-teal-700 transition-colors">{med.name}</span>
                             <span className="text-xs text-slate-600 font-bold italic bg-slate-50 px-2.5 py-1 rounded border border-slate-200">
                               {med.formulation || 'No formulation specified'}

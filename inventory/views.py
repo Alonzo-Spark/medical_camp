@@ -680,6 +680,11 @@ def api_update_medicine_profile(request):
             
         medicine.cost = cost_val
         
+        # Update stock
+        stock = data.get('stock')
+        if stock is not None and str(stock).strip() != '':
+            medicine.stock = int(stock)
+        
         category_id = data.get('category_id')
         if category_id and str(category_id).strip() != '' and str(category_id) != 'null':
             category = get_object_or_404(MedicineCategory, id=category_id)
@@ -2694,6 +2699,7 @@ def api_get_patients_with_tests(request):
 
         # Load latest VoiceCalls and VoiceResponses for these patients
         from voicebot.models import VoiceCall, VoiceResponse
+        from django.utils import timezone
         # pyrefly: ignore [missing-attribute]
         calls = VoiceCall.objects.filter(patient_id__in=patient_ids).order_by('id')
         patient_latest_call = {}
@@ -2733,7 +2739,9 @@ def api_get_patients_with_tests(request):
                     'q2_intent': q2_resp.intent if q2_resp else None,
                     'q2_transcript': q2_resp.transcript if q2_resp else None,
                     'call_status': latest_call.status if latest_call else 'not_called',
-                    'call_date': latest_call.started_at.strftime('%Y-%m-%d %H:%M') if latest_call else None
+                    'call_language': latest_call.language if latest_call else None,
+                    'call_date': latest_call.started_at.strftime('%Y-%m-%d %H:%M') if latest_call else None,
+                    'call_age_seconds': (timezone.now() - latest_call.started_at).total_seconds() if latest_call else None
                 }
 
             groups[key]['tests'].append({

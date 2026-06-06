@@ -22,7 +22,7 @@ const MedicineEntry = () => {
   const [isAdding, setIsAdding] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [editingMedId, setEditingMedId] = useState(null);
-  const [editMedData, setEditMedData] = useState({ uqid: '', name: '', cost: '', formulation: '', category_id: '' });
+  const [editMedData, setEditMedData] = useState({ uqid: '', name: '', cost: '', formulation: '', category_id: '', stock: '' });
   const [campUnitCosts, setCampUnitCosts] = useState({});
   const [editingUqid, setEditingUqid] = useState(null);
   const [tempAltName, setTempAltName] = useState('');
@@ -361,7 +361,7 @@ const MedicineEntry = () => {
   };
 
   const handleSaveEdit = async (oldUqid) => {
-    const { uqid, name, cost, formulation, category_id } = editMedData;
+    const { uqid, name, cost, formulation, category_id, stock } = editMedData;
     if (!name || !name.trim()) {
       alert('Medicine name is required');
       return;
@@ -374,7 +374,8 @@ const MedicineEntry = () => {
         name: name,
         cost: cost !== '' && cost !== null ? parseFloat(cost) : null,
         formulation: formulation !== '' && formulation !== null ? formulation : null,
-        category_id: category_id || null
+        category_id: category_id || null,
+        stock: stock !== '' && stock !== null ? parseInt(stock) : 0
       });
 
       setSuccessMsg(res.data.message);
@@ -915,9 +916,9 @@ const MedicineEntry = () => {
                                 </select>
                               </div>
                             ) : (
-                              <div className="flex items-center gap-2 max-w-md">
-                                <span className="text-base font-black text-slate-800 group-hover:text-teal-700 transition-colors truncate">{med.name}</span>
-                                <span className="text-xs text-slate-600 font-extrabold uppercase tracking-wider px-2 py-0.5 bg-slate-50 rounded-md border border-slate-100 truncate">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-base font-black text-slate-800 group-hover:text-teal-700 transition-colors">{med.name}</span>
+                                <span className="text-xs text-slate-600 font-extrabold uppercase tracking-wider px-2 py-0.5 bg-slate-50 rounded-md border border-slate-100">
                                   {med.formulation || 'Generic Formulation'}
                                 </span>
                               </div>
@@ -941,8 +942,8 @@ const MedicineEntry = () => {
                           <td className="px-4 py-4">
                             <span className="font-data text-sm font-black text-slate-800">
                               {editingMedId === med.uqid ? (
-                                editMedData.cost && !isNaN(parseFloat(editMedData.cost))
-                                  ? `₹ ${(parseFloat(editMedData.cost) * med.stock).toFixed(2)}`
+                                editMedData.cost && !isNaN(parseFloat(editMedData.cost)) && editMedData.stock && !isNaN(parseInt(editMedData.stock))
+                                  ? `₹ ${(parseFloat(editMedData.cost) * parseInt(editMedData.stock)).toFixed(2)}`
                                   : '₹ 0.00'
                               ) : (
                                 med.cost ? `₹ ${(parseFloat(med.cost) * med.stock).toFixed(2)}` : '₹ 0.00'
@@ -951,9 +952,18 @@ const MedicineEntry = () => {
                           </td>
                           <td className="px-4 py-4">
                             <div className="flex flex-col">
-                              <span className={`text-xl font-black font-data ${med.stock > 10 ? 'text-slate-800' : 'text-rose-600'}`}>
-                                {med.stock}
-                              </span>
+                              {editingMedId === med.uqid ? (
+                                <input
+                                  type="number"
+                                  className="w-full max-w-[100px] bg-white border border-teal-300 rounded-lg px-2 py-1.5 text-sm font-data outline-none focus:ring-2 focus:ring-teal-500/20 shadow-sm"
+                                  value={editMedData.stock !== undefined ? editMedData.stock : ''}
+                                  onChange={(e) => setEditMedData({ ...editMedData, stock: e.target.value })}
+                                />
+                              ) : (
+                                <span className={`text-xl font-black font-data ${med.stock > 10 ? 'text-slate-800' : 'text-rose-600'}`}>
+                                  {med.stock}
+                                </span>
+                              )}
                               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Available Units</span>
                             </div>
                           </td>
@@ -969,6 +979,14 @@ const MedicineEntry = () => {
                                 />
                               </div>
                               <div className="flex flex-col gap-1 min-w-[50px]">
+                                <button
+                                  onClick={() => handleUpdate(med.uqid)}
+                                  disabled={!updateQtys[med.uqid] || updateQtys[med.uqid] <= 0}
+                                  className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-100 disabled:text-slate-300 text-white rounded-lg transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
+                                  title="Add to existing stock"
+                                >
+                                  Add
+                                </button>
                                 {editingMedId === med.uqid ? (
                                   <button
                                     onClick={() => handleSaveEdit(med.uqid)}
@@ -981,9 +999,9 @@ const MedicineEntry = () => {
                                   <button
                                     onClick={() => {
                                       setEditingMedId(med.uqid);
-                                      setEditMedData({ uqid: med.uqid, name: med.name, cost: med.cost || '', formulation: med.formulation || '', category_id: med.category_id || '' });
+                                      setEditMedData({ uqid: med.uqid, name: med.name, cost: med.cost || '', formulation: med.formulation || '', category_id: med.category_id || '', stock: med.stock || 0 });
                                     }}
-                                    className="px-3 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
+                                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
                                     title="Edit Medicine"
                                   >
                                     Edit
@@ -995,22 +1013,6 @@ const MedicineEntry = () => {
                                   title="Delete Medicine"
                                 >
                                   Delete
-                                </button>
-                                <button
-                                  onClick={() => handleUpdate(med.uqid)}
-                                  disabled={!updateQtys[med.uqid] || updateQtys[med.uqid] <= 0}
-                                  className="px-3 py-1 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-100 disabled:text-slate-300 text-white rounded-lg transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
-                                  title="Add to existing stock"
-                                >
-                                  Add
-                                </button>
-                                <button
-                                  onClick={() => handleSetStock(med.uqid)}
-                                  disabled={updateQtys[med.uqid] === undefined || updateQtys[med.uqid] === '' || updateQtys[med.uqid] < 0}
-                                  className="px-3 py-1 bg-slate-700 hover:bg-slate-800 disabled:bg-slate-100 disabled:text-slate-300 text-white rounded-lg transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
-                                  title="Set absolute stock value"
-                                >
-                                  Set
                                 </button>
                               </div>
                             </div>

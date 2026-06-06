@@ -106,21 +106,38 @@ function IssuedTestsList() {
 
     // Single follow-up call per patient — uses the first pending test_issue_id
     // The voicebot asks about ALL tests generically in one call
-    const handleFollowupCall = async (item) => {
+    const handleFollowupCall = async (item, lang = 'te') => {
         const firstPendingTest = item.tests.find(t => !t.test_done);
         if (!firstPendingTest) return;
 
-        setCallStates(prev => ({ ...prev, [item.patient_id]: 'calling' }));
+        setCallStates(prev => ({ ...prev, [item.patient_id]: { status: 'calling', lang } }));
         try {
             await axios.post(
                 `${VOICEBOT_BASE}/api/voicebot/trigger-followup/`,
-                { test_issue_id: firstPendingTest.test_issue_id }
+                { 
+                    test_issue_id: firstPendingTest.test_issue_id,
+                    language: lang
+                }
             );
-            setCallStates(prev => ({ ...prev, [item.patient_id]: 'success' }));
+            setCallStates(prev => ({ ...prev, [item.patient_id]: { status: 'success', lang } }));
             fetchIssuedTests(true); // Trigger silent refresh to update call_status to pending/in_progress
+            setTimeout(() => {
+                setCallStates(prev => {
+                    const newState = { ...prev };
+                    delete newState[item.patient_id];
+                    return newState;
+                });
+            }, 3000);
         } catch (err) {
             console.error('Follow-up call failed:', err);
-            setCallStates(prev => ({ ...prev, [item.patient_id]: 'error' }));
+            setCallStates(prev => ({ ...prev, [item.patient_id]: { status: 'error', lang } }));
+            setTimeout(() => {
+                setCallStates(prev => {
+                    const newState = { ...prev };
+                    delete newState[item.patient_id];
+                    return newState;
+                });
+            }, 3000);
         }
     };
 
@@ -216,7 +233,21 @@ function IssuedTestsList() {
                                 </tr>
                             ) : filteredData.length > 0 ? (
                                 filteredData.map((item, index) => {
-                                    const cs = callStates[item.patient_id] || null;
+                                    const csObj = callStates[item.patient_id] || null;
+                                     const isVoiceCallActive = (item.call_status === 'pending' || item.call_status === 'in_progress') &&
+                                                              (!item.hasOwnProperty('call_age_seconds') || item.call_age_seconds === null || item.call_age_seconds < 120);
+                                    const activeLang = csObj ? csObj.lang : (item.call_language || null);
+                                    
+                                    const isCallingTe = (csObj?.status === 'calling' && csObj?.lang === 'te') || (isVoiceCallActive && activeLang === 'te');
+                                    const isCallingHi = (csObj?.status === 'calling' && csObj?.lang === 'hi') || (isVoiceCallActive && activeLang === 'hi');
+                                    
+                                    const isSuccessTe = (csObj?.status === 'success' && csObj?.lang === 'te') || (item.call_status === 'completed' && activeLang === 'te');
+                                    const isSuccessHi = (csObj?.status === 'success' && csObj?.lang === 'hi') || (item.call_status === 'completed' && activeLang === 'hi');
+                                    
+                                    const isErrorTe = (csObj?.status === 'error' && csObj?.lang === 'te');
+                                    const isErrorHi = (csObj?.status === 'error' && csObj?.lang === 'hi');
+
+                                    const anyCallActiveOrSuccess = isCallingTe || isCallingHi || isSuccessTe || isSuccessHi;
                                     return (
                                         <tr key={index} className="hover:bg-teal-50/20 transition-colors">
 
@@ -299,38 +330,64 @@ function IssuedTestsList() {
                                                         </span>
                                                     )}
 
-                                                    {/* Follow-up Call button — ONE per patient, only when pending */}
+                                                    {/* Follow-up Call buttons — only when pending */}
                                                     {!item.all_tests_done && (
-                                                        <button
-                                                            onClick={() => handleFollowupCall(item)}
-                                                            disabled={cs === 'calling' || cs === 'success'}
-                                                            title="Call this patient in Telugu to follow up on all pending tests"
-                                                            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm
-                                                                ${cs === 'calling'
-                                                                    ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
-                                                                    : cs === 'success'
-                                                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200 cursor-default'
-                                                                        : cs === 'error'
-                                                                            ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 cursor-pointer'
+                                                        <div className="flex flex-col gap-1.5 items-center">
+                                                            <div className="flex gap-2 flex-wrap">
+                                                                <button
+                                                                    onClick={() => handleFollowupCall(item, 'te')}
+                                                                    disabled={csObj?.status === 'calling'}
+                                                                    title="Call this patient in Telugu to follow up on all pending tests"
+                                                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm
+                                                                        ${csObj?.status === 'calling' && csObj?.lang === 'te'
+                                                                            ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
                                                                             : 'bg-violet-600 hover:bg-violet-700 text-white border-violet-700 hover:shadow-violet-100 hover:shadow-md cursor-pointer'
-                                                                }`}
-                                                        >
-                                                            {cs === 'calling' ? (
-                                                                <>
-                                                                    <span className="w-2.5 h-2.5 border-2 border-slate-400/30 border-t-slate-500 rounded-full animate-spin inline-block" />
-                                                                    Calling...
-                                                                </>
-                                                            ) : cs === 'success' ? (
-                                                                <>✓ Call Placed</>
-                                                            ) : cs === 'error' ? (
-                                                                <>✕ Retry Call</>
-                                                            ) : (
-                                                                <>
-                                                                    <Phone size={10} strokeWidth={2.5} />
-                                                                    Follow-up Call
-                                                                </>
+                                                                        }`}
+                                                                >
+                                                                    {csObj?.status === 'calling' && csObj?.lang === 'te' ? (
+                                                                        <>
+                                                                            <span className="w-2.5 h-2.5 border-2 border-slate-400/30 border-t-slate-500 rounded-full animate-spin inline-block" />
+                                                                            Calling...
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <Phone size={10} strokeWidth={2.5} />
+                                                                            Telugu Call
+                                                                        </>
+                                                                    )}
+                                                                </button>
+
+                                                                <button
+                                                                    onClick={() => handleFollowupCall(item, 'hi')}
+                                                                    disabled={csObj?.status === 'calling'}
+                                                                    title="Call this patient in Hindi to follow up on all pending tests"
+                                                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm
+                                                                        ${csObj?.status === 'calling' && csObj?.lang === 'hi'
+                                                                            ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                                                                            : 'bg-teal-600 hover:bg-teal-700 text-white border-teal-700 hover:shadow-teal-100 hover:shadow-md cursor-pointer'
+                                                                        }`}
+                                                                >
+                                                                    {csObj?.status === 'calling' && csObj?.lang === 'hi' ? (
+                                                                        <>
+                                                                            <span className="w-2.5 h-2.5 border-2 border-slate-400/30 border-t-slate-500 rounded-full animate-spin inline-block" />
+                                                                            Calling...
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <Phone size={10} strokeWidth={2.5} />
+                                                                            Hindi Call
+                                                                        </>
+                                                                    )}
+                                                                </button>
+                                                            </div>
+
+                                                            {/* Call status display */}
+                                                            {csObj?.status === 'success' && (
+                                                                <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider text-center mt-1">
+                                                                    <span className="text-emerald-600 font-extrabold">✓ Call Placed Successfully</span>
+                                                                </div>
                                                             )}
-                                                        </button>
+                                                        </div>
                                                     )}
                                                 </div>
                                             </td>

@@ -7,7 +7,7 @@ class SarvamSTTService:
         self.api_key = os.getenv("SARVAM_API_KEY")
         self.url = "https://api.sarvam.ai/speech-to-text"
 
-    def transcribe_from_url(self, audio_url: str) -> str:
+    def transcribe_from_url(self, audio_url: str, language_code: str = "te-IN") -> str:
         if not audio_url:
             return ""
         try:
@@ -38,7 +38,7 @@ class SarvamSTTService:
                         "file": (f"audio{suffix}", audio_file, "audio/mpeg"),
                     }
                     data = {
-                        "language_code": "te-IN",
+                        "language_code": language_code,
                         "model": "saaras:v3",
                         "mode": "transcribe"
                     }

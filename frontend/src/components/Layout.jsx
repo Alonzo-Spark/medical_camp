@@ -139,30 +139,16 @@ const Layout = () => {
               <SidebarLink to="/dashboard" icon={LayoutDashboard} label="Dashboard" active={location.pathname === '/dashboard'} />
             )}
 
-            {(userRole === 'main_admin' || userRole === 'registration_staff' || userRole === 'log_vitals_staff') && (
-              <>
-                <SidebarLink to="/camp-patients" icon={Users} label="Camp Patient List" active={location.pathname === '/camp-patients'} />
-                {(userRole === 'main_admin' || userRole === 'registration_staff') && (
-                  <SidebarLink to="/adding-patients" icon={UserPlus} label="Adding Patients" active={location.pathname === '/adding-patients'} />
-                )}
-              </>
-            )}
+            <SidebarLink to="/camp-patients" icon={Users} label="Camp Patient List" active={location.pathname === '/camp-patients'} />
+            <SidebarLink to="/adding-patients" icon={UserPlus} label="Adding Patients" active={location.pathname === '/adding-patients'} />
 
-            {(userRole === 'main_admin' || userRole === 'log_vitals_staff') && (
-              <>
-                <SidebarLink to="/vitals" icon={Activity} label="Log Vitals" active={location.pathname === '/vitals'} />
-                <SidebarLink to="/doctors" icon={UserCircle} label="Doctors List" active={location.pathname === '/doctors'} />
-                <SidebarLink to="/doctor-consultation-log" icon={FileText} label="Doctor Consultation Log" active={location.pathname === '/doctor-consultation-log'} />
-                <SidebarLink to="/issued-tests" icon={FlaskConical} label="Issued Tests Tracker" active={location.pathname === '/issued-tests'} />
-              </>
-            )}
+            <SidebarLink to="/vitals" icon={Activity} label="Log Vitals" active={location.pathname === '/vitals'} />
+            <SidebarLink to="/doctors" icon={UserCircle} label="Doctors List" active={location.pathname === '/doctors'} />
+            <SidebarLink to="/doctor-consultation-log" icon={FileText} label="Doctor Consultation Log" active={location.pathname === '/doctor-consultation-log'} />
+            <SidebarLink to="/issued-tests" icon={FlaskConical} label="Issued Tests Tracker" active={location.pathname === '/issued-tests'} />
 
-            {(userRole === 'main_admin' || userRole === 'medicine_entry_staff') && (
-              <>
-                <SidebarLink to="/inventory" icon={Pill} label="Inventory" active={location.pathname === '/inventory'} />
-                <SidebarLink to="/medicine-entry" icon={PlusSquare} label="Stock Entry" active={location.pathname === '/medicine-entry'} />
-              </>
-            )}
+            <SidebarLink to="/inventory" icon={Pill} label="Inventory" active={location.pathname === '/inventory'} />
+            <SidebarLink to="/medicine-entry" icon={PlusSquare} label="Stock Entry" active={location.pathname === '/medicine-entry'} />
 
             {userRole === 'main_admin' && (
               <SidebarLink

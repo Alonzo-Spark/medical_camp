@@ -1,11 +1,5 @@
 from django.urls import path
 from voicebot.views import (
-    # Phase 1 — Camp Reminder
-    TriggerTestReminderView,
-    ExotelCallbackView,
-    ExotelPlayXMLView,
-    ExotelStatusView,
-    SmartStartView,
     # Phase 2 — Lab Test Follow-up
     LabTestQuestion1View,
     LabTestQuestion2View,
@@ -17,13 +11,6 @@ from voicebot.views import (
 )
 
 urlpatterns = [
-    # ── Phase 1: Camp Reminder Calls ─────────────────────────────────────────
-    path('trigger-test/',     TriggerTestReminderView.as_view(), name='trigger_test'),
-    path('exotel-callback/',  ExotelCallbackView.as_view(),      name='exotel_callback'),
-    path('exotel-play/',      ExotelPlayXMLView.as_view(),       name='exotel_play'),
-    path('exotel-status/',    ExotelStatusView.as_view(),        name='exotel_status'),
-    path('smart-start/',      SmartStartView.as_view(),          name='smart_start'),
-
     # ── Phase 2: Lab Test Follow-up ──────────────────────────────────────────
     path('lab-test/question1/', LabTestQuestion1View.as_view(), name='lab_test_q1'),
     path('lab-test/question2/', LabTestQuestion2View.as_view(), name='lab_test_q2'),
