@@ -163,10 +163,12 @@ const DoctorsList = () => {
 
 
 
-  const filteredDoctors = doctors.filter(doc =>
-    doc.dr_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (doc.dr_id && doc.dr_id.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredDoctors = doctors
+    .filter(doc =>
+      doc.dr_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (doc.dr_id && doc.dr_id.toLowerCase().includes(searchTerm.toLowerCase()))
+    )
+    .sort((a, b) => parseInt(a.dr_id, 10) - parseInt(b.dr_id, 10));
 
   const downloadCSV = () => {
     const headers = ['Doctor ID', 'Doctor Name', 'Specialization', 'Status'];
