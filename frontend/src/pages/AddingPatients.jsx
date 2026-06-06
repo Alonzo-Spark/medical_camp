@@ -78,6 +78,8 @@ function AddingPatients() {
           if (res.data.next_session_id) {
             setScanSessionId(res.data.next_session_id);
             setScanStatus({ is_completed: false, ocr_status: 'pending' });
+            setShowScanModal(true);
+            startPolling(res.data.next_session_id);
             return;
           }
 

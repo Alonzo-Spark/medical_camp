@@ -198,6 +198,8 @@ const Vitals = () => {
           if (res.data.next_session_id) {
             setScanSessionId(res.data.next_session_id);
             setScanStatus({ is_completed: false });
+            setShowScanModal(true);
+            startPolling(res.data.next_session_id);
             return;
           }
 
@@ -290,6 +292,7 @@ const Vitals = () => {
           }
 
           if (res.data.is_completed) {
+            lastProcessedSessionIdRef.current = sessionId;
             setScanStatus(prev => ({
               ...prev,
               is_completed: true,
