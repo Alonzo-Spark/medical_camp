@@ -113,10 +113,11 @@ DATABASES = {
         'PASSWORD': os.getenv('SUPABASE_DB_PASSWORD', ''),
         'HOST': os.getenv('SUPABASE_DB_HOST', ''),
         'PORT': os.getenv('SUPABASE_DB_PORT', '6543'),
-        'CONN_MAX_AGE': 0,
-        'OPTIONS': {'sslmode': 'require'},
-        # Supabase's pooler (port 6543) runs in transaction mode, which does not
-        # support server-side cursors. Required for serverless/pooled connections.
+        # Reuse connections (good for a persistent server / local DB).
+        'CONN_MAX_AGE': int(os.getenv('DB_CONN_MAX_AGE', '60')),
+        # sslmode: 'require' for Supabase, 'disable' for a local Postgres.
+        'OPTIONS': {'sslmode': os.getenv('DB_SSLMODE', 'require')},
+        # Needed only behind a transaction pooler (Supabase 6543); harmless local.
         'DISABLE_SERVER_SIDE_CURSORS': True,
     } if os.getenv('SUPABASE_DB_HOST') else {
         'ENGINE': 'django.db.backends.sqlite3',
