@@ -1,0 +1,12 @@
+{
+  "regions": ["sin1"],
+  "builds": [
+    {
+      "src": "medicalcamp_inventory/wsgi.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    { "src": "/(.*)", "dest": "medicalcamp_inventory/wsgi.py" }
+  ]
+}

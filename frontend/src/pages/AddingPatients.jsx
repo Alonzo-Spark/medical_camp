@@ -7,6 +7,8 @@ import {
   CheckCircle2, AlertTriangle, Loader2, Save, FileSpreadsheet,
   AlertCircle, Edit2, Check
 } from 'lucide-react';
+import { compressImage } from '../utils/image';
+import { mobileUploadUrl } from '../utils/url';
 
 const API_BASE = import.meta.env.VITE_API_BASE || `http://${window.location.hostname}:8000/api`;
 
@@ -214,9 +216,10 @@ function AddingPatients() {
       const sessRes = await axios.post(`${API_BASE}/create_scan_session`);
       const sId = sessRes.data.session_id;
 
-      // 2. Upload file
+      // 2. Upload file (compressed to stay under Vercel's 4.5 MB body limit)
+      const compressed = await compressImage(file);
       const formData = new FormData();
-      formData.append('image', file);
+      formData.append('image', compressed);
       await axios.post(`${API_BASE}/upload_scan/${sId}`, formData);
 
       // 3. Trigger OCR
@@ -579,7 +582,7 @@ function AddingPatients() {
               <div className="bg-slate-50 p-6 rounded-3xl border-2 border-slate-100 mb-6 shadow-inner">
                 {scanSessionId && (
                   <QRCodeSVG
-                    value={`http://${window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? serverIp : window.location.hostname}:5173/mobile-upload/${scanSessionId}`}
+                    value={mobileUploadUrl(scanSessionId, serverIp)}
                     size={180}
                     level="H"
                     includeMargin={true}

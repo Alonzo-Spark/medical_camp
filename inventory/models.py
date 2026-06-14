@@ -220,6 +220,9 @@ class CampWiseStock(models.Model):
 class ScanSession(models.Model):
     session_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     image = models.ImageField(upload_to='scanned_reports/', null=True, blank=True)
+    # Public URL of the image in Supabase Storage (used on serverless where
+    # there is no persistent local disk for the ImageField).
+    image_url = models.URLField(max_length=1000, null=True, blank=True)
     is_completed = models.BooleanField(default=False)
     ocr_data = models.JSONField(null=True, blank=True)
     ocr_raw_text = models.TextField(null=True, blank=True)

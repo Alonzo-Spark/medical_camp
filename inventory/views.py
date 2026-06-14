@@ -14,16 +14,24 @@ from django.db import transaction
 import json
 import csv
 import datetime
-import threading
 from django.db import close_old_connections
-from .ocr_service import MedicalOCRService
 
 # DRF Imports
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-# Global OCR Service instance
-ocr_service = MedicalOCRService()
+# Lazy OCR service. Importing google-generativeai and building the Gemini model
+# is heavy; doing it at module import would slow the cold start of EVERY
+# endpoint. Defer it until an OCR request actually needs it.
+_ocr_service = None
+
+
+def get_ocr_service():
+    global _ocr_service
+    if _ocr_service is None:
+        from .ocr_service import MedicalOCRService
+        _ocr_service = MedicalOCRService()
+    return _ocr_service
 
 
 from .forms import IssueForm, VitalsForm
@@ -2028,6 +2036,7 @@ def api_update_test_record(request):
 
 SESSION_CHAIN = {}
 
+
 @csrf_exempt
 @api_view(['POST'])
 def api_create_scan_session(request):
@@ -2046,61 +2055,47 @@ def api_create_scan_session(request):
         'session': serializer.data
     })
 
-def run_ocr_task(session_uuid):
-    """Background task to process OCR"""
+@csrf_exempt
+@api_view(['POST'])
+def api_upload_scan(request, session_id):
+    """Save the uploaded image to local media and run report OCR inline.
+
+    Runs OCR synchronously (no background thread) so results are ready by the
+    time the desktop polls for status.
+    """
+    uploaded = request.FILES.get('image')
+    if not uploaded:
+        return Response({'status': 'error', 'message': 'No image provided'}, status=400)
+
     try:
-        close_old_connections()
-        print(f"DEBUG: OCR Task started for session {session_uuid}")
         # pyrefly: ignore [missing-attribute]
-        session = ScanSession.objects.get(session_id=session_uuid)
-        session.ocr_status = 'processing'
-        session.save()
-        
-        # Trigger OCR
-        print(f"DEBUG: Triggering OCR for {session.image.path}")
-        structured_data, raw_text = ocr_service.process_report(session.image.path)
-        
-        print(f"DEBUG: OCR completed for {session_uuid}, saving results...")
+        session = ScanSession.objects.get(session_id=session_id)
+    # pyrefly: ignore [missing-attribute]
+    except ScanSession.DoesNotExist:
+        return Response({'status': 'error', 'message': 'Invalid session'}, status=404)
+
+    if session.is_completed:
+        return Response({'status': 'error', 'message': 'Session already completed'}, status=400)
+
+    # Save to local disk (MEDIA_ROOT/scanned_reports/) and serve via /media/.
+    session.image = uploaded
+    session.is_completed = True
+    session.ocr_status = 'processing'
+    session.save()
+    session.image_url = session.image.url
+
+    try:
+        structured_data, raw_text = get_ocr_service().process_report(session.image.path)
         session.ocr_data = structured_data
         session.ocr_raw_text = raw_text
         session.ocr_status = 'completed'
         session.save()
-        print(f"DEBUG: Session {session_uuid} updated to completed.")
     except Exception as e:
-        print(f"OCR Task Error for {session_uuid}: {e}")
-        try:
-            close_old_connections()
-            # pyrefly: ignore [missing-attribute]
-            session = ScanSession.objects.get(session_id=session_uuid)
-            session.ocr_status = 'error'
-            session.save()
-        except Exception as e2:
-            print(f"OCR Error status update failed: {e2}")
-    finally:
-        close_old_connections()
+        print(f"OCR Task Error for {session_id}: {e}")
+        session.ocr_status = 'error'
+        session.save()
 
-@csrf_exempt
-@api_view(['POST'])
-def api_upload_scan(request, session_id):
-    if request.FILES.get('image'):
-        try:
-            # pyrefly: ignore [missing-attribute]
-            session = ScanSession.objects.get(session_id=session_id)
-            if session.is_completed:
-                return Response({'status': 'error', 'message': 'Session already completed'}, status=400)
-            
-            session.image = request.FILES['image']
-            session.is_completed = True
-            session.save()
-
-            # Start OCR in background thread
-            threading.Thread(target=run_ocr_task, args=(session.session_id,)).start()
-
-            return Response({'status': 'success', 'message': 'Image uploaded successfully'})
-        # pyrefly: ignore [missing-attribute]
-        except ScanSession.DoesNotExist:
-            return Response({'status': 'error', 'message': 'Invalid session'}, status=404)
-    return Response({'status': 'error', 'message': 'No image provided'}, status=400)
+    return Response({'status': 'success', 'message': 'Image uploaded successfully'})
 
 @api_view(['GET'])
 def api_check_scan_status(request, session_id):
@@ -2114,7 +2109,7 @@ def api_check_scan_status(request, session_id):
         return Response({
             'status': 'success',
             'is_completed': session.is_completed,
-            'image_url': request.build_absolute_uri(session.image.url) if session.image else None,
+            'image_url': session.image_url,
             'ocr_status': session.ocr_status,
             'ocr_data': session.ocr_data,
             'ocr_raw_text': session.ocr_raw_text,
@@ -2697,22 +2692,24 @@ def api_get_patients_with_tests(request):
 
         patient_map = {p.patient_id: p for p in patients}
 
-        # Load latest VoiceCalls and VoiceResponses for these patients
-        from voicebot.models import VoiceCall, VoiceResponse
-        from django.utils import timezone
-        # pyrefly: ignore [missing-attribute]
-        calls = VoiceCall.objects.filter(patient_id__in=patient_ids).order_by('id')
+        # Load latest VoiceCalls and VoiceResponses for these patients.
+        # The voicebot app is disabled on serverless; degrade gracefully if so.
         patient_latest_call = {}
-        for c in calls:
-            patient_latest_call[c.patient_id] = c
-            
-        call_ids = [c.id for c in patient_latest_call.values()]
-        # pyrefly: ignore [missing-attribute]
-        responses = VoiceResponse.objects.filter(voice_call_id__in=call_ids)
-        
         resp_map = {}
-        for r in responses:
-            resp_map[(r.voice_call_id, r.question)] = r
+        try:
+            from voicebot.models import VoiceCall, VoiceResponse
+            # pyrefly: ignore [missing-attribute]
+            calls = VoiceCall.objects.filter(patient_id__in=patient_ids).order_by('id')
+            for c in calls:
+                patient_latest_call[c.patient_id] = c
+
+            call_ids = [c.id for c in patient_latest_call.values()]
+            # pyrefly: ignore [missing-attribute]
+            responses = VoiceResponse.objects.filter(voice_call_id__in=call_ids)
+            for r in responses:
+                resp_map[(r.voice_call_id, r.question)] = r
+        except Exception as e:
+            print(f"Voicebot data unavailable (disabled): {e}")
 
         groups = {}
 
@@ -2777,8 +2774,8 @@ def api_ocr_patient_list(request):
             
         if not session.image:
             return Response({'status': 'error', 'message': 'No image uploaded in this session'}, status=400)
-            
-        patients, message = ocr_service.process_patient_list(session.image.path)
+
+        patients, message = get_ocr_service().process_patient_list(session.image.path)
         
         # Enrich list with exists_in_db checks
         enriched_patients = []

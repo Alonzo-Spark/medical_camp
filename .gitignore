@@ -30,6 +30,8 @@ db.sqlite3-journal
 media/
 static/
 staticfiles/
+staticfiles_build/
+.vercel/
 
 # Virtual Environment
 venv/
@@ -79,3 +81,5 @@ Thumbs.db
 # *.csv
 # *.pdf
 *.xlsx
+.vercel
+.env*

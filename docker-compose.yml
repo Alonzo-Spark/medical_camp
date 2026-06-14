@@ -1,0 +1,21 @@
+services:
+  backend:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data/media:/app/media      # local disk storage (scans + voicebot audio)
+    expose:
+      - "8000"
+
+  nginx:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    volumes:
+      - ./data/media:/media:ro       # serve /media/ directly

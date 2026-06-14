@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Camera, CheckCircle2, AlertCircle, Upload, Loader2 } from 'lucide-react';
+import { compressImage } from '../utils/image';
 
 const API_BASE = import.meta.env.VITE_API_BASE || `http://${window.location.hostname}:8000/api`;
 
@@ -28,8 +29,9 @@ const MobileUpload = () => {
         if (!file) return;
 
         setUploading(true);
+        const compressed = await compressImage(file);
         const formData = new FormData();
-        formData.append('image', file);
+        formData.append('image', compressed);
 
         try {
             const res = await axios.post(`${API_BASE}/upload_scan/${sessionId}`, formData, {

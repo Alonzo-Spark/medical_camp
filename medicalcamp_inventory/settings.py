@@ -25,12 +25,32 @@ load_dotenv(BASE_DIR / '.env')
 # See https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-d$c^f6%i$#q+bvxl%lhv(byess%jnx16ajhio@sv&_6-!r_+no'
+SECRET_KEY = os.getenv(
+    'DJANGO_SECRET_KEY',
+    'django-insecure-d$c^f6%i$#q+bvxl%lhv(byess%jnx16ajhio@sv&_6-!r_+no',
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = ['*']
+# Comma-separated list of allowed hosts; defaults allow Vercel + local dev.
+ALLOWED_HOSTS = [
+    h.strip() for h in os.getenv(
+        'ALLOWED_HOSTS', '.vercel.app,localhost,127.0.0.1'
+    ).split(',') if h.strip()
+]
+
+# Trust HTTPS origins for CSRF (Django admin / form posts).
+CSRF_TRUSTED_ORIGINS = [
+    o.strip() for o in os.getenv(
+        'CSRF_TRUSTED_ORIGINS', 'https://*.vercel.app'
+    ).split(',') if o.strip()
+]
+
+# Behind the nginx reverse proxy on the VM: trust the forwarded protocol/host so
+# Django builds correct https:// absolute URLs (media links, redirects).
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = True
 
 
 # Application definition
@@ -51,6 +71,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -92,6 +113,11 @@ DATABASES = {
         'PASSWORD': os.getenv('SUPABASE_DB_PASSWORD', ''),
         'HOST': os.getenv('SUPABASE_DB_HOST', ''),
         'PORT': os.getenv('SUPABASE_DB_PORT', '6543'),
+        'CONN_MAX_AGE': 0,
+        'OPTIONS': {'sslmode': 'require'},
+        # Supabase's pooler (port 6543) runs in transaction mode, which does not
+        # support server-side cursors. Required for serverless/pooled connections.
+        'DISABLE_SERVER_SIDE_CURSORS': True,
     } if os.getenv('SUPABASE_DB_HOST') else {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
@@ -140,13 +166,26 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/3.2/howto/static-files/
 
 STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+# Serverless build can't run collectstatic (pip is locked on the build image),
+# so WhiteNoise serves admin static directly via Django's staticfiles finders.
+WHITENOISE_USE_FINDERS = True
+WHITENOISE_AUTOREFRESH = True
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
 # CORS Settings
-CORS_ALLOW_ALL_ORIGINS = True
+# In production, restrict to the deployed frontend origin(s). In DEBUG, allow all.
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    CORS_ALLOWED_ORIGINS = [
+        o.strip() for o in os.getenv('CORS_ALLOWED_ORIGINS', '').split(',') if o.strip()
+    ]
+    CORS_ALLOWED_ORIGIN_REGEXES = [r'^https://.*\.vercel\.app$']
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'

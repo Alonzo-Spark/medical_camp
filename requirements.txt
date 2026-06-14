@@ -1,6 +1,6 @@
 # ============================================
 # SWASTH - Medical Camp Management System
-# Python Backend Requirements
+# Python Backend Requirements (Vercel serverless)
 # ============================================
 
 # --- Django Framework ---
@@ -9,23 +9,23 @@ djangorestframework==3.17.1
 django-cors-headers==4.9.0
 django-bootstrap5==26.2
 
+# --- Static file serving for Django admin (serves via finders, no collectstatic) ---
+whitenoise==6.8.2
+
 # --- Image Upload Handling ---
 pillow==12.2.0
-
-# --- OpenCV (Image Preprocessing) ---
-opencv-python==4.13.0.92
-opencv-contrib-python==4.10.0.84
 
 # --- Environment Variables ---
 python-dotenv==1.2.2
 
-# --- Google Generative AI ---
+# --- Google Generative AI (OCR via Gemini Vision) ---
 google-generativeai==0.8.6
 
-gunicorn==23.0.0
-
-# --- HTTP Client ---
+# --- HTTP Client (Supabase Storage REST + image fetch) ---
 requests==2.34.2
+
+# --- WSGI server (VM / persistent host) ---
+gunicorn==23.0.0
 
 # --- PostgreSQL Client for Django ---
 psycopg2-binary>=2.9.9

@@ -9,6 +9,8 @@ import {
   QrCode, ScanLine, ExternalLink, Image as ImageIcon, CheckCircle, Loader2
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import { compressImage } from '../utils/image';
+import { mobileUploadUrl } from '../utils/url';
 
 const API_BASE = import.meta.env.VITE_API_BASE || `http://${window.location.hostname}:8000/api`;
 
@@ -263,8 +265,9 @@ const Vitals = () => {
     const file = e.target.files[0];
     if (!file || !scanSessionId) return;
 
+    const compressed = await compressImage(file);
     const formData = new FormData();
-    formData.append('image', file);
+    formData.append('image', compressed);
 
     try {
       await axios.post(`${API_BASE}/upload_scan/${scanSessionId}`, formData, {
@@ -1069,7 +1072,7 @@ const Vitals = () => {
                 <>
                   <div className="bg-slate-50 p-6 rounded-3xl border-2 border-slate-100 mb-6 shadow-inner">
                     <QRCodeSVG
-                      value={`http://${window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? serverIp : window.location.hostname}:5173/mobile-upload/${scanSessionId}`}
+                      value={mobileUploadUrl(scanSessionId, serverIp)}
                       size={200}
                       level="H"
                       includeMargin={true}

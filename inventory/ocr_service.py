@@ -1,4 +1,5 @@
 import os
+import io
 import json
 import re
 import threading
@@ -10,6 +11,17 @@ from dotenv import load_dotenv
 current_dir = os.path.dirname(os.path.abspath(__file__))
 dotenv_path = os.path.join(current_dir, '..', '.env')
 load_dotenv(dotenv_path)
+
+
+def _open_image(source):
+    """Open an image from a filesystem path, raw bytes, or a file-like object.
+
+    On serverless (Vercel) there is no persistent disk, so OCR works on the
+    uploaded bytes directly instead of a saved file path.
+    """
+    if isinstance(source, (bytes, bytearray)):
+        return PIL.Image.open(io.BytesIO(source))
+    return PIL.Image.open(source)
 
 class MedicalOCRService:
     def __init__(self):
@@ -25,13 +37,13 @@ class MedicalOCRService:
         self.model = genai.GenerativeModel('gemini-3.1-flash-lite')
         print("OCR: Gemini Vision Engine Initialized.")
 
-    def process_report(self, image_path):
+    def process_report(self, image_source):
         with self.lock:
             if not self.model:
                 return {}, "Gemini API key not configured."
-                
+
             try:
-                img = PIL.Image.open(image_path)
+                img = _open_image(image_source)
                 
                 prompt = """
                 You are a Medical Document Digitization expert. Extract ALL data from this report into JSON.
@@ -77,13 +89,13 @@ class MedicalOCRService:
                 print(f"OCR Error: {e}")
                 return {}, str(e)
 
-    def process_patient_list(self, image_path):
+    def process_patient_list(self, image_source):
         with self.lock:
             if not self.model:
                 return [], "Gemini API key not configured."
-                
+
             try:
-                img = PIL.Image.open(image_path)
+                img = _open_image(image_source)
                 
                 prompt = """
                 You are a Medical Document Digitization expert. Extract the table of patients from this sheet into a clean JSON list.
