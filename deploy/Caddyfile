@@ -1,0 +1,28 @@
+# Auto-HTTPS reverse proxy. DOMAIN is injected from the environment.
+{$DOMAIN} {
+	encode gzip
+
+	# Allow large report uploads
+	request_body {
+		max_size 25MB
+	}
+
+	# Uploaded media (scan images, voicebot audio) from the shared volume
+	handle_path /media/* {
+		root * /media
+		file_server
+	}
+
+	# Backend routes → gunicorn (Caddy adds X-Forwarded-Proto=https automatically)
+	@backend path /api/* /admin/* /static/* /export* /legacy/*
+	handle @backend {
+		reverse_proxy backend:8000
+	}
+
+	# Everything else → React SPA
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}
