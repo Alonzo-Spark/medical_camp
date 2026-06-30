@@ -4,6 +4,9 @@ import axios from 'axios';
 import { Pill, Search, PackageOpen, Filter, Box, PlusCircle, CheckCircle2, Heart, Landmark, RefreshCcw, AlertTriangle, Download, Edit3, Check, X } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_BASE || `http://${window.location.hostname}:8000/api`;
+// Backend origin for direct file-download links (Caddy proxies /export* to the
+// backend in prod; in dev this points at the :8000 dev server).
+const BACKEND_BASE = API_BASE.replace(/\/api\/?$/, '');
 
 const MedicineEntry = () => {
   const [medicines, setMedicines] = useState([]);
@@ -466,7 +469,7 @@ const MedicineEntry = () => {
 
   const handleExportCampStock = () => {
     if (!selectedCamp) return;
-    window.location.href = `http://localhost:8000/export_camp_stock/${selectedCamp}`;
+    window.location.href = `${BACKEND_BASE}/export_camp_stock/${selectedCamp}`;
   };
 
   const filteredMeds = medicines.filter(m => {

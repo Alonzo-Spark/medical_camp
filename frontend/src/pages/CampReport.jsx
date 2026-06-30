@@ -7,6 +7,9 @@ import {
 } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_BASE || `http://${window.location.hostname}:8000/api`;
+// Backend origin for direct file-download links (Caddy proxies /export* to the
+// backend in prod; in dev this points at the :8000 dev server).
+const BACKEND_BASE = API_BASE.replace(/\/api\/?$/, '');
 
 const StatCard = ({ title, value, subValue, icon: Icon, color }) => (
     <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
@@ -80,7 +83,7 @@ const CampReport = () => {
                         ))}
                     </select>
                     <button
-                        onClick={() => window.open(`http://${window.location.hostname}:8000/export_camp_report/${selectedCamp}`)}
+                        onClick={() => window.open(`${BACKEND_BASE}/export_camp_report/${selectedCamp}`)}
                         className="flex items-center gap-2 px-6 py-2.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-teal-100"
                         disabled={!selectedCamp}
                     >

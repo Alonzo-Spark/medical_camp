@@ -290,9 +290,9 @@ function AddingPatients() {
     setSuccessMsg('');
 
     // Client-side validations
-    const invalidRow = patients.some(p => !p.patient_id || !p.name || !p.age);
+    const invalidRow = patients.some(p => !p.patient_id || !p.name);
     if (invalidRow) {
-      setErrorMsg('Please ensure all patients have an ID, Name, and Age.');
+      setErrorMsg('Please ensure all patients have an ID and Name.');
       return;
     }
 
@@ -410,14 +410,13 @@ function AddingPatients() {
               <thead>
                 <tr className="bg-slate-50/70 border-b border-slate-100 text-left">
                   <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest w-12 text-center">Action</th>
-                  <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest w-40">Status</th>
-                  <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest w-32">Type</th>
+                  <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest w-28">Type</th>
                   <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest w-24">Patient ID *</th>
-                  <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Name *</th>
-                  <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest w-20">Age *</th>
+                  <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest w-72">Name *</th>
+                  <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest w-20">Age</th>
                   <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest w-28">Gender</th>
                   <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest w-36">Contact No</th>
-                  <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Address</th>
+                  <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest w-44">Address</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -432,19 +431,6 @@ function AddingPatients() {
                       >
                         <Trash2 size={15} />
                       </button>
-                    </td>
-
-                    {/* DB Status Badge */}
-                    <td className="px-4 py-2">
-                      {p.exists_in_db ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-extrabold text-blue-700 bg-blue-50 border border-blue-200/60 select-none">
-                          Exists in DB
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200/60 select-none">
-                          Not in DB
-                        </span>
-                      )}
                     </td>
 
                     {/* Patient Type select dropdown */}

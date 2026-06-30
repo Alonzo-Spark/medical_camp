@@ -36,14 +36,16 @@ DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 # Comma-separated list of allowed hosts; defaults allow Vercel + local dev.
 ALLOWED_HOSTS = [
     h.strip() for h in os.getenv(
-        'ALLOWED_HOSTS', '.vercel.app,localhost,127.0.0.1'
+        'ALLOWED_HOSTS',
+        '.vercel.app,careandcareercharities.org,www.careandcareercharities.org,localhost,127.0.0.1'
     ).split(',') if h.strip()
 ]
 
 # Trust HTTPS origins for CSRF (Django admin / form posts).
 CSRF_TRUSTED_ORIGINS = [
     o.strip() for o in os.getenv(
-        'CSRF_TRUSTED_ORIGINS', 'https://*.vercel.app'
+        'CSRF_TRUSTED_ORIGINS',
+        'https://*.vercel.app,https://careandcareercharities.org,https://www.careandcareercharities.org'
     ).split(',') if o.strip()
 ]
 
@@ -177,6 +179,17 @@ WHITENOISE_AUTOREFRESH = True
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# DRF: the JSON API is consumed by the React SPA and is intentionally open
+# (the app gates access with its own /api/login). DRF's default
+# SessionAuthentication runs a CSRF check on every unsafe request whenever an
+# admin session cookie is present. On the VM the SPA and backend share one
+# origin (Caddy), so that cookie *is* sent and POSTs were rejected with 403.
+# Drop session/basic auth here so these endpoints behave the same everywhere.
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [],
+    'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.AllowAny'],
+}
 
 # CORS Settings
 # In production, restrict to the deployed frontend origin(s). In DEBUG, allow all.
