@@ -1,8 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import {
   Hospital, Save, CheckCircle2, HeartPulse, Calendar, Hash,
-  AlertCircle, Stethoscope
+  AlertCircle, Stethoscope, Trash2, MapPin
 } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_BASE || `http://${window.location.hostname}:8000/api`;
@@ -14,7 +14,40 @@ const CampRegistration = () => {
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [camps, setCamps] = useState([]);
+  const [deletingId, setDeletingId] = useState(null);
   const dateInputRef = useRef(null);
+
+  const fetchCamps = () => {
+    axios.get(`${API_BASE}/camps`)
+      .then(res => setCamps(res.data))
+      .catch(() => setCamps([]));
+  };
+
+  useEffect(() => { fetchCamps(); }, []);
+
+  const handleDeleteCamp = async (camp) => {
+    const label = `Camp ${camp.number} — ${camp.venue_name || camp.venue || ''} (${camp.date || ''})`;
+    if (!window.confirm(
+      `Permanently DELETE ${label}?\n\n` +
+      `This removes ALL of the camp's data: patient visits, vitals, medicine issues, ` +
+      `tests, doctor assignments and stock allotments. Unconsumed stock returns to global. ` +
+      `This cannot be undone.`
+    )) return;
+
+    setDeletingId(camp.id);
+    try {
+      const res = await axios.post(`${API_BASE}/delete_camp`, { camp_id: camp.id });
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 4000);
+      fetchCamps();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Error deleting camp.');
+      setTimeout(() => setError(''), 4000);
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   // Handle native date picker change → convert to dd/mm/yyyy
   const handleNativeDateChange = (e) => {
@@ -76,6 +109,7 @@ const CampRegistration = () => {
       setCampId('');
       setCampDate('');
       setVenue('');
+      fetchCamps();
     } catch (err) {
       setError(err.response?.data?.message || 'Error registering camp. Please try again.');
       setTimeout(() => setError(''), 4000);
@@ -222,6 +256,62 @@ const CampRegistration = () => {
             </div>
           </button>
         </form>
+      </div>
+
+      {/* Registered Camps — with delete */}
+      <div className="glass-panel-light p-8 relative overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-rose-500 via-rose-400 to-orange-400" />
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-2 bg-rose-50 rounded-xl border border-rose-200">
+            <Hospital className="text-rose-600" size={20} strokeWidth={2.5} />
+          </div>
+          <div>
+            <h4 className="text-xl font-black text-slate-800 tracking-tight">Registered Camps</h4>
+            <p className="text-slate-400 text-xs font-bold">Delete a camp to remove it and all of its records</p>
+          </div>
+        </div>
+
+        {camps.length === 0 ? (
+          <p className="text-slate-400 text-sm font-bold py-6 text-center">No camps registered yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {camps.map(camp => (
+              <div
+                key={camp.id}
+                className="flex items-center justify-between gap-4 bg-white border border-slate-200 rounded-xl px-5 py-4 shadow-sm hover:border-slate-300 transition-all"
+              >
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className="flex items-center justify-center h-11 w-11 rounded-xl bg-teal-50 border border-teal-200 text-teal-700 font-black text-sm shrink-0">
+                    #{camp.number}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-slate-800 font-black truncate flex items-center gap-1.5">
+                      <MapPin size={13} className="text-teal-500 shrink-0" strokeWidth={2.5} />
+                      {camp.venue_name || camp.venue || 'Unknown venue'}
+                    </p>
+                    <p className="text-slate-400 text-xs font-bold flex items-center gap-1.5">
+                      <Calendar size={11} className="text-slate-300" strokeWidth={2.5} />
+                      {camp.date || '—'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteCamp(camp)}
+                  disabled={deletingId === camp.id}
+                  className="flex items-center gap-2 text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-4 py-2.5 rounded-xl transition-all font-black text-xs uppercase tracking-widest disabled:opacity-50 shrink-0"
+                >
+                  {deletingId === camp.id ? (
+                    <div className="h-4 w-4 border-2 border-rose-300 border-t-rose-600 rounded-full animate-spin" />
+                  ) : (
+                    <Trash2 size={15} strokeWidth={2.5} />
+                  )}
+                  Delete
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

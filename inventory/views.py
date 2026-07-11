@@ -50,8 +50,47 @@ from .models import (
     Doctor,
     ScanSession,
     CampWiseDoctor,
-    PatientCampVisit
+    PatientCampVisit,
+    ManualPatientRecord
 )
+
+def medicine_outstanding(medicine):
+    """Total qty of `medicine` reserved out to camps but not yet reconciled.
+
+    outstanding = Σ(allocated_stock - settled_used - returned_stock) over all
+    camp stock rows for the medicine. Subtracting this from Medicine.stock gives
+    the quantity still available to allot without over-committing the warehouse.
+    """
+    from django.db.models import Sum
+    agg = CampWiseStock.objects.filter(medicine=medicine).aggregate(
+        alloc=Sum('allocated_stock'),
+        settled=Sum('settled_used'),
+        returned=Sum('returned_stock'),
+    )
+    return (agg['alloc'] or 0) - (agg['settled'] or 0) - (agg['returned'] or 0)
+
+
+def reconcile_camp_stock(camp_stock):
+    """Settle a camp/medicine row against the global master ("Update Balances").
+
+    Permanently removes the newly-consumed portion (used_stock not yet settled)
+    from Medicine.stock and releases the unconsumed remainder back to the
+    available pool. Idempotent: running it again with no new usage is a no-op.
+    Returns the (refreshed) Medicine instance.
+    """
+    medicine = camp_stock.medicine
+    delta = camp_stock.used_stock - camp_stock.settled_used
+    if delta != 0:
+        # Deduct only what patients actually consumed since the last settle.
+        medicine.stock = medicine.stock - delta
+        medicine.save()
+    camp_stock.settled_used = camp_stock.used_stock
+    # Unconsumed remainder physically returns to the warehouse; mark it returned
+    # so it no longer counts as outstanding and remaining shows zero.
+    camp_stock.returned_stock = max(0, camp_stock.allocated_stock - camp_stock.used_stock)
+    camp_stock.save()
+    return medicine
+
 
 def charts_data(vitals):
     all_vitals = {
@@ -567,7 +606,26 @@ def api_get_medicines(request):
     # pyrefly: ignore [missing-attribute]
     medicines = Medicine.objects.order_by('uqid')
     serializer = MedicineSerializer(medicines, many=True)
-    return Response(serializer.data)
+
+    # Annotate outstanding (allotted-but-not-reconciled) and available-to-allot
+    # so the UI can show how much of the global stock is still free to allot.
+    from django.db.models import Sum
+    rows = CampWiseStock.objects.values('medicine__uqid').annotate(
+        alloc=Sum('allocated_stock'),
+        settled=Sum('settled_used'),
+        returned=Sum('returned_stock'),
+    )
+    outstanding_map = {
+        r['medicine__uqid']: (r['alloc'] or 0) - (r['settled'] or 0) - (r['returned'] or 0)
+        for r in rows
+    }
+
+    data = serializer.data
+    for m in data:
+        out = outstanding_map.get(m['uqid'], 0)
+        m['outstanding'] = out
+        m['available_to_allot'] = m['stock'] - out
+    return Response(data)
 
 @api_view(['POST'])
 def api_update_medicine_details(request):
@@ -1685,13 +1743,19 @@ def api_allocate_to_camp(request):
 
         camp = get_object_or_404(MedicalCamp, id=camp_id)
         medicine = get_object_or_404(Medicine, uqid=uqid)
-        
-        if medicine.stock < qty:
+
+        # Allotting no longer deducts the global master count. Instead we guard
+        # against reserving more than the warehouse physically holds: the amount
+        # already allotted-but-not-yet-reconciled (outstanding) across every camp
+        # plus this new qty may not exceed the global stock.
+        outstanding = medicine_outstanding(medicine)
+        available_to_allot = medicine.stock - outstanding
+        if qty > available_to_allot:
             return Response({
                 'status': 'error',
-                'message': f'Insufficient stock in warehouse. Available: {medicine.stock}'
+                'message': f'Insufficient stock in warehouse. Available to allot: {max(0, available_to_allot)}'
             }, status=400)
-        
+
         company_name = data.get('company_name')
         expiry_date = data.get('expiry_date')
 
@@ -1701,21 +1765,21 @@ def api_allocate_to_camp(request):
             medicine=medicine,
             defaults={'allocated_stock': 0, 'used_stock': 0}
         )
-            
-        medicine.stock -= qty
-        medicine.save()
+
+        # Global Medicine.stock is intentionally NOT changed here.
         camp_stock.allocated_stock += qty
         if company_name:
             camp_stock.company_name = company_name
         if expiry_date:
             camp_stock.expiry_date = expiry_date
         camp_stock.save()
-        
+
         return Response({
             'status': 'success',
             'medicine_name': medicine.name,
             'new_total_stock': medicine.stock,
-            'new_camp_stock': camp_stock.allocated_stock
+            'new_camp_stock': camp_stock.allocated_stock,
+            'available_to_allot': medicine.stock - medicine_outstanding(medicine)
         })
     except Exception as e:
         return Response({
@@ -1784,14 +1848,8 @@ def api_return_to_warehouse(request):
         camp = get_object_or_404(MedicalCamp, id=camp_id)
         # pyrefly: ignore [missing-attribute]
         camp_stock = get_object_or_404(CampWiseStock, camp=camp, medicine__uqid=med_id)
-        
-        remaining = camp_stock.remaining_stock()
-        medicine = camp_stock.medicine
-        if remaining > 0:
-            medicine.stock += remaining
-            medicine.save()
-        camp_stock.returned_stock += remaining
-        camp_stock.save()
+
+        medicine = reconcile_camp_stock(camp_stock)
         return Response({
             'status': 'success',
             'new_total': medicine.stock
@@ -1811,16 +1869,10 @@ def api_close_camp_session(request):
         # pyrefly: ignore [missing-attribute]
         camp_stocks = CampWiseStock.objects.filter(camp_id=camp_id)
         for cs in camp_stocks:
-            remaining = cs.remaining_stock()
-            if remaining > 0:
-                medicine = cs.medicine
-                medicine.stock += remaining
-                medicine.save()
-            cs.returned_stock += remaining
-            cs.save()
+            reconcile_camp_stock(cs)
         return Response({
             'status': 'success',
-            'message': 'Camp session closed and stock returned to warehouse'
+            'message': 'Balances updated: consumed stock deducted from global, unused released'
         })
     except Exception as e:
         return Response({
@@ -1869,6 +1921,147 @@ def api_register_camp(request):
             'status': 'error',
             'message': str(e)
         }, status=400)
+
+@api_view(['POST'])
+@transaction.atomic
+def api_delete_camp(request):
+    """Permanently delete a camp and all of its associated records.
+
+    All child records (stock entries, patient visits, vitals, medicine issues,
+    tests, doctor assignments, manual records) cascade-delete via their FK to the
+    camp. Because allotting no longer deducts the global master count, unconsumed
+    stock is restored automatically once the reservation rows disappear; already
+    reconciled (consumed) deductions are left in place. Returns a summary.
+    """
+    try:
+        data = request.data
+        camp_id = data.get('camp_id')
+        # pyrefly: ignore [missing-attribute]
+        camp = get_object_or_404(MedicalCamp, id=camp_id)
+        camp_number = camp.number
+
+        # pyrefly: ignore [missing-attribute]
+        released = medicine_totals = None
+        # Snapshot the outstanding reservations being released for reporting.
+        # pyrefly: ignore [missing-attribute]
+        released_rows = CampWiseStock.objects.filter(camp=camp)
+        released = sum(cs.outstanding_stock() for cs in released_rows)
+
+        camp.delete()
+
+        return Response({
+            'status': 'success',
+            'message': f'Camp {camp_number} and all its records were permanently deleted.',
+            'released_stock': released
+        })
+    except Exception as e:
+        return Response({
+            'status': 'error',
+            'message': str(e)
+        }, status=400)
+
+
+@api_view(['POST'])
+@transaction.atomic
+def api_reset_camp_allocation(request):
+    """Reset a camp's stock allotment (overall or for a single medicine).
+
+    Resets allocated_stock back to 0, releasing the reservation to the global
+    available pool. This does NOT touch the global master count (allotting never
+    deducted it) and keeps patient medicine-issue records intact. A medicine
+    whose stock has already been consumed (used_stock > 0) is skipped and
+    reported, since its allotment cannot fall below what patients received —
+    wipe the camp's patient data first if you need a full reset.
+
+    Body: { camp_id, uqid? }  — omit uqid to reset every medicine in the camp.
+    """
+    try:
+        data = request.data
+        camp_id = data.get('camp_id')
+        uqid = data.get('uqid')
+        camp = get_object_or_404(MedicalCamp, id=camp_id)
+
+        # pyrefly: ignore [missing-attribute]
+        qs = CampWiseStock.objects.filter(camp=camp)
+        if uqid not in (None, ''):
+            qs = qs.filter(medicine__uqid=uqid)
+
+        reset_count = 0
+        skipped = []
+        for cs in qs:
+            if cs.used_stock > 0:
+                skipped.append(cs.medicine.name)
+                continue
+            cs.allocated_stock = 0
+            cs.returned_stock = 0
+            cs.settled_used = 0
+            cs.save()
+            reset_count += 1
+
+        if uqid not in (None, '') and reset_count == 0 and skipped:
+            return Response({
+                'status': 'error',
+                'message': f'Cannot reset {skipped[0]}: {qs[0].used_stock if qs else 0} unit(s) already issued to patients. Wipe patient data first.'
+            }, status=400)
+
+        msg = f'Reset allotment for {reset_count} medicine(s).'
+        if skipped:
+            msg += f' Skipped {len(skipped)} with issued stock: {", ".join(skipped[:5])}' + ('…' if len(skipped) > 5 else '')
+        return Response({
+            'status': 'success',
+            'message': msg,
+            'reset_count': reset_count,
+            'skipped': skipped
+        })
+    except Exception as e:
+        return Response({
+            'status': 'error',
+            'message': str(e)
+        }, status=400)
+
+
+@api_view(['POST'])
+@transaction.atomic
+def api_wipe_camp_patients(request):
+    """Wipe all patient/clinical data recorded for a camp.
+
+    Deletes the camp's medicine issues, test issues, vitals, patient-vitals and
+    visit records, plus manual doctor records. The global Patient master rows are
+    left untouched (a patient may belong to other camps). Deleting the medicine
+    issues resets each medicine's used_stock to 0 via the existing signal.
+
+    Body: { camp_id }
+    """
+    try:
+        data = request.data
+        camp_id = data.get('camp_id')
+        camp = get_object_or_404(MedicalCamp, id=camp_id)
+
+        counts = {}
+        # pyrefly: ignore [missing-attribute]
+        counts['medicine_issues'], _ = PatientMedicineIssue.objects.filter(camp=camp).delete()
+        # pyrefly: ignore [missing-attribute]
+        counts['test_issues'], _ = TestIssue.objects.filter(camp=camp).delete()
+        # pyrefly: ignore [missing-attribute]
+        counts['vitals'], _ = Vitals.objects.filter(camp=camp).delete()
+        # pyrefly: ignore [missing-attribute]
+        counts['patient_vitals'], _ = PatientVitals.objects.filter(camp=camp).delete()
+        # pyrefly: ignore [missing-attribute]
+        counts['visits'], _ = PatientCampVisit.objects.filter(camp=camp).delete()
+        # pyrefly: ignore [missing-attribute]
+        counts['manual_records'], _ = ManualPatientRecord.objects.filter(camp=camp).delete()
+
+        return Response({
+            'status': 'success',
+            'message': f'Patient data wiped for camp {camp.number}.',
+            'deleted': counts
+        })
+    except Exception as e:
+        return Response({
+            'status': 'error',
+            'message': str(e)
+        }, status=400)
+
 
 @api_view(['GET'])
 def api_get_medical_tests(request):

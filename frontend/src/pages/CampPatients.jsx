@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
-  ClipboardList, Landmark, Users, ChevronUp, ChevronDown, 
-  Pill, FlaskConical, Search, X, Save
+  ClipboardList, Landmark, Users, ChevronUp, ChevronDown,
+  Pill, FlaskConical, Search, X, Save, Trash2
 } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_BASE || `http://${window.location.hostname}:8000/api`;
@@ -14,6 +14,7 @@ const CampPatients = () => {
   const [listLoading, setListLoading] = useState(false);
   const [expandedPatient, setExpandedPatient] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [wiping, setWiping] = useState(false);
 
   useEffect(() => {
     axios.get(`${API_BASE}/camps`).then(res => setCamps(res.data));
@@ -55,6 +56,29 @@ const CampPatients = () => {
 
 
 
+
+  const handleWipePatients = async () => {
+    if (!listCamp) return;
+    const camp = camps.find(c => String(c.id) === String(listCamp));
+    const label = camp ? `Camp ${camp.number} — ${camp.venue}` : 'this camp';
+    if (!window.confirm(
+      `Wipe ALL patient data for ${label}?\n\n` +
+      `This permanently deletes the camp's medicine issues, tests, vitals and visit ` +
+      `records, and resets used-stock to zero. The camp itself and the global patient ` +
+      `master are kept. This cannot be undone.`
+    )) return;
+
+    setWiping(true);
+    try {
+      const res = await axios.post(`${API_BASE}/wipe_camp_patients`, { camp_id: listCamp });
+      alert(res.data.message || 'Patient data wiped.');
+      fetchCampPatients(listCamp);
+    } catch (err) {
+      alert('Error wiping patient data: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setWiping(false);
+    }
+  };
 
   const filteredPatients = campPatients.filter(pat => {
     if (!searchQuery) return true;
@@ -112,6 +136,25 @@ const CampPatients = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-white border border-slate-200 rounded-xl pl-12 pr-5 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none transition-all"
               />
+            </div>
+          )}
+
+          {/* Wipe patient data */}
+          {listCamp && (
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                onClick={handleWipePatients}
+                disabled={wiping}
+                className="flex items-center gap-2 text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-4 py-2.5 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest disabled:opacity-50"
+              >
+                {wiping ? (
+                  <div className="h-4 w-4 border-2 border-rose-300 border-t-rose-600 rounded-full animate-spin" />
+                ) : (
+                  <Trash2 size={14} strokeWidth={2.5} />
+                )}
+                Wipe Patient Data
+              </button>
             </div>
           )}
         </div>

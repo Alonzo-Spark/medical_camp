@@ -191,6 +191,12 @@ class CampWiseStock(models.Model):
     used_stock = models.IntegerField(default=0)
     returned_stock = models.IntegerField(default=0)
     available_stock = models.IntegerField(default=0)
+    # Amount of `used_stock` that has already been permanently deducted from the
+    # global Medicine.stock via "Update Balances" reconciliation. Allotting stock
+    # to a camp no longer touches the global count immediately; only the consumed
+    # (used) portion is removed from the global master on reconcile, and the
+    # unconsumed remainder is released back to the available pool.
+    settled_used = models.IntegerField(default=0)
     unit_cost = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     alternate_name = models.CharField(max_length=2000, null=True, blank=True)
     company_name = models.CharField(max_length=2000, null=True, blank=True)
@@ -203,6 +209,16 @@ class CampWiseStock(models.Model):
 
     def remaining_stock(self):
         return max(0, self.available_stock)
+
+    def outstanding_stock(self):
+        """Qty currently reserved out of the global master for this camp/medicine.
+
+        This is the allotted quantity that has not yet been permanently removed
+        from the global count (settled_used) nor released back (returned_stock).
+        Used to guard against over-allotting more than the warehouse physically
+        holds across all camps.
+        """
+        return max(0, self.allocated_stock - self.settled_used - self.returned_stock)
 
     def save(self, *args, **kwargs):
         # pyrefly: ignore [bad-assignment, unsupported-operation]

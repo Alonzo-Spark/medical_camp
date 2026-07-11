@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
-import { Pill, Search, PackageOpen, Filter, Box, PlusCircle, CheckCircle2, Heart, Landmark, RefreshCcw, AlertTriangle, Download, Edit3, Check, X } from 'lucide-react';
+import { Pill, Search, PackageOpen, Filter, Box, PlusCircle, CheckCircle2, Heart, Landmark, RefreshCcw, AlertTriangle, Download, Edit3, Check, X, RotateCcw } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_BASE || `http://${window.location.hostname}:8000/api`;
 // Backend origin for direct file-download links (Caddy proxies /export* to the
@@ -180,6 +180,7 @@ const MedicineEntry = () => {
           formulation: med.formulation || '',
           category: med.category || 'Uncategorized',
           total_stock: med.stock,
+          available_to_allot: med.available_to_allot !== undefined ? med.available_to_allot : med.stock,
           camp_stock: campData.allocated,
           used_stock: campData.used,
           returned_stock: campData.returned || 0,
@@ -262,8 +263,9 @@ const MedicineEntry = () => {
       setTimeout(() => setSuccessMsg(''), 3000);
       setAllocateQtys(prev => ({ ...prev, [uqid]: '' }));
 
-      // Update both views
-      setMedicines(prev => prev.map(m => m.uqid === uqid ? { ...m, stock: res.data.new_total_stock } : m));
+      // Global stock is unchanged by allotment; refresh both views so the
+      // available-to-allot figure and camp allocation reflect the reservation.
+      fetchMedicines();
       fetchCampStocks(); // Refresh to get correct used/remaining
     } catch (err) {
       alert('Error allocating stock: ' + (err.response?.data?.message || err.message));
@@ -323,6 +325,46 @@ const MedicineEntry = () => {
       fetchCampStocks();
     } catch (err) {
       alert('Error returning stock: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const handleResetAll = async () => {
+    if (!selectedCamp) return;
+    if (!window.confirm(
+      `Reset ALL medicine allotments for this camp back to zero?\n\n` +
+      `This releases the reserved quantities back to global stock. Medicines that ` +
+      `have already been issued to patients are skipped — wipe the camp's patient ` +
+      `data first if you need to reset those too.`
+    )) return;
+
+    setSuccessMsg('Resetting allotments...');
+    try {
+      const res = await axios.post(`${API_BASE}/reset_camp_allocation`, {
+        camp_id: selectedCamp
+      });
+      setSuccessMsg(res.data.message || 'Allotments reset.');
+      setTimeout(() => setSuccessMsg(''), 4000);
+      fetchMedicines();
+      fetchCampStocks();
+    } catch (err) {
+      alert('Error resetting allotments: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const handleResetMedicine = async (uqid, medName) => {
+    if (!selectedCamp) return;
+    if (!window.confirm(`Reset the allotment for ${medName} back to zero?`)) return;
+    try {
+      const res = await axios.post(`${API_BASE}/reset_camp_allocation`, {
+        camp_id: selectedCamp,
+        uqid: uqid
+      });
+      setSuccessMsg(res.data.message || 'Allotment reset.');
+      setTimeout(() => setSuccessMsg(''), 3000);
+      fetchMedicines();
+      fetchCampStocks();
+    } catch (err) {
+      alert('Error resetting allotment: ' + (err.response?.data?.message || err.message));
     }
   };
 
@@ -641,6 +683,14 @@ const MedicineEntry = () => {
                 >
                   <RefreshCcw size={16} strokeWidth={3} />
                   Update All Balances
+                </button>
+                <button
+                  onClick={handleResetAll}
+                  title="Reset all allotments for this camp back to zero (releases reserved stock)"
+                  className="flex items-center gap-2 bg-white hover:bg-rose-50 text-rose-600 px-6 py-4 rounded-2xl border border-rose-200 hover:border-rose-300 transition-all shadow-sm font-black text-[10px] uppercase tracking-widest"
+                >
+                  <RotateCcw size={16} strokeWidth={3} />
+                  Reset Allotments
                 </button>
                 <button
                   onClick={handleExportCampStock}
@@ -1176,15 +1226,20 @@ const MedicineEntry = () => {
                           </td>
                           <td className="px-4 py-4">
                             <div className="flex flex-col">
-                              {allocateQtys[stock.uqid] > 0 && (
-                                <span className="text-sm font-black text-slate-400 line-through decoration-slate-300 animate-in fade-in slide-in-from-bottom-1">
-                                  {stock.total_stock}
-                                </span>
-                              )}
+                              {/* Global master count — unchanged by allotment (only
+                                  reconciled on "Update Balances"). */}
                               <span className="text-xl font-black text-slate-800 font-data">
-                                {allocateQtys[stock.uqid] > 0
-                                  ? stock.total_stock - parseInt(allocateQtys[stock.uqid])
-                                  : stock.total_stock}
+                                {stock.total_stock}
+                              </span>
+                              {/* Available to allot decreases as stock is reserved. */}
+                              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 mt-0.5">
+                                {allocateQtys[stock.uqid] > 0 ? (
+                                  <span className="text-emerald-600">
+                                    {Math.max(0, stock.available_to_allot - parseInt(allocateQtys[stock.uqid]))} free after
+                                  </span>
+                                ) : (
+                                  <>{stock.available_to_allot} free to allot</>
+                                )}
                               </span>
                             </div>
                           </td>
@@ -1254,7 +1309,7 @@ const MedicineEntry = () => {
                                 />
                                 <button
                                   onClick={() => handleAllocate(stock.uqid)}
-                                  disabled={!selectedCamp || !allocateQtys[stock.uqid] || allocateQtys[stock.uqid] <= 0 || allocateQtys[stock.uqid] > stock.total_stock}
+                                  disabled={!selectedCamp || !allocateQtys[stock.uqid] || allocateQtys[stock.uqid] <= 0 || allocateQtys[stock.uqid] > stock.available_to_allot}
                                   className="p-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-50 disabled:text-slate-200 text-white rounded-lg transition-all shadow-sm"
                                   title="Allocate to Camp"
                                 >
@@ -1266,9 +1321,18 @@ const MedicineEntry = () => {
                                 onClick={() => handleReturn(stock.uqid, stock.medication, stock.remaining_stock)}
                                 disabled={!selectedCamp || stock.remaining_stock <= 0}
                                 className="p-2.5 bg-white border border-slate-200 text-slate-400 hover:text-teal-600 hover:border-teal-200 hover:bg-teal-50 rounded-xl transition-all shadow-sm disabled:opacity-30 disabled:hover:bg-white disabled:hover:border-slate-200 flex items-center justify-center"
-                                title="Update single medication (Add Available Balance to Total Stock)"
+                                title="Update single medication (deduct consumed from global, release the rest)"
                               >
                                 <RefreshCcw size={16} strokeWidth={2.5} />
+                              </button>
+
+                              <button
+                                onClick={() => handleResetMedicine(stock.uqid, stock.medication)}
+                                disabled={!selectedCamp || stock.camp_stock <= 0}
+                                className="p-2.5 bg-white border border-slate-200 text-slate-400 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 rounded-xl transition-all shadow-sm disabled:opacity-30 disabled:hover:bg-white disabled:hover:border-slate-200 flex items-center justify-center"
+                                title="Reset this medicine's allotment to zero"
+                              >
+                                <RotateCcw size={16} strokeWidth={2.5} />
                               </button>
                             </div>
                           </td>
