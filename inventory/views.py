@@ -2026,9 +2026,13 @@ def api_wipe_camp_patients(request):
     """Wipe all patient/clinical data recorded for a camp.
 
     Deletes the camp's medicine issues, test issues, vitals, patient-vitals and
-    visit records, plus manual doctor records. The global Patient master rows are
-    left untouched (a patient may belong to other camps). Deleting the medicine
-    issues resets each medicine's used_stock to 0 via the existing signal.
+    visit records, plus manual doctor records. Deleting the medicine issues resets
+    each medicine's used_stock to 0 via the existing signal.
+
+    Patient master rows: a Patient that belonged only to this camp is deleted
+    outright; one that is also linked to another camp (via camp_session, a visit,
+    vitals, an issue or a test elsewhere) is kept, but its camp_session is cleared
+    if it pointed at this camp so it no longer surfaces in this camp's list.
 
     Body: { camp_id }
     """
@@ -2036,6 +2040,21 @@ def api_wipe_camp_patients(request):
         data = request.data
         camp_id = data.get('camp_id')
         camp = get_object_or_404(MedicalCamp, id=camp_id)
+
+        # Capture every patient linked to this camp BEFORE deleting the records
+        # that establish those links, so we can decide their fate afterwards.
+        # pyrefly: ignore [missing-attribute]
+        linked_pids = set()
+        # pyrefly: ignore [missing-attribute]
+        linked_pids |= set(PatientCampVisit.objects.filter(camp=camp).values_list('patient_id', flat=True))
+        # pyrefly: ignore [missing-attribute]
+        linked_pids |= set(PatientVitals.objects.filter(camp=camp).values_list('patient_id', flat=True))
+        # pyrefly: ignore [missing-attribute]
+        linked_pids |= set(PatientMedicineIssue.objects.filter(camp=camp).values_list('patient_id', flat=True))
+        # pyrefly: ignore [missing-attribute]
+        linked_pids |= set(TestIssue.objects.filter(camp=camp).values_list('patient_id', flat=True))
+        # pyrefly: ignore [missing-attribute]
+        linked_pids |= set(Patient.objects.filter(camp_session=camp.number).values_list('patient_id', flat=True))
 
         counts = {}
         # pyrefly: ignore [missing-attribute]
@@ -2050,6 +2069,32 @@ def api_wipe_camp_patients(request):
         counts['visits'], _ = PatientCampVisit.objects.filter(camp=camp).delete()
         # pyrefly: ignore [missing-attribute]
         counts['manual_records'], _ = ManualPatientRecord.objects.filter(camp=camp).delete()
+
+        # Now resolve the Patient master rows. With this camp's records gone, a
+        # patient with no remaining link anywhere belonged only here → delete it.
+        patients_deleted = 0
+        patients_detached = 0
+        for pid in linked_pids:
+            # pyrefly: ignore [missing-attribute]
+            still_linked = (
+                PatientCampVisit.objects.filter(patient_id=pid).exists()
+                or PatientVitals.objects.filter(patient_id=pid).exists()
+                or PatientMedicineIssue.objects.filter(patient_id=pid).exists()
+                or TestIssue.objects.filter(patient_id=pid).exists()
+                # pyrefly: ignore [missing-attribute]
+                or Patient.objects.filter(patient_id=pid).exclude(camp_session=camp.number).filter(camp_session__isnull=False).exists()
+            )
+            if still_linked:
+                # Shared with another camp — just detach from this one.
+                # pyrefly: ignore [missing-attribute]
+                updated = Patient.objects.filter(patient_id=pid, camp_session=camp.number).update(camp_session=None)
+                patients_detached += updated
+            else:
+                # pyrefly: ignore [missing-attribute]
+                deleted, _ = Patient.objects.filter(patient_id=pid).delete()
+                patients_deleted += deleted
+        counts['patients_deleted'] = patients_deleted
+        counts['patients_detached'] = patients_detached
 
         return Response({
             'status': 'success',

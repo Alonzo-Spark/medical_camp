@@ -16,6 +16,7 @@ const CampRegistration = () => {
   const [error, setError] = useState('');
   const [camps, setCamps] = useState([]);
   const [deletingId, setDeletingId] = useState(null);
+  const [deleteMsg, setDeleteMsg] = useState('');
   const dateInputRef = useRef(null);
 
   const fetchCamps = () => {
@@ -38,8 +39,8 @@ const CampRegistration = () => {
     setDeletingId(camp.id);
     try {
       const res = await axios.post(`${API_BASE}/delete_camp`, { camp_id: camp.id });
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 4000);
+      setDeleteMsg(res.data.message || `Camp ${camp.number} deleted`);
+      setTimeout(() => setDeleteMsg(''), 4000);
       fetchCamps();
     } catch (err) {
       setError(err.response?.data?.message || 'Error deleting camp.');
@@ -148,6 +149,12 @@ const CampRegistration = () => {
             <div className="flex items-center gap-2 text-rose-600 bg-rose-50 px-5 py-3 rounded-xl border border-rose-200 shadow-sm">
               <AlertCircle size={18} strokeWidth={3} />
               <span className="text-xs font-black uppercase tracking-widest">{error}</span>
+            </div>
+          )}
+          {deleteMsg && (
+            <div className="flex items-center gap-2 text-rose-600 bg-rose-50 px-5 py-3 rounded-xl border border-rose-200 shadow-sm">
+              <Trash2 size={18} strokeWidth={3} />
+              <span className="text-xs font-black uppercase tracking-widest">Camp Deleted</span>
             </div>
           )}
         </div>
