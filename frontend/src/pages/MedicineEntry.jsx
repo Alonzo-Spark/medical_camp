@@ -137,6 +137,25 @@ const MedicineEntry = () => {
     }
   };
 
+  const handleToggleStatus = async (med) => {
+    try {
+      const res = await axios.post(`${API_BASE}/toggle_medicine_status`, { uqid: med.uqid });
+      if (res.data.status === 'success') {
+        setMedicines(prev =>
+          prev.map(m => m.uqid === med.uqid ? { ...m, is_active: res.data.is_active } : m)
+        );
+        setSuccessMsg(res.data.message);
+        setTimeout(() => setSuccessMsg(''), 2000);
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || err.message);
+    }
+  };
+
+  const handleExport = () => {
+    window.location.href = `${BACKEND_BASE}/export`;
+  };
+
   const fetchMedicines = () => {
     setLoading(true);
     return axios.get(`${API_BASE}/medicines`).then(res => {
@@ -685,6 +704,13 @@ const MedicineEntry = () => {
                   <Filter size={18} strokeWidth={2.5} />
                   Manage Categories
                 </button>
+                <button
+                  onClick={handleExport}
+                  className="flex items-center gap-2 px-6 py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.15em] transition-all duration-300 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 hover:border-teal-200 shadow-sm"
+                >
+                  <Download size={18} strokeWidth={2.5} className="text-teal-500" />
+                  Download Stock Audit (.CSV)
+                </button>
               </>
             )}
 
@@ -874,7 +900,10 @@ const MedicineEntry = () => {
                         </td>
                       </tr>
                       {groupedTotalMeds[categoryName].map((med) => (
-                        <tr key={med.uqid} className="hover:bg-teal-50/40 transition-all group">
+                        <tr
+                          key={med.uqid}
+                          className={`transition-all group ${med.is_active ? 'hover:bg-teal-50/40' : 'bg-slate-50/50 opacity-55 hover:opacity-100'}`}
+                        >
                           <td className="px-4 py-4">
                             {editingMedId === med.uqid ? (
                               <input
@@ -924,6 +953,11 @@ const MedicineEntry = () => {
                                 <span className="text-xs text-slate-600 font-extrabold uppercase tracking-wider px-2 py-0.5 bg-slate-50 rounded-md border border-slate-100">
                                   {med.formulation || 'Generic Formulation'}
                                 </span>
+                                {!med.is_active && (
+                                  <span className="text-[10px] font-black uppercase tracking-wider text-red-600 bg-red-50 px-2.5 py-1 rounded border border-red-200">
+                                    Inactive
+                                  </span>
+                                )}
                               </div>
                             )}
                           </td>
@@ -1010,13 +1044,23 @@ const MedicineEntry = () => {
                                     Edit
                                   </button>
                                 )}
-                                <button
-                                  onClick={() => handleDeleteMedicine(med.uqid, med.name)}
-                                  className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
-                                  title="Delete Medicine"
-                                >
-                                  Delete
-                                </button>
+                                {med.is_active ? (
+                                  <button
+                                    onClick={() => handleDeleteMedicine(med.uqid, med.name)}
+                                    className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
+                                    title="Delete Medicine (deactivates it)"
+                                  >
+                                    Delete
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => handleToggleStatus(med)}
+                                    className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
+                                    title="Reactivate Medicine"
+                                  >
+                                    Reactivate
+                                  </button>
+                                )}
                               </div>
                             </div>
                           </td>
@@ -1048,14 +1092,12 @@ const MedicineEntry = () => {
                 <tr className="bg-slate-50 border-b border-slate-100 text-[12px] font-black uppercase tracking-wide text-slate-600">
                   <th className="px-3 py-4">UQID</th>
                   <th className="px-3 py-4">Medication Name</th>
-                  <th className="px-3 py-4">Formulation</th>
                   <th className="px-3 py-4">Total Stock</th>
                   <th className="px-3 py-4 max-w-[130px] leading-snug">Current Month Stock</th>
                   <th className="px-3 py-4 max-w-[130px] leading-snug">Medicines Issued</th>
                   <th className="px-3 py-4">Unit Cost</th>
                   <th className="px-3 py-4">Total Cost</th>
                   <th className="px-3 py-4">Stock Balance</th>
-                  <th className="px-3 py-4">Returned</th>
                   <th className="px-3 py-4 text-right">Actions</th>
                 </tr>
               </thead>
@@ -1064,7 +1106,7 @@ const MedicineEntry = () => {
                   sortedCampCategories.map((categoryName) => (
                     <React.Fragment key={categoryName}>
                       <tr className="bg-slate-100/60 border-y border-slate-200">
-                        <td colSpan="11" className="px-8 py-3.5">
+                        <td colSpan="9" className="px-8 py-3.5">
                           <div className="flex items-center justify-center gap-3">
                             <span className="font-extrabold text-[11px] text-teal-800 uppercase tracking-[0.2em] font-sans">
                               {categoryName}
@@ -1131,11 +1173,6 @@ const MedicineEntry = () => {
                                 </button>
                               </div>
                             )}
-                          </td>
-                          <td className="px-4 py-4">
-                            <span className="text-sm font-bold text-slate-600">
-                              {stock.formulation || 'Generic Formulation'}
-                            </span>
                           </td>
                           <td className="px-4 py-4">
                             <div className="flex flex-col">
@@ -1205,13 +1242,6 @@ const MedicineEntry = () => {
                               </span>
                             </div>
                           </td>
-                          <td className="px-4 py-4">
-                            <div className="flex items-center gap-3">
-                              <span className="w-10 h-10 flex items-center justify-center bg-teal-50 text-teal-600 rounded-xl font-black font-data border border-teal-100 text-sm">
-                                {stock.returned_stock}
-                              </span>
-                            </div>
-                          </td>
                           <td className="px-4 py-4 text-right">
                             <div className="flex items-center justify-end gap-2">
                               <div className="flex items-center bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
@@ -1248,7 +1278,7 @@ const MedicineEntry = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="11" className="px-8 py-24 text-center text-slate-400 font-bold">No records found for camp allocation</td>
+                    <td colSpan="9" className="px-8 py-24 text-center text-slate-400 font-bold">No records found for camp allocation</td>
                   </tr>
                 )}
               </tbody>

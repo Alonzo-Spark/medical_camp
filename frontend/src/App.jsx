@@ -5,7 +5,6 @@ import Layout from './components/Layout';
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Vitals = lazy(() => import('./pages/Vitals'));
 const PatientProfile = lazy(() => import('./pages/PatientProfile'));
-const Inventory = lazy(() => import('./pages/Inventory'));
 const PatientRegistration = lazy(() => import('./pages/PatientRegistration'));
 const AdminLogin = lazy(() => import('./pages/AdminLogin'));
 const MedicineEntry = lazy(() => import('./pages/MedicineEntry'));
@@ -45,7 +44,6 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/vitals" element={<Vitals />} />
             <Route path="/patient" element={<PatientProfile />} />
-            <Route path="/inventory" element={<Inventory />} />
             <Route path="/register" element={<PatientRegistration />} />
             <Route path="/register-old" element={<OldPatientRegistration />} />
             <Route path="/medicine-entry" element={<MedicineEntry />} />

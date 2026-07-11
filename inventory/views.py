@@ -287,8 +287,9 @@ def export(request):
     response['Content-Disposition'] = (
         'attachment; filename="stock_list.csv"'
     )
+    # Exclude inactive (soft-deleted) medicines from the export.
     # pyrefly: ignore [missing-attribute]
-    meds = Medicine.objects.order_by('uqid')
+    meds = Medicine.objects.filter(is_active=True).order_by('uqid')
     writer = csv.writer(response)
     writer.writerow([
         'UQID',
@@ -560,8 +561,11 @@ def api_get_camps(request):
 
 @api_view(['GET'])
 def api_get_medicines(request):
+    # Return both active and inactive medicines so the UI can show a complete
+    # ledger of assigned UQIDs (inactive ones are rendered faded). Exports still
+    # exclude inactive rows — see the `export` view.
     # pyrefly: ignore [missing-attribute]
-    medicines = Medicine.objects.filter(is_active=True).order_by('uqid')
+    medicines = Medicine.objects.order_by('uqid')
     serializer = MedicineSerializer(medicines, many=True)
     return Response(serializer.data)
 
@@ -3052,10 +3056,31 @@ def api_delete_medicine(request):
         
         medicine.is_active = False
         medicine.save()
-        
+
         return Response({
             'status': 'success',
             'message': f'Medicine {medicine.name} deleted successfully.'
+        })
+    except Exception as e:
+        return Response({'status': 'error', 'message': str(e)}, status=400)
+
+
+@api_view(['POST'])
+def api_toggle_medicine_status(request):
+    """Flip a medicine's is_active flag (reactivate a soft-deleted medicine or
+    deactivate an active one), keyed by uqid."""
+    try:
+        data = request.data
+        uqid = data.get('uqid')
+        medicine = get_object_or_404(Medicine, uqid=uqid)
+
+        medicine.is_active = not medicine.is_active
+        medicine.save()
+
+        return Response({
+            'status': 'success',
+            'message': f'Medicine {medicine.name} marked as {"Active" if medicine.is_active else "Inactive"}.',
+            'is_active': medicine.is_active,
         })
     except Exception as e:
         return Response({'status': 'error', 'message': str(e)}, status=400)

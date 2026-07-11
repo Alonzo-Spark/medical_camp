@@ -3,7 +3,6 @@ import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom';
 import {
   UserCircle,
   Activity,
-  Pill,
   Stethoscope,
   Heart,
   LogOut,
@@ -69,7 +68,6 @@ const Layout = () => {
       '/register': 'Patient Registration',
       '/register-old': 'Medical Fulfillment',
       '/patient': 'Patient Profile',
-      '/inventory': 'Stock Inventory',
       '/medicine-entry': 'Stock Entry',
       '/camp-registration': 'Camp Registration',
       '/camp-patients': 'Camp Patients List',
@@ -147,7 +145,6 @@ const Layout = () => {
             <SidebarLink to="/doctor-consultation-log" icon={FileText} label="Doctor Consultation Log" active={location.pathname === '/doctor-consultation-log'} />
             <SidebarLink to="/issued-tests" icon={FlaskConical} label="Issued Tests Tracker" active={location.pathname === '/issued-tests'} />
 
-            <SidebarLink to="/inventory" icon={Pill} label="Inventory" active={location.pathname === '/inventory'} />
             <SidebarLink to="/medicine-entry" icon={PlusSquare} label="Stock Entry" active={location.pathname === '/medicine-entry'} />
 
             {userRole === 'main_admin' && (
