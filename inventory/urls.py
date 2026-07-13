@@ -79,5 +79,7 @@ urlpatterns = [
     path('api/categories/update', api_update_category),
     path('api/categories/delete', api_delete_category),
     path('api/delete_medicine', api_delete_medicine),
+    path('api/permanently_delete_medicine', api_permanently_delete_medicine),
+    path('api/delete_all_inactive_medicines', api_delete_all_inactive_medicines),
     path('api/toggle_medicine_status', api_toggle_medicine_status),
 ]

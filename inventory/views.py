@@ -3278,6 +3278,81 @@ def api_toggle_medicine_status(request):
         })
     except Exception as e:
         return Response({'status': 'error', 'message': str(e)}, status=400)
+
+
+def _hard_delete_medicine_rows(medicine):
+    """Permanently remove a medicine and everything referencing it.
+
+    Deletes in an explicit order so the PatientMedicineIssue post_delete signal
+    (which touches CampWiseStock) only ever runs while the medicine still exists,
+    then removes the camp stock rows, then the medicine itself. Returns counts.
+    """
+    # pyrefly: ignore [missing-attribute]
+    issue_count = PatientMedicineIssue.objects.filter(medicine=medicine).count()
+    # pyrefly: ignore [missing-attribute]
+    stock_count = CampWiseStock.objects.filter(medicine=medicine).count()
+    # pyrefly: ignore [missing-attribute]
+    PatientMedicineIssue.objects.filter(medicine=medicine).delete()
+    # pyrefly: ignore [missing-attribute]
+    CampWiseStock.objects.filter(medicine=medicine).delete()
+    medicine.delete()
+    return issue_count, stock_count
+
+
+@api_view(['POST'])
+@transaction.atomic
+def api_permanently_delete_medicine(request):
+    """Permanently delete a single INACTIVE medicine from the database.
+
+    Only medicines already marked inactive can be hard-deleted, so an active
+    medicine must be deactivated (soft-deleted) first. Cascades to the medicine's
+    camp stock rows and patient medicine-issue history.
+
+    Body: { uqid }
+    """
+    try:
+        uqid = request.data.get('uqid')
+        medicine = get_object_or_404(Medicine, uqid=uqid)
+        if medicine.is_active:
+            return Response({
+                'status': 'error',
+                'message': f'"{medicine.name}" is active. Deactivate it before permanent deletion.'
+            }, status=400)
+        name = medicine.name
+        issue_count, stock_count = _hard_delete_medicine_rows(medicine)
+        return Response({
+            'status': 'success',
+            'message': f'Permanently deleted "{name}".',
+            'removed': {'issues': issue_count, 'camp_stocks': stock_count}
+        })
+    except Exception as e:
+        return Response({'status': 'error', 'message': str(e)}, status=400)
+
+
+@api_view(['POST'])
+@transaction.atomic
+def api_delete_all_inactive_medicines(request):
+    """Permanently delete EVERY inactive medicine from the database."""
+    try:
+        # pyrefly: ignore [missing-attribute]
+        inactive = list(Medicine.objects.filter(is_active=False))
+        total_issues = 0
+        total_stocks = 0
+        for med in inactive:
+            issue_count, stock_count = _hard_delete_medicine_rows(med)
+            total_issues += issue_count
+            total_stocks += stock_count
+        return Response({
+            'status': 'success',
+            'message': f'Permanently deleted {len(inactive)} inactive medicine(s).',
+            'removed': {
+                'medicines': len(inactive),
+                'issues': total_issues,
+                'camp_stocks': total_stocks
+            }
+        })
+    except Exception as e:
+        return Response({'status': 'error', 'message': str(e)}, status=400)
         
 
 

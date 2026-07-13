@@ -137,6 +137,43 @@ const MedicineEntry = () => {
     }
   };
 
+  const handlePermanentlyDeleteMedicine = async (uqid, name) => {
+    if (!window.confirm(
+      `Permanently DELETE "${name}" (UQID: ${uqid}) from the database?\n\n` +
+      `This also removes its camp stock entries and any patient medicine-issue ` +
+      `history for this medicine. This cannot be undone.`
+    )) return;
+    try {
+      const res = await axios.post(`${API_BASE}/permanently_delete_medicine`, { uqid });
+      setSuccessMsg(res.data.message);
+      setTimeout(() => setSuccessMsg(''), 3000);
+      fetchMedicines();
+    } catch (err) {
+      alert(err.response?.data?.message || err.message);
+    }
+  };
+
+  const handleDeleteAllInactive = async () => {
+    const inactiveCount = medicines.filter(m => !m.is_active).length;
+    if (inactiveCount === 0) {
+      alert('There are no inactive medicines to remove.');
+      return;
+    }
+    if (!window.confirm(
+      `Permanently DELETE all ${inactiveCount} inactive medicine(s) from the database?\n\n` +
+      `This also removes their camp stock entries and patient medicine-issue ` +
+      `history. This cannot be undone.`
+    )) return;
+    try {
+      const res = await axios.post(`${API_BASE}/delete_all_inactive_medicines`, {});
+      setSuccessMsg(res.data.message);
+      setTimeout(() => setSuccessMsg(''), 3000);
+      fetchMedicines();
+    } catch (err) {
+      alert(err.response?.data?.message || err.message);
+    }
+  };
+
   const handleToggleStatus = async (med) => {
     try {
       const res = await axios.post(`${API_BASE}/toggle_medicine_status`, { uqid: med.uqid });
@@ -759,6 +796,16 @@ const MedicineEntry = () => {
                   <Download size={18} strokeWidth={2.5} className="text-teal-500" />
                   Download Stock Audit (.CSV)
                 </button>
+                {medicines.some(m => !m.is_active) && (
+                  <button
+                    onClick={handleDeleteAllInactive}
+                    title="Permanently delete all inactive medicines from the database"
+                    className="flex items-center gap-2 px-6 py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.15em] transition-all duration-300 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 hover:border-rose-300 shadow-sm"
+                  >
+                    <AlertTriangle size={18} strokeWidth={2.5} />
+                    Remove Inactive ({medicines.filter(m => !m.is_active).length})
+                  </button>
+                )}
               </>
             )}
 
@@ -1101,13 +1148,22 @@ const MedicineEntry = () => {
                                     Delete
                                   </button>
                                 ) : (
-                                  <button
-                                    onClick={() => handleToggleStatus(med)}
-                                    className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
-                                    title="Reactivate Medicine"
-                                  >
-                                    Reactivate
-                                  </button>
+                                  <>
+                                    <button
+                                      onClick={() => handleToggleStatus(med)}
+                                      className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
+                                      title="Reactivate Medicine"
+                                    >
+                                      Reactivate
+                                    </button>
+                                    <button
+                                      onClick={() => handlePermanentlyDeleteMedicine(med.uqid, med.name)}
+                                      className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition-all shadow-sm text-[10px] font-black uppercase tracking-widest"
+                                      title="Permanently delete this inactive medicine from the database"
+                                    >
+                                      Delete Forever
+                                    </button>
+                                  </>
                                 )}
                               </div>
                             </div>
