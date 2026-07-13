@@ -54,40 +54,25 @@ from .models import (
     ManualPatientRecord
 )
 
-def medicine_outstanding(medicine):
-    """Total qty of `medicine` reserved out to camps but not yet reconciled.
-
-    outstanding = Σ(allocated_stock - settled_used - returned_stock) over all
-    camp stock rows for the medicine. Subtracting this from Medicine.stock gives
-    the quantity still available to allot without over-committing the warehouse.
-    """
-    from django.db.models import Sum
-    agg = CampWiseStock.objects.filter(medicine=medicine).aggregate(
-        alloc=Sum('allocated_stock'),
-        settled=Sum('settled_used'),
-        returned=Sum('returned_stock'),
-    )
-    return (agg['alloc'] or 0) - (agg['settled'] or 0) - (agg['returned'] or 0)
-
-
 def reconcile_camp_stock(camp_stock):
-    """Settle a camp/medicine row against the global master ("Update Balances").
+    """Add a camp/medicine row's leftover stock back to the global master.
 
-    Permanently removes the newly-consumed portion (used_stock not yet settled)
-    from Medicine.stock and releases the unconsumed remainder back to the
-    available pool. Idempotent: running it again with no new usage is a no-op.
-    Returns the (refreshed) Medicine instance.
+    "Update Balances" is the only automatic link between camp allotment and the
+    global count: the non-utilised leftover (allocated_stock - used_stock) is
+    ADDED to Medicine.stock. Allotting to a camp never touches global stock, and
+    the global count is otherwise managed manually.
+
+    Idempotent — `returned_stock` records how much leftover has already been
+    added back, so re-running only applies the difference (e.g. if more medicine
+    was used or allotted since the last update). Returns the Medicine instance.
     """
     medicine = camp_stock.medicine
-    delta = camp_stock.used_stock - camp_stock.settled_used
+    leftover = max(0, camp_stock.allocated_stock - camp_stock.used_stock)
+    delta = leftover - camp_stock.returned_stock
     if delta != 0:
-        # Deduct only what patients actually consumed since the last settle.
-        medicine.stock = medicine.stock - delta
+        medicine.stock = medicine.stock + delta
         medicine.save()
-    camp_stock.settled_used = camp_stock.used_stock
-    # Unconsumed remainder physically returns to the warehouse; mark it returned
-    # so it no longer counts as outstanding and remaining shows zero.
-    camp_stock.returned_stock = max(0, camp_stock.allocated_stock - camp_stock.used_stock)
+    camp_stock.returned_stock = leftover
     camp_stock.save()
     return medicine
 
@@ -606,26 +591,7 @@ def api_get_medicines(request):
     # pyrefly: ignore [missing-attribute]
     medicines = Medicine.objects.order_by('uqid')
     serializer = MedicineSerializer(medicines, many=True)
-
-    # Annotate outstanding (allotted-but-not-reconciled) and available-to-allot
-    # so the UI can show how much of the global stock is still free to allot.
-    from django.db.models import Sum
-    rows = CampWiseStock.objects.values('medicine__uqid').annotate(
-        alloc=Sum('allocated_stock'),
-        settled=Sum('settled_used'),
-        returned=Sum('returned_stock'),
-    )
-    outstanding_map = {
-        r['medicine__uqid']: (r['alloc'] or 0) - (r['settled'] or 0) - (r['returned'] or 0)
-        for r in rows
-    }
-
-    data = serializer.data
-    for m in data:
-        out = outstanding_map.get(m['uqid'], 0)
-        m['outstanding'] = out
-        m['available_to_allot'] = m['stock'] - out
-    return Response(data)
+    return Response(serializer.data)
 
 @api_view(['POST'])
 def api_update_medicine_details(request):
@@ -1744,18 +1710,10 @@ def api_allocate_to_camp(request):
         camp = get_object_or_404(MedicalCamp, id=camp_id)
         medicine = get_object_or_404(Medicine, uqid=uqid)
 
-        # Allotting no longer deducts the global master count. Instead we guard
-        # against reserving more than the warehouse physically holds: the amount
-        # already allotted-but-not-yet-reconciled (outstanding) across every camp
-        # plus this new qty may not exceed the global stock.
-        outstanding = medicine_outstanding(medicine)
-        available_to_allot = medicine.stock - outstanding
-        if qty > available_to_allot:
-            return Response({
-                'status': 'error',
-                'message': f'Insufficient stock in warehouse. Available to allot: {max(0, available_to_allot)}'
-            }, status=400)
-
+        # Camp allotment is intentionally NOT linked to the global stock: you can
+        # allot any quantity regardless of the global count, and Medicine.stock is
+        # left unchanged here. The only automatic link is on "Update Balances",
+        # where the leftover (unused) stock is added back to the global count.
         company_name = data.get('company_name')
         expiry_date = data.get('expiry_date')
 
@@ -1766,7 +1724,6 @@ def api_allocate_to_camp(request):
             defaults={'allocated_stock': 0, 'used_stock': 0}
         )
 
-        # Global Medicine.stock is intentionally NOT changed here.
         camp_stock.allocated_stock += qty
         if company_name:
             camp_stock.company_name = company_name
@@ -1778,8 +1735,7 @@ def api_allocate_to_camp(request):
             'status': 'success',
             'medicine_name': medicine.name,
             'new_total_stock': medicine.stock,
-            'new_camp_stock': camp_stock.allocated_stock,
-            'available_to_allot': medicine.stock - medicine_outstanding(medicine)
+            'new_camp_stock': camp_stock.allocated_stock
         })
     except Exception as e:
         return Response({

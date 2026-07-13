@@ -180,7 +180,6 @@ const MedicineEntry = () => {
           formulation: med.formulation || '',
           category: med.category || 'Uncategorized',
           total_stock: med.stock,
-          available_to_allot: med.available_to_allot !== undefined ? med.available_to_allot : med.stock,
           camp_stock: campData.allocated,
           used_stock: campData.used,
           returned_stock: campData.returned || 0,
@@ -263,9 +262,8 @@ const MedicineEntry = () => {
       setTimeout(() => setSuccessMsg(''), 3000);
       setAllocateQtys(prev => ({ ...prev, [uqid]: '' }));
 
-      // Global stock is unchanged by allotment; refresh both views so the
-      // available-to-allot figure and camp allocation reflect the reservation.
-      fetchMedicines();
+      // Camp allotment is not linked to global stock, so only the camp-wise
+      // view needs refreshing.
       fetchCampStocks(); // Refresh to get correct used/remaining
     } catch (err) {
       alert('Error allocating stock: ' + (err.response?.data?.message || err.message));
@@ -1226,20 +1224,10 @@ const MedicineEntry = () => {
                           </td>
                           <td className="px-4 py-4">
                             <div className="flex flex-col">
-                              {/* Global master count — unchanged by allotment (only
-                                  reconciled on "Update Balances"). */}
+                              {/* Global master count — not linked to camp allotment.
+                                  Only "Update Balances" changes it (adds leftover). */}
                               <span className="text-xl font-black text-slate-800 font-data">
                                 {stock.total_stock}
-                              </span>
-                              {/* Available to allot decreases as stock is reserved. */}
-                              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 mt-0.5">
-                                {allocateQtys[stock.uqid] > 0 ? (
-                                  <span className="text-emerald-600">
-                                    {Math.max(0, stock.available_to_allot - parseInt(allocateQtys[stock.uqid]))} free after
-                                  </span>
-                                ) : (
-                                  <>{stock.available_to_allot} free to allot</>
-                                )}
                               </span>
                             </div>
                           </td>
@@ -1309,7 +1297,7 @@ const MedicineEntry = () => {
                                 />
                                 <button
                                   onClick={() => handleAllocate(stock.uqid)}
-                                  disabled={!selectedCamp || !allocateQtys[stock.uqid] || allocateQtys[stock.uqid] <= 0 || allocateQtys[stock.uqid] > stock.available_to_allot}
+                                  disabled={!selectedCamp || !allocateQtys[stock.uqid] || allocateQtys[stock.uqid] <= 0}
                                   className="p-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-50 disabled:text-slate-200 text-white rounded-lg transition-all shadow-sm"
                                   title="Allocate to Camp"
                                 >
@@ -1321,7 +1309,7 @@ const MedicineEntry = () => {
                                 onClick={() => handleReturn(stock.uqid, stock.medication, stock.remaining_stock)}
                                 disabled={!selectedCamp || stock.remaining_stock <= 0}
                                 className="p-2.5 bg-white border border-slate-200 text-slate-400 hover:text-teal-600 hover:border-teal-200 hover:bg-teal-50 rounded-xl transition-all shadow-sm disabled:opacity-30 disabled:hover:bg-white disabled:hover:border-slate-200 flex items-center justify-center"
-                                title="Update single medication (deduct consumed from global, release the rest)"
+                                title="Update balance (add this medicine's leftover stock back to global)"
                               >
                                 <RefreshCcw size={16} strokeWidth={2.5} />
                               </button>
