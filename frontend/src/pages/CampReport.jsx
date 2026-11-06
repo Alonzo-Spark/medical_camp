@@ -230,6 +230,16 @@ const CampReport = () => {
                                 </table>
                             </div>
                         )}
+                        {reportData.doctors.seen_by_doctor !== undefined && (
+                            <div className="flex flex-wrap justify-between gap-2 px-6 py-4 border-t bg-slate-50 text-sm font-bold">
+                                <span className="text-slate-700">
+                                    Seen by a doctor: <span className="font-black text-slate-900">{reportData.doctors.seen_by_doctor}</span> of {reportData.patients.total}
+                                </span>
+                                <span className={reportData.doctors.no_doctor > 0 ? 'text-amber-600' : 'text-slate-500'}>
+                                    No doctor recorded: <span className="font-black">{reportData.doctors.no_doctor}</span>
+                                </span>
+                            </div>
+                        )}
                     </div>
 
                     {/* Attendance Breakdown Bar Chart */}

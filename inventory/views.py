@@ -392,7 +392,8 @@ def export_camp_stock(request, camp_id):
     return response
 
 def _doctor_patient_counts(camp):
-    """Distinct patients seen per doctor at a camp (logged vitals + manual consultation log)."""
+    """Distinct patients seen per doctor at a camp (logged vitals + manual consultation log).
+    Returns (rows, seen) where seen is the set of patient IDs (as str) seen by any doctor."""
     from .models import ManualPatientRecord
     doctors = {}  # key -> {'dr_id', 'dr_name', 'pids': set}
 
@@ -409,7 +410,13 @@ def _doctor_patient_counts(camp):
         add(mr.doctor.id if mr.doctor else None, mr.doctor_name or (mr.doctor.name if mr.doctor else None), mr.patient_id_string)
 
     rows = [{'dr_id': d['dr_id'], 'dr_name': d['dr_name'], 'patients': len(d['pids'])} for d in doctors.values()]
-    return sorted(rows, key=lambda r: (-r['patients'], r['dr_name']))
+    seen = set().union(*(d['pids'] for d in doctors.values()))
+    return sorted(rows, key=lambda r: (-r['patients'], r['dr_name'])), seen
+
+def _doctor_summary(camp, all_pids):
+    """Doctor rows plus how many of the camp's patients were / weren't seen by any doctor."""
+    rows, seen = _doctor_patient_counts(camp)
+    return rows, len(seen), len({str(p) for p in all_pids} - seen)
 
 def export_camp_report(request, camp_id):
     # pyrefly: ignore [missing-attribute]
@@ -535,8 +542,12 @@ def export_camp_report(request, camp_id):
     # Section: Doctor-wise patient counts
     writer.writerow(['DOCTOR-WISE PATIENTS SEEN'])
     writer.writerow(['Doctor ID', 'Doctor Name', 'Patients Seen'])
-    for d in _doctor_patient_counts(camp):
+    doctor_rows, seen_by_doctor, no_doctor = _doctor_summary(camp, all_pids_summary)
+    for d in doctor_rows:
         writer.writerow([d['dr_id'] or '-', d['dr_name'], d['patients']])
+    writer.writerow([])
+    writer.writerow(['Seen by a doctor', f"{seen_by_doctor} of {total_patients}", "Each patient counted once"])
+    writer.writerow(['No doctor recorded', no_doctor, "Attended but no doctor on vitals or consultation log"])
     writer.writerow([])
     writer.writerow([])
 
@@ -2755,6 +2766,8 @@ def api_get_camp_report(request,camp_id):
         # pyrefly: ignore [missing-attribute]
         total_reports_issued = TestIssue.objects.filter(camp=camp, reports_issued=True).count()
 
+        doctor_rows, seen_by_doctor, no_doctor = _doctor_summary(camp, all_pids)
+
         report_data = {
             "camp_number":camp.number,
             "venue":camp.venue.name,
@@ -2767,7 +2780,9 @@ def api_get_camp_report(request,camp_id):
             "doctors":{
                 "count":total_doctors,
                 "names":doctor_names,
-                "patient_counts":_doctor_patient_counts(camp),
+                "patient_counts":doctor_rows,
+                "seen_by_doctor":seen_by_doctor,
+                "no_doctor":no_doctor,
             },
             "medicine":{
                 "allocated":total_allocated,
