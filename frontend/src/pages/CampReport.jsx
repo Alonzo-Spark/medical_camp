@@ -200,6 +200,38 @@ const CampReport = () => {
                         />
                     </div>
 
+                    {/* Doctor-wise Patients Seen */}
+                    <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                        <h3 className="font-black text-slate-800 text-lg border-b p-6 flex items-center gap-2">
+                            <Stethoscope size={20} className="text-purple-600" />
+                            Doctor-wise Patients Seen
+                        </h3>
+                        {(reportData.doctors.patient_counts || []).length === 0 ? (
+                            <p className="p-6 text-sm text-slate-500 text-center">No doctor consultations recorded for this camp.</p>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left">
+                                    <thead>
+                                        <tr className="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-wider">
+                                            <th className="p-4 pl-6">Doctor</th>
+                                            <th className="p-4">Doctor ID</th>
+                                            <th className="p-4 pr-6 text-right">Patients Seen</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-50">
+                                        {reportData.doctors.patient_counts.map((d, i) => (
+                                            <tr key={d.dr_id || d.dr_name || i}>
+                                                <td className="p-4 pl-6 text-sm font-black text-slate-700">{d.dr_name}</td>
+                                                <td className="p-4 text-xs font-bold text-slate-400">{d.dr_id || '-'}</td>
+                                                <td className="p-4 pr-6 text-right text-lg font-black text-slate-800">{d.patients}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+
                     {/* Attendance Breakdown Bar Chart */}
                     <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
                         <h3 className="font-black text-slate-800 text-lg border-b pb-4 mb-6 text-center">Attendance Breakdown</h3>

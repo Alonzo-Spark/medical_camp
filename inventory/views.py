@@ -391,6 +391,26 @@ def export_camp_stock(request, camp_id):
     
     return response
 
+def _doctor_patient_counts(camp):
+    """Distinct patients seen per doctor at a camp (logged vitals + manual consultation log)."""
+    from .models import ManualPatientRecord
+    doctors = {}  # key -> {'dr_id', 'dr_name', 'pids': set}
+
+    def add(dr_id, dr_name, pid):
+        key = str(dr_id) if dr_id else (dr_name or "Unknown Doctor")
+        d = doctors.setdefault(key, {'dr_id': str(dr_id) if dr_id else None, 'dr_name': dr_name or "Unknown Doctor", 'pids': set()})
+        d['pids'].add(str(pid))
+
+    # pyrefly: ignore [missing-attribute]
+    for v in PatientVitals.objects.filter(camp=camp).values('dr_id', 'dr_name', 'patient_id'):
+        add(v['dr_id'], v['dr_name'], v['patient_id'])
+    # pyrefly: ignore [missing-attribute]
+    for mr in ManualPatientRecord.objects.filter(camp=camp).select_related('doctor'):
+        add(mr.doctor.id if mr.doctor else None, mr.doctor_name or (mr.doctor.name if mr.doctor else None), mr.patient_id_string)
+
+    rows = [{'dr_id': d['dr_id'], 'dr_name': d['dr_name'], 'patients': len(d['pids'])} for d in doctors.values()]
+    return sorted(rows, key=lambda r: (-r['patients'], r['dr_name']))
+
 def export_camp_report(request, camp_id):
     # pyrefly: ignore [missing-attribute]
     camp = MedicalCamp.objects.filter(number=camp_id).first()
@@ -509,6 +529,14 @@ def export_camp_report(request, camp_id):
     writer.writerow(['Doctors On Duty', total_doctors, doctor_names or "None"])
     writer.writerow(['Tests Conducted', total_tests, "Lab investigation requests"])
     writer.writerow(['Reports Issued', total_reports_issued, "Test reports delivered"])
+    writer.writerow([])
+    writer.writerow([])
+
+    # Section: Doctor-wise patient counts
+    writer.writerow(['DOCTOR-WISE PATIENTS SEEN'])
+    writer.writerow(['Doctor ID', 'Doctor Name', 'Patients Seen'])
+    for d in _doctor_patient_counts(camp):
+        writer.writerow([d['dr_id'] or '-', d['dr_name'], d['patients']])
     writer.writerow([])
     writer.writerow([])
 
@@ -2739,6 +2767,7 @@ def api_get_camp_report(request,camp_id):
             "doctors":{
                 "count":total_doctors,
                 "names":doctor_names,
+                "patient_counts":_doctor_patient_counts(camp),
             },
             "medicine":{
                 "allocated":total_allocated,
